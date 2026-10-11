@@ -614,6 +614,22 @@ void Parser::execute() {
     if (!cfg.flags.empty())
         CommandFlags += (CommandFlags.empty() ? "" : " ") + cfg.flags;
 
+    std::string compileFlags, linkFlags;
+
+    std::istringstream iss(CommandFlags);
+    std::string tok;
+    while (iss >> tok) {
+        if (tok.rfind("-l", 0) == 0) {
+            if (!linkFlags.empty())
+                linkFlags += " ";
+            linkFlags += tok;
+        } else {
+            if (!compileFlags.empty())
+                compileFlags += " ";
+            compileFlags += tok;
+        }
+    }
+
     int exitCode = 0;
     double elapsed = 0;
 
@@ -706,7 +722,7 @@ void Parser::execute() {
 
                 if (pcmNeedsRebuild) {
                     std::string pcmCmd = std::format("{} -fdiagnostics-color=always {}{} --precompile \"{}\" -o \"{}\"",
-                                                     comp, langFlag, CommandFlags, file, pcmPath);
+                                                     comp, langFlag, compileFlags, file, pcmPath);
 
                     if (showOutput)
                         hp::printlnCl(std::format("[HelpMake] Precompile Command: {}", pcmCmd), hp::Color::YELLOW);
@@ -725,16 +741,16 @@ void Parser::execute() {
                 }
 
                 objPath = moduleObj;
-                objCmd = std::format("{} -fdiagnostics-color=always {}{} -c \"{}\" -o \"{}\" -MMD -fmodule-file={}={}",
-                                     comp, langFlag, CommandFlags, file, moduleObj, moduleName, pcmPath);
+                objCmd = std::format("{} -fdiagnostics-color=always {} -c \"{}\" -o \"{}\" {} -MMD -fmodule-file={}={}",
+                                     comp, langFlag, file, moduleObj, compileFlags, moduleName, pcmPath);
             } else {
                 objPath = std::format("build/HelpMake/obj/{}.o", baseName);
                 if (comp == "g++") {
-                    objCmd = std::format("{} -fdiagnostics-color=always {} -xc++ -c \"{}\" -o \"{}\" -MMD",
-                                         comp, CommandFlags, file, objPath);
+                    objCmd = std::format("{} -fdiagnostics-color=always -xc++ -c \"{}\" -o \"{}\" {} -MMD",
+                                         comp, file, objPath, compileFlags);
                 } else {
-                    objCmd = std::format("{} -fdiagnostics-color=always {} -c \"{}\" -o \"{}\" -MMD",
-                                         comp, CommandFlags, file, objPath);
+                    objCmd = std::format("{} -fdiagnostics-color=always -c \"{}\" -o \"{}\" {} -MMD",
+                                         comp, file, objPath, compileFlags);
                 }
 
                 if (isClang && !clangModules.empty()) {
@@ -773,9 +789,13 @@ void Parser::execute() {
         }
 
         if (exitCode == 0) {
-            std::string linkCmd = comp + " -fdiagnostics-color=always " + CommandFlags;
+            std::string linkCmd = comp + " -fdiagnostics-color=always ";
+            if (!compileFlags.empty())
+                linkCmd += compileFlags + " ";
             for (const auto &obj : objects)
                 linkCmd += " \"" + obj + "\"";
+            if (!linkFlags.empty())
+                linkCmd += " " + linkFlags;
             linkCmd += " -o \"" + cfg.output + "\"" + (cfg.run ? " && " + cfg.output : "");
 
             if (showOutput) {
@@ -787,8 +807,15 @@ void Parser::execute() {
         }
 
     } else {
-        std::string command = std::format("{} -fdiagnostics-color=always {} {} -o {} {}",
-                                          comp, CommandFlags, cfg.inputFile, cfg.output, (cfg.run ? "&& " + cfg.output : ""));
+        std::string command = comp + " -fdiagnostics-color=always";
+        if (!compileFlags.empty())
+            command += " " + compileFlags;
+        command += " " + cfg.inputFile;
+        if (!linkFlags.empty())
+            command += " " + linkFlags;
+        command += " -o " + cfg.output;
+        if (cfg.run)
+            command += " && " + cfg.output;
 
         if (showOutput)
             hp::printlnCl(std::format("[HelpMake] Real Command: {}", command), hp::Color::YELLOW);
@@ -965,6 +992,22 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
         if (!local.flags.empty())
             CommandFlags += (CommandFlags.empty() ? "" : " ") + local.flags;
 
+        std::string compileFlags, linkFlags;
+
+        std::istringstream iss(CommandFlags);
+        std::string tok;
+        while (iss >> tok) {
+            if (tok.rfind("-l", 0) == 0) {
+                if (!linkFlags.empty())
+                    linkFlags += " ";
+                linkFlags += tok;
+            } else {
+                if (!compileFlags.empty())
+                    compileFlags += " ";
+                compileFlags += tok;
+            }
+        }
+
         std::filesystem::create_directories(r_logDir);
         std::filesystem::create_directories(logDir);
 
@@ -1070,7 +1113,7 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
 
                     if (pcmNeedsRebuild) {
                         std::string pcmCmd = std::format("{} -fdiagnostics-color=always {}{} --precompile \"{}\" -o \"{}\"",
-                                                         comp, langFlag, CommandFlags, file, pcmPath);
+                                                         comp, langFlag, compileFlags, file, pcmPath);
 
                         if (showOutput)
                             hp::printlnCl(std::format("\n[HelpMake] Config '{}': Precompile Command: {}", name, pcmCmd), hp::Color::YELLOW);
@@ -1089,16 +1132,16 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
                     }
 
                     objPath = moduleObj;
-                    objCmd = std::format("{} -fdiagnostics-color=always {}{} -c \"{}\" -o \"{}\" -MMD -fmodule-file={}={}",
-                                         comp, langFlag, CommandFlags, file, moduleObj, moduleName, pcmPath);
+                    objCmd = std::format("{} -fdiagnostics-color=always {} -c \"{}\" -o \"{}\" {} -MMD -fmodule-file={}={}",
+                                         comp, langFlag, file, moduleObj, compileFlags, moduleName, pcmPath);
                 } else {
                     objPath = std::format("build/HelpMake/obj/{}.o", baseName);
                     if (comp == "g++") {
-                        objCmd = std::format("{} -fdiagnostics-color=always {} -xc++ -c \"{}\" -o \"{}\" -MMD",
-                                             comp, CommandFlags, file, objPath);
+                        objCmd = std::format("{} -fdiagnostics-color=always -xc++ -c \"{}\" -o \"{}\" {} -MMD",
+                                             comp, file, objPath, compileFlags);
                     } else {
-                        objCmd = std::format("{} -fdiagnostics-color=always {} -c \"{}\" -o \"{}\" -MMD",
-                                             comp, CommandFlags, file, objPath);
+                        objCmd = std::format("{} -fdiagnostics-color=always -c \"{}\" -o \"{}\" {} -MMD",
+                                             comp, file, objPath, compileFlags);
                     }
 
                     if (isClang && !clangModules.empty()) {
@@ -1138,9 +1181,13 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
             }
 
             if (exitCode == 0) {
-                std::string linkCmd = comp + " -fdiagnostics-color=always " + CommandFlags;
+                std::string linkCmd = comp + " -fdiagnostics-color=always ";
+                if (!compileFlags.empty())
+                    linkCmd += compileFlags + " ";
                 for (const auto &obj : objs)
                     linkCmd += " \"" + obj + "\"";
+                if (!linkFlags.empty())
+                    linkCmd += " " + linkFlags;
                 linkCmd += " -o \"" + local.output + "\"" + (local.run ? " && " + local.output : "");
 
                 if (showOutput) {
@@ -1151,8 +1198,15 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
                 exitCode = std::system(redirectCmd.c_str());
             }
         } else {
-            std::string command = std::format("{} -fdiagnostics-color=always {} {} -o {} {}",
-                                              comp, CommandFlags, local.inputFile, local.output, (local.run ? "&& " + local.output : ""));
+            std::string command = comp + " -fdiagnostics-color=always";
+            if (!compileFlags.empty())
+                command += " " + compileFlags;
+            command += " " + local.inputFile;
+            if (!linkFlags.empty())
+                command += " " + linkFlags;
+            command += " -o " + local.output;
+            if (local.run)
+                command += " && " + local.output;
 
             if (showOutput)
                 hp::printlnCl(std::format("[HelpMake] Config '{}': Real Command: {}", name, command), hp::Color::YELLOW);
