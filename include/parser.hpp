@@ -94,6 +94,7 @@ class Parser {
     void install();
     void Notify(const double &time, bool success = true);
     void parseArgument(Config &config, std::string_view value);
+    void parseTypos(std::filesystem::path filename, std::string_view line, std::string_view value);
 
     std::vector<std::string> getInputFile();
     std::vector<std::string> getInclude();

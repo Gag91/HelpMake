@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <ranges>
 #include <regex>
 #include <sstream>
 #include <string_view>
@@ -28,6 +29,52 @@ static bool similar(std::string_view first, std::string_view second) {
         if (static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(first[i]))) !=
             static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(second[i]))))
             return false;
+    }
+    return true;
+}
+
+static std::string to_lower(std::string_view str) {
+    std::string result(str.data(), str.size());
+    std::ranges::transform(result, result.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return result;
+}
+
+static bool is_typo(std::string_view str1, std::string_view str2) {
+    if (str1 == str2)
+        return false;
+
+    std::string a = to_lower(str1);
+    std::string b = to_lower(str2);
+
+    if (a == b)
+        return true;
+
+    if (a.size() == b.size()) {
+        int errors = 0;
+        for (std::size_t i = 0; i < a.size(); ++i)
+            if (a[i] != b[i] && ++errors >= 2)
+                return false;
+        return errors == 1;
+    }
+
+    if (a.size() > b.size())
+        std::swap(a, b);
+    if (b.size() != a.size() + 1)
+        return false;
+
+    std::size_t i = 0, j = 0;
+    bool skipped = false;
+    while (i < a.size() && j < b.size()) {
+        if (a[i] != b[j]) {
+            if (skipped)
+                return false;
+            skipped = true;
+            ++j;
+        } else {
+            ++i;
+            ++j;
+        }
     }
     return true;
 }
@@ -185,14 +232,40 @@ void Parser::parse() {
     std::string line;
     std::string currentBlock;
 
-    while (std::getline(file, line)) {
+    std::vector<std::string_view> args = {
+        "Compiler:",
+        "Version:",
+        "Output:",
+        "InputFiles:",
+        "Includes:",
+        "Flags:",
+        "Modules:",
+        "Run:",
+        "Arguments:",
+        "InputFiles {",
+        "Includes {",
+        "Flags {",
+        "Fetch {",
+        "Modules {",
+        "PreBuild {",
+        "PostBuild {",
+        "Arguments {",
+        "Config:",
+    };
 
+    std::size_t lines = 0;
+    while (std::getline(file, line)) {
+        ++lines;
         std::size_t hash = line.find('#');
         if (hash != std::string::npos)
             line = line.substr(0, hash);
 
         if (!line.empty() && line.back() == '\r')
             line.pop_back();
+
+        for (const auto &v : args) {
+            parseTypos(filename, line, v);
+        }
 
         if (isConfigSet) {
             for (char c : line) {
@@ -1440,6 +1513,21 @@ void Parser::parseArgument(Config &config, std::string_view value) {
         config.notify = true;
     } else if (similar(value, "quiet")) {
         config.quiet = true;
+    }
+}
+
+void Parser::parseTypos(std::filesystem::path filename, std::string_view line, std::string_view value) {
+    std::string_view final = value;
+    if (final.ends_with(':'))
+        final.remove_suffix(1);
+
+    if (std::size_t pos = final.rfind('{'); pos != std::string_view::npos)
+        final.remove_suffix(2);
+
+    if (is_typo(line, value)) {
+        hp::printlnCl(std::format("[HelpMake] Error: Found '{}' in {}. Did You mean {} ?", line, filename.string(), final), hp::RED);
+        hp::printlnCl("\n[HelpMake] Build Cancelled.", hp::RED);
+        exit(EXIT_FAILURE);
     }
 }
 
