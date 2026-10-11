@@ -58,6 +58,7 @@ class Parser {
     bool isPreBuildSet = false;
     bool isPostBuildSet = false;
     bool isConfigSet = false;
+    bool isArgSet = false;
 
     Config currentConfig;
     std::map<std::string, Config> configs;
@@ -92,6 +93,7 @@ class Parser {
     void generateCompileCommands();
     void install();
     void Notify(const double &time, bool success = true);
+    void parseArgument(Config &config, std::string_view value);
 
     std::vector<std::string> getInputFile();
     std::vector<std::string> getInclude();
@@ -113,5 +115,5 @@ class Parser {
     std::string r_logPath = r_logDir + "/" + baseName + ".txt";
     std::string logPath = logDir + "/" + baseName + ".txt";
 
-    bool needsRebuild(const std::string &src, const std::string &obj);
+    bool needsRebuild(const std::string &src, const std::string &obj, bool rebuild);
 };

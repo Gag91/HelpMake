@@ -18,6 +18,20 @@
 #include <string_view>
 #include <vector>
 
+static bool similar(std::string_view first, std::string_view second) {
+    if (first.size() != second.size())
+        return false;
+    if (first == second)
+        return true;
+
+    for (std::size_t i = 0; i < first.size(); i++) {
+        if (static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(first[i]))) !=
+            static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(second[i]))))
+            return false;
+    }
+    return true;
+}
+
 static bool isDeclaredModule(const std::string &file, const std::vector<std::string> &modules) {
     for (const auto &m : modules) {
         if (std::filesystem::path(m).lexically_normal() == std::filesystem::path(file).lexically_normal())
@@ -191,7 +205,7 @@ void Parser::parse() {
             if (configBraceDepth <= 0) {
                 std::string justAdded = currentConfig.name;
                 configs[justAdded] = currentConfig;
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Saved Config: '{}'\n", justAdded);
                 isConfigSet = false;
                 currentConfig = Config{};
@@ -243,6 +257,8 @@ void Parser::parse() {
 
                 } else if (currentBlock == "PostBuild") {
                     currentConfig.postBuild.push_back(value);
+                } else if (currentBlock == "Argument") {
+                    parseArgument(currentConfig, value);
                 }
                 continue;
             }
@@ -275,24 +291,31 @@ void Parser::parse() {
                 currentBlock = "PostBuild";
                 continue;
             }
+            if (line.find("Arguments {") != std::string::npos) {
+                currentBlock = "Argument";
+                continue;
+            }
 
             std::string value;
-            if (line.find("Compiler:") != std::string::npos) {
+            if (line.find("Arguments:") != std::string::npos) {
+                std::string value = extractValue(line, "Arguments:");
+                parseArgument(currentConfig, value);
+            } else if (line.find("Compiler:") != std::string::npos) {
                 value = extractValue(line, "Compiler:");
                 currentConfig.compiler = value;
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Compiler found in config '{}': '{}'\n", currentConfig.name, value);
 
             } else if (line.find("Version:") != std::string::npos) {
                 value = extractValue(line, "Version:");
                 currentConfig.version = value;
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Version found in config '{}': '{}'\n", currentConfig.name, value);
 
             } else if (line.find("Output:") != std::string::npos) {
                 value = extractValue(line, "Output:");
                 currentConfig.output = value;
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Output found in config '{}': '{}'\n", currentConfig.name, value);
 
             } else if (line.find("Flags:") != std::string::npos) {
@@ -302,7 +325,7 @@ void Parser::parse() {
                 else
                     currentConfig.flags += " " + value;
                 currentConfig.v_Flags.push_back(value);
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Flag found in config '{}': '{}'\n", currentConfig.name, value);
 
             } else if (line.find("InputFiles:") != std::string::npos) {
@@ -312,7 +335,7 @@ void Parser::parse() {
                 else
                     currentConfig.inputFile += " " + value;
                 currentConfig.v_inputFiles.push_back(value);
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Input file found in config '{}': '{}'\n", currentConfig.name, value);
 
             } else if (line.find("Includes:") != std::string::npos) {
@@ -322,18 +345,32 @@ void Parser::parse() {
                 else
                     currentConfig.includes += " " + value;
                 currentConfig.includeFiles.push_back(value);
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Include file found in config '{}': '{}'\n", currentConfig.name, value);
 
             } else if (line.find("Run:") != std::string::npos) {
                 currentConfig.run = true;
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Run command found in config '{}'\n", currentConfig.name);
             }
             continue;
         }
 
-        if (line.find("Compiler:") != std::string::npos) {
+        if (line.find("Arguments:") != std::string::npos) {
+            std::string value = extractValue(line, "Arguments:");
+            parseArgument(cfg, value);
+        } else if (line.find("Arguments {") != std::string::npos) {
+            isArgSet = true;
+        } else if (line.find("}") != std::string::npos && isArgSet) {
+            isArgSet = false;
+        } else if (isArgSet) {
+            std::string value = trim(line);
+            if (!value.empty()) {
+                if (cfg.debug)
+                    hp::printlnCl(std::format("Found Argument: {}", value), hp::Color::YELLOW);
+                parseArgument(cfg, value);
+            }
+        } else if (line.find("Compiler:") != std::string::npos) {
             std::string value = extractValue(line, "Compiler:");
             if (cfg.compiler.empty())
                 cfg.compiler = value;
@@ -343,16 +380,16 @@ void Parser::parse() {
                 exit(EXIT_FAILURE);
             }
 
-            if (cfg.verbose)
-                std::cout << std::format("Founded Compiler: '{}'\n", cfg.compiler);
+            if (cfg.debug)
+                std::cout << std::format("Found Compiler: '{}'\n", cfg.compiler);
         } else if (line.find("Version:") != std::string::npos) {
             cfg.version = extractValue(line, "Version:");
             if (cfg.version.empty()) {
                 hp::printlnCl("Error: Version not specified in the file.", hp::Color::RED);
                 exit(EXIT_FAILURE);
             }
-            if (cfg.verbose)
-                std::cout << std::format("Founded Version: '{}'\n", cfg.version);
+            if (cfg.debug)
+                std::cout << std::format("Found Version: '{}'\n", cfg.version);
         } else if (line.find("Output:") != std::string::npos) {
             std::string value = extractValue(line, "Output:");
             if (cfg.output.empty())
@@ -365,8 +402,8 @@ void Parser::parse() {
 #endif
                 hp::printlnCl(std::format("Warning: No output file specified. Using default: {}", cfg.output), hp::Color::YELLOW);
             }
-            if (cfg.verbose)
-                std::cout << std::format("Founded Output: '{}'\n", cfg.output);
+            if (cfg.debug)
+                std::cout << std::format("Found Output: '{}'\n", cfg.output);
         } else if (line.find("InputFiles:") != std::string::npos) {
             std::string value = extractValue(line, "InputFiles:");
             cfg.inputFile += (cfg.inputFile.empty() ? "" : " ") + value;
@@ -379,8 +416,8 @@ void Parser::parse() {
             if (!value.empty()) {
                 cfg.inputFile += (cfg.inputFile.empty() ? "" : " ") + value;
                 cfg.v_inputFiles.push_back(value);
-                if (cfg.verbose)
-                    std::cout << std::format("Founded Input Files: '{}'\n", cfg.inputFile);
+                if (cfg.debug)
+                    std::cout << std::format("Found Input Files: '{}'\n", cfg.inputFile);
             }
 
         } else if (line.find("Includes:") != std::string::npos) {
@@ -390,8 +427,8 @@ void Parser::parse() {
             isIncludeSet = true;
         } else if (line.find("}") != std::string::npos && isIncludeSet) {
             isIncludeSet = false;
-            if (cfg.verbose) {
-                std::cout << "Founded Include Files:\n";
+            if (cfg.debug) {
+                std::cout << "Found Include Files:\n";
                 for (const auto &vec : cfg.includeFiles)
                     std::cout << std::format("- {}\n", vec == "." ? "[root]" : vec);
             }
@@ -406,8 +443,8 @@ void Parser::parse() {
             isFlagsSet = true;
         } else if (line.find("}") != std::string::npos && isFlagsSet) {
             isFlagsSet = false;
-            if (cfg.verbose) {
-                std::cout << "Founded Flags:\n";
+            if (cfg.debug) {
+                std::cout << "Found Flags:\n";
                 for (const auto &vec : cfg.v_Flags)
                     std::cout << std::format("- {}\n", vec);
             }
@@ -419,8 +456,8 @@ void Parser::parse() {
             }
         } else if (line.find("Flags:") != std::string::npos) {
             cfg.flags += " " + extractValue(line, "Flags:");
-            if (cfg.verbose)
-                std::cout << std::format("Founded Flags: '{}'\n", cfg.flags);
+            if (cfg.debug)
+                std::cout << std::format("Found Flags: '{}'\n", cfg.flags);
 
         } else if (line.find("Fetch {") != std::string::npos) {
             isFetchSet = true;
@@ -443,14 +480,14 @@ void Parser::parse() {
                 cfg.modules = value;
             else
                 cfg.modules += " " + value;
-            if (cfg.verbose)
-                std::cout << std::format("Founded Modules: {}\n", value);
+            if (cfg.debug)
+                std::cout << std::format("Found Modules: {}\n", value);
         } else if (line.find("Modules {") != std::string::npos) {
             isModulesSet = true;
         } else if (line.find("}") != std::string::npos && isModulesSet) {
             isModulesSet = false;
-            if (cfg.verbose) {
-                std::cout << "Founded Modules:\n";
+            if (cfg.debug) {
+                std::cout << "Found Modules:\n";
                 for (const auto &m : cfg.v_Modules)
                     std::cout << std::format("- {}\n", m);
             }
@@ -475,7 +512,7 @@ void Parser::parse() {
                     cfg.Precmd = value;
                 else
                     cfg.Precmd += " && " + value;
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Pre-build command: {}\n", value);
                 cfg.v_Precmd.push_back(value);
             }
@@ -490,7 +527,7 @@ void Parser::parse() {
                     cfg.Postcmd = value;
                 else
                     cfg.Postcmd += " && " + value;
-                if (cfg.verbose)
+                if (cfg.debug)
                     std::cout << std::format("Post-build command: {}\n", value);
                 cfg.v_Postcmd.push_back(value);
             }
@@ -510,8 +547,8 @@ void Parser::parse() {
             currentConfig = Config{};
             currentConfig.name = name;
             configBraceDepth = 1;
-            if (cfg.verbose)
-                std::cout << std::format("\nFounded Config: '{}'\n", name);
+            if (cfg.debug)
+                std::cout << std::format("\nFound Config: '{}'\n", name);
         }
     }
 
@@ -543,13 +580,14 @@ void Parser::execute() {
     }
 
     bool isClang = (comp == "clang++" || comp == "clang");
+    bool showOutput = cfg.verbose || cfg.debug;
 
     if (cfg.json) {
         Parser::generateCompileCommands();
     }
 
     if (!cfg.Precmd.empty()) {
-        if (cfg.verbose)
+        if (showOutput)
             hp::printlnCl(std::format("Running pre-build command: {}", cfg.Precmd), hp::Color::CYAN);
         int error = std::system(cfg.Precmd.c_str());
         if (error == -1) {
@@ -560,7 +598,7 @@ void Parser::execute() {
             hp::printlnCl(std::format("Error: Pre-build command failed (exit code {}).", error), hp::Color::RED);
             exit(EXIT_FAILURE);
         }
-        if (cfg.verbose)
+        if (showOutput)
             hp::printlnCl("Pre-build command executed successfully.", hp::Color::GREEN);
     }
 
@@ -595,7 +633,7 @@ void Parser::execute() {
                 std::string moduleBase = std::filesystem::path(m).stem().string();
                 clangModules[moduleName] = "build/HelpMake/modules/" + moduleBase + ".pcm";
             }
-            if (cfg.verbose && !clangModules.empty()) {
+            if (showOutput && !clangModules.empty()) {
                 std::cout << "[HelpMake] Clang modules detected:\n";
                 for (const auto &[name, path] : clangModules)
                     std::cout << std::format("  {} -> {}\n", name, path);
@@ -631,13 +669,15 @@ void Parser::execute() {
                            return isModule(s) || isDeclaredModule(s, cfg.v_Modules);
                        });
 
-        if (cfg.debug) {
-            hp::printlnCl(std::format("[HelpMake] {} files to check:", expandedFiles.size()), hp::Color::YELLOW);
+        if (showOutput) {
+            hp::printlnCl(std::format("\n[HelpMake] {} files to check:", expandedFiles.size()), hp::Color::YELLOW);
             for (const auto &file : expandedFiles) {
                 std::string tag = isModule(file) ? "[Module] " : "";
                 hp::printlnCl(std::format("- {}{}", tag, file), hp::Color::YELLOW);
             }
             std::cout << '\n';
+            if (cfg.rebuild)
+                hp::printlnCl("[HelpMake] Rebuilding forced, ignoring timestamps.", hp::Color::YELLOW);
         }
 
         std::vector<std::string> objects;
@@ -668,15 +708,19 @@ void Parser::execute() {
                     std::string pcmCmd = std::format("{} -fdiagnostics-color=always {}{} --precompile \"{}\" -o \"{}\"",
                                                      comp, langFlag, CommandFlags, file, pcmPath);
 
-                    if (cfg.debug)
+                    if (showOutput)
                         hp::printlnCl(std::format("[HelpMake] Precompile Command: {}", pcmCmd), hp::Color::YELLOW);
 
                     std::string redirectCmd = std::format("{} > \"{}\" 2>&1", pcmCmd, r_logPath);
+                    auto objTimer = hp::startTimer();
                     exitCode = std::system(redirectCmd.c_str());
-
+                    double objElapsed = hp::stopTimer(objTimer);
                     if (exitCode != 0) {
                         hp::printlnCl(std::format("[HelpMake] Failed to precompile: {}", file), hp::Color::RED);
                         break;
+                    }
+                    if (showOutput || cfg.time) {
+                        hp::printlnCl(std::format("[HelpMake] Compiled '{}' in {}s", file, objElapsed), hp::Color::YELLOW);
                     }
                 }
 
@@ -685,8 +729,13 @@ void Parser::execute() {
                                      comp, langFlag, CommandFlags, file, moduleObj, moduleName, pcmPath);
             } else {
                 objPath = std::format("build/HelpMake/obj/{}.o", baseName);
-                objCmd = std::format("{} -fdiagnostics-color=always {} -c \"{}\" -o \"{}\" -MMD",
-                                     comp, CommandFlags, file, objPath);
+                if (comp == "g++") {
+                    objCmd = std::format("{} -fdiagnostics-color=always {} -xc++ -c \"{}\" -o \"{}\" -MMD",
+                                         comp, CommandFlags, file, objPath);
+                } else {
+                    objCmd = std::format("{} -fdiagnostics-color=always {} -c \"{}\" -o \"{}\" -MMD",
+                                         comp, CommandFlags, file, objPath);
+                }
 
                 if (isClang && !clangModules.empty()) {
                     for (const auto &[name, path] : clangModules) {
@@ -695,26 +744,29 @@ void Parser::execute() {
                 }
             }
 
-            if (!needsRebuild(file, objPath)) {
-                if (cfg.debug) {
+            if (!needsRebuild(file, objPath, cfg.rebuild)) {
+                if (showOutput) {
                     hp::printlnCl(std::format("[HelpMake] Skip (up to date): {}", file), hp::Color::YELLOW);
-                    std::cout << '\n';
                 }
                 objects.push_back(objPath);
                 continue;
             }
 
-            if (cfg.debug) {
-                hp::printlnCl(std::format("[HelpMake] Object Command: {}", objCmd), hp::Color::YELLOW);
-                std::cout << '\n';
+            if (showOutput) {
+                hp::printlnCl(std::format("\n[HelpMake] Object Command: {}", objCmd), hp::Color::YELLOW);
             }
 
             std::string redirectCmd = std::format("{} > \"{}\" 2>&1", objCmd, r_logPath);
+            auto objTime = hp::startTimer();
             exitCode = std::system(redirectCmd.c_str());
-
+            double objElapsed = hp::stopTimer(objTime);
             if (exitCode != 0) {
-                hp::printlnCl(std::format("[HelpMake] Failed to compile: {}", file), hp::Color::RED);
+                hp::printlnCl(std::format("\n[HelpMake] Failed to compile: {}", file), hp::Color::RED);
                 break;
+            }
+
+            if (showOutput || cfg.time) {
+                hp::printlnCl(std::format("[HelpMake] Compiled '{}' in {}s", file, objElapsed), hp::Color::YELLOW);
             }
 
             objects.push_back(objPath);
@@ -726,9 +778,8 @@ void Parser::execute() {
                 linkCmd += " \"" + obj + "\"";
             linkCmd += " -o \"" + cfg.output + "\"" + (cfg.run ? " && " + cfg.output : "");
 
-            if (cfg.debug) {
+            if (showOutput) {
                 hp::printlnCl(std::format("\n[HelpMake] Link Command: {}", linkCmd), hp::Color::YELLOW);
-                std::cout << '\n';
             }
 
             std::string redirectCmd = std::format("{} > \"{}\" 2>&1", linkCmd, r_logPath);
@@ -739,7 +790,7 @@ void Parser::execute() {
         std::string command = std::format("{} -fdiagnostics-color=always {} {} -o {} {}",
                                           comp, CommandFlags, cfg.inputFile, cfg.output, (cfg.run ? "&& " + cfg.output : ""));
 
-        if (cfg.debug)
+        if (showOutput)
             hp::printlnCl(std::format("[HelpMake] Real Command: {}", command), hp::Color::YELLOW);
 
         std::string redirectCmd = std::format("{} > \"{}\" 2>&1", command, r_logPath);
@@ -764,19 +815,19 @@ void Parser::execute() {
         if (cfg.notify)
             Parser::Notify(elapsed);
 
-        hp::printlnCl(std::format("Compilation successful. Output file: {}", cfg.output), hp::Color::GREEN);
-        if (!result.empty() && cfg.verbose)
+        hp::printlnCl(std::format("\nCompilation successful. Output file: {}", cfg.output), hp::Color::GREEN);
+        if (!result.empty() && showOutput)
             std::cout << result << "\n";
 
         if (!cfg.Postcmd.empty()) {
-            if (cfg.verbose)
+            if (showOutput)
                 hp::printlnCl(std::format("Running post-build command: {}", cfg.Postcmd), hp::Color::CYAN);
             int Error = std::system(cfg.Postcmd.c_str());
             if (Error == -1 && !cfg.quiet)
                 hp::printlnCl("Warning: Could not launch post-build command.", hp::Color::YELLOW);
             else if (Error != 0 && !cfg.quiet)
                 hp::printlnCl(std::format("Warning: Post-build command failed (exit code {}).", Error), hp::Color::YELLOW);
-            else if (cfg.verbose)
+            else if (showOutput)
                 hp::printlnCl("Post-build command executed successfully.", hp::Color::GREEN);
         }
     } else {
@@ -802,8 +853,8 @@ void Parser::execute() {
         exit(EXIT_FAILURE);
     }
 
-    if (cfg.verbose || cfg.time)
-        std::cout << std::format("Compiling time: {}s\n", elapsed);
+    if (showOutput || cfg.time)
+        std::cout << std::format("[HelpMake] Compiling Time: {}s\n", elapsed);
 }
 
 void Parser::buildCommand() {
@@ -891,6 +942,9 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
         local.rebuild = local.rebuild || cfg.rebuild;
         local.json = local.json || cfg.json;
         local.seperate = local.seperate && cfg.seperate;
+        local.time = local.time || cfg.time;
+
+        bool showOutput = local.verbose || local.debug;
 
         std::string comp = compilerCommand(local.compiler);
         if (comp.empty()) {
@@ -916,13 +970,13 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
 
         hp::printlnCl(std::format("\nBuilding config: {}", name), hp::Color::CYAN);
 
-        if (local.verbose) {
+        if (showOutput) {
             std::string displayCommand = std::format("{} {} {} -o {}", comp, CommandFlags, local.inputFile, local.output);
             std::cout << std::format("Config '{}': Command: {}\n", name, displayCommand);
         }
 
         if (!local.Precmd.empty()) {
-            if (local.verbose)
+            if (showOutput)
                 hp::printlnCl(std::format("Config '{}': Running pre-build command: {}", name, local.Precmd), hp::Color::CYAN);
             std::system(local.Precmd.c_str());
         }
@@ -945,7 +999,7 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
                     std::string moduleBase = std::filesystem::path(m).stem().string();
                     clangModules[moduleName] = "build/HelpMake/modules/" + moduleBase + ".pcm";
                 }
-                if (cfg.verbose && !clangModules.empty()) {
+                if (showOutput && !clangModules.empty()) {
                     std::cout << std::format("[HelpMake] Config '{}': Clang modules detected:\n", name);
                     for (const auto &[modName, modPath] : clangModules)
                         std::cout << std::format("  {} -> {}\n", modName, modPath);
@@ -982,13 +1036,14 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
                                return isModule(s) || isDeclaredModule(s, local.v_Modules);
                            });
 
-            if (cfg.debug) {
-                hp::printlnCl(std::format("[HelpMake] Config '{}': {} files to check:", name, expandedFiles.size()), hp::Color::YELLOW);
+            if (showOutput) {
+                hp::printlnCl(std::format("\n[HelpMake] Config '{}': {} files to check:", name, expandedFiles.size()), hp::Color::YELLOW);
                 for (const auto &file : expandedFiles) {
                     std::string tag = isDeclaredModule(file, local.v_Modules) ? "[Module] " : "";
                     hp::printlnCl(std::format("- {}{}", tag, file), hp::Color::YELLOW);
                 }
-                std::cout << '\n';
+                if (local.rebuild)
+                    hp::printlnCl(std::format("\n[HelpMake] Config '{}': Rebuilding forced, ignoring timestamps.", name), hp::YELLOW);
             }
 
             std::vector<std::string> objs;
@@ -1017,15 +1072,19 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
                         std::string pcmCmd = std::format("{} -fdiagnostics-color=always {}{} --precompile \"{}\" -o \"{}\"",
                                                          comp, langFlag, CommandFlags, file, pcmPath);
 
-                        if (local.debug)
-                            hp::printlnCl(std::format("[HelpMake] Config '{}': Precompile Command: {}", name, pcmCmd), hp::Color::YELLOW);
+                        if (showOutput)
+                            hp::printlnCl(std::format("\n[HelpMake] Config '{}': Precompile Command: {}", name, pcmCmd), hp::Color::YELLOW);
 
                         std::string redirectCmd = std::format("{} > \"{}\" 2>&1", pcmCmd, r_logPath);
+                        auto preTime = hp::startTimer();
                         exitCode = std::system(redirectCmd.c_str());
-
+                        double preElapsed = hp::stopTimer(preTime);
                         if (exitCode != 0) {
                             hp::printlnCl(std::format("\n[HelpMake] Config '{}': Failed to precompile: {}", name, file), hp::Color::RED);
                             break;
+                        }
+                        if (showOutput || local.time) {
+                            hp::printlnCl(std::format("[HelpMake] Config '{}': Precompiled '{}' in {}s", name, file, preElapsed), hp::YELLOW);
                         }
                     }
 
@@ -1034,8 +1093,13 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
                                          comp, langFlag, CommandFlags, file, moduleObj, moduleName, pcmPath);
                 } else {
                     objPath = std::format("build/HelpMake/obj/{}.o", baseName);
-                    objCmd = std::format("{} -fdiagnostics-color=always {} -xc++ -c \"{}\" -o \"{}\" -MMD",
-                                         comp, CommandFlags, file, objPath);
+                    if (comp == "g++") {
+                        objCmd = std::format("{} -fdiagnostics-color=always {} -xc++ -c \"{}\" -o \"{}\" -MMD",
+                                             comp, CommandFlags, file, objPath);
+                    } else {
+                        objCmd = std::format("{} -fdiagnostics-color=always {} -c \"{}\" -o \"{}\" -MMD",
+                                             comp, CommandFlags, file, objPath);
+                    }
 
                     if (isClang && !clangModules.empty()) {
                         for (const auto &[modName, modPath] : clangModules) {
@@ -1044,24 +1108,30 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
                     }
                 }
 
-                if (!needsRebuild(file, objPath)) {
-                    if (local.debug) {
+                if (!needsRebuild(file, objPath, local.rebuild)) {
+                    if (showOutput) {
                         hp::printlnCl(std::format("[HelpMake] Config '{}': Skip (up to date): {}", name, file), hp::Color::YELLOW);
                     }
                     objs.push_back(objPath);
                     continue;
                 }
 
-                if (cfg.debug) {
+                if (showOutput) {
                     hp::printlnCl(std::format("\n[HelpMake] Config '{}': Object Command: {}", name, objCmd), hp::Color::YELLOW);
                 }
 
                 std::string redirectCmd = std::format("{} > \"{}\" 2>&1", objCmd, r_logPath);
+                auto objTimer = hp::startTimer();
                 exitCode = std::system(redirectCmd.c_str());
+                double objElapsed = hp::stopTimer(objTimer);
 
                 if (exitCode != 0) {
-                    hp::printlnCl(std::format("[HelpMake] Config '{}': Failed to compile: {}", name, file), hp::Color::RED);
+                    hp::printlnCl(std::format("\n[HelpMake] Config '{}': Failed to compile: {}", name, file), hp::Color::RED);
                     break;
+                }
+
+                if (showOutput || local.time) {
+                    hp::printlnCl(std::format("[HelpMake] Config '{}': Compiled '{}' in {}s", name, file, objElapsed), hp::YELLOW);
                 }
 
                 objs.push_back(objPath);
@@ -1073,9 +1143,8 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
                     linkCmd += " \"" + obj + "\"";
                 linkCmd += " -o \"" + local.output + "\"" + (local.run ? " && " + local.output : "");
 
-                if (cfg.debug) {
+                if (showOutput) {
                     hp::printlnCl(std::format("\n[HelpMake] Config '{}': Link Command: {}", name, linkCmd), hp::Color::YELLOW);
-                    std::cout << '\n';
                 }
 
                 std::string redirectCmd = std::format("{} > \"{}\" 2>&1", linkCmd, r_logPath);
@@ -1085,7 +1154,7 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
             std::string command = std::format("{} -fdiagnostics-color=always {} {} -o {} {}",
                                               comp, CommandFlags, local.inputFile, local.output, (local.run ? "&& " + local.output : ""));
 
-            if (cfg.debug)
+            if (showOutput)
                 hp::printlnCl(std::format("[HelpMake] Config '{}': Real Command: {}", name, command), hp::Color::YELLOW);
 
             std::string redirectCmd = std::format("{} > \"{}\" 2>&1", command, r_logPath);
@@ -1109,20 +1178,20 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
         double elapsed = hp::stopTimer(timer);
 
         if (exitCode == 0) {
-            if (cfg.notify)
+            if (local.notify)
                 Parser::Notify(elapsed);
-            hp::printlnCl(std::format("Config '{}' compiled successfully. Output: {}", name, local.output), hp::Color::GREEN);
-            hp::printlnCl(std::format("Config '{}' Compiling Time {}s\n", name, elapsed), hp::Color::CYAN);
-            if (!result.empty() && local.verbose)
+            hp::printlnCl(std::format("\nConfig '{}' compiled successfully. Output: {}", name, local.output), hp::Color::GREEN);
+            hp::printlnCl(std::format("[HelpMake] Config '{}'  Compiling Time {}s\n", name, elapsed), hp::Color::CYAN);
+            if (!result.empty() && showOutput)
                 std::cout << result << "\n";
 
             if (!local.Postcmd.empty()) {
-                if (local.verbose)
+                if (showOutput)
                     hp::printlnCl(std::format("Config '{}': Running post-build command: {}", name, local.Postcmd), hp::Color::CYAN);
                 std::system(local.Postcmd.c_str());
             }
         } else {
-            if (cfg.notify)
+            if (local.notify)
                 Parser::Notify(elapsed, false);
             if (!result.empty())
                 std::cout << result << "\n";
@@ -1210,14 +1279,15 @@ void Parser::generateCompileCommands() {
         hp::printlnCl("Generated compile_commands.json", hp::Color::GREEN);
 }
 
-bool Parser::needsRebuild(const std::string &src, const std::string &obj) {
+bool Parser::needsRebuild(const std::string &src, const std::string &obj, bool rebuild) {
     if (!std::filesystem::exists(src)) {
         hp::printlnCl(std::format("[HelpMake] Error: source file not found: {}", src), hp::Color::RED);
         exit(EXIT_FAILURE);
     }
 
-    if (cfg.rebuild)
+    if (rebuild)
         return true;
+
     if (!std::filesystem::exists(obj))
         return true;
 
@@ -1226,14 +1296,14 @@ bool Parser::needsRebuild(const std::string &src, const std::string &obj) {
 
     if (srcTime > objTime) {
         if (cfg.debug)
-            hp::printlnCl(std::format("[Debug] Source file '{}' is newer than object '{}'. Rebuilding.", src, obj), hp::Color::YELLOW);
+            hp::printlnCl(std::format("\n[Debug] Source file '{}' is newer than object '{}'. Rebuilding.", src, obj), hp::Color::YELLOW);
         return true;
     }
 
     std::ifstream depFile(std::filesystem::path(obj).replace_filename(std::filesystem::path(obj).stem().string() + ".d").generic_string());
     if (!depFile.is_open()) {
         if (!cfg.quiet)
-            hp::printlnCl(std::format("Warning: Could not open dependency file for '{}'. Rebuilding.\n", obj), hp::Color::YELLOW);
+            hp::printlnCl(std::format("\nWarning: Could not open dependency file for '{}'. Rebuilding.\n", obj), hp::Color::YELLOW);
         return true;
     }
     std::string line;
@@ -1296,6 +1366,27 @@ void Parser::Notify(const double &time, bool success) {
 #endif
 
     std::system(notifyCmd.c_str());
+}
+
+void Parser::parseArgument(Config &config, std::string_view value) {
+
+    if (similar(value, "Verbose")) {
+        config.verbose = true;
+    } else if (similar(value, "debug")) {
+        config.debug = true;
+    } else if (similar(value, "Run")) {
+        config.run = true;
+    } else if (similar(value, "time")) {
+        config.time = true;
+    } else if (similar(value, "json")) {
+        config.json = true;
+    } else if (similar(value, "rebuild")) {
+        config.rebuild = true;
+    } else if (similar(value, "notify")) {
+        config.notify = true;
+    } else if (similar(value, "quiet")) {
+        config.quiet = true;
+    }
 }
 
 std::vector<std::string> Parser::splitArgs(const std::string &args) {
