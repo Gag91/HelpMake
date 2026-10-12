@@ -19,6 +19,14 @@
 #include <string_view>
 #include <vector>
 
+static std::string_view trim_view(std::string_view s) {
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
+        s.remove_prefix(1);
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back())))
+        s.remove_suffix(1);
+    return s;
+}
+
 static bool similar(std::string_view first, std::string_view second) {
     if (first.size() != second.size())
         return false;
@@ -264,7 +272,7 @@ void Parser::parse() {
             line.pop_back();
 
         for (const auto &v : args) {
-            parseTypos(filename, line, v);
+            parseTypos(lines, filename, line, v);
         }
 
         if (isConfigSet) {
@@ -625,6 +633,13 @@ void Parser::parse() {
         }
     }
 
+    if (!cfg.v_Errors.empty()) {
+        for (const auto &e : cfg.v_Errors) {
+            hp::printCl(e, hp::RED);
+        }
+        hp::printlnCl(std::format("\n[HelpMake] {} Errors generated.\n[HelpMake] Build Failed.", cfg.v_Errors.size()), hp::RED);
+        exit(EXIT_FAILURE);
+    }
     file.close();
 
     if (cfg.compiler.empty()) {
@@ -1458,7 +1473,7 @@ bool Parser::needsRebuild(const std::string &src, const std::string &obj, bool r
             depTime = std::filesystem::last_write_time(depFilePath);
             if (depTime > objTime) {
                 if (cfg.debug)
-                    hp::printlnCl(std::format("[Debug] Dependency '{}' is newer than object '{}'. Rebuilding.", depFilePath, obj), hp::Color::YELLOW);
+                    hp::printlnCl(std::format("\n[Debug] Dependency '{}' is newer than object '{}'. Rebuilding.", depFilePath, obj), hp::Color::YELLOW);
                 return true;
             }
         }
@@ -1516,18 +1531,20 @@ void Parser::parseArgument(Config &config, std::string_view value) {
     }
 }
 
-void Parser::parseTypos(std::filesystem::path filename, std::string_view line, std::string_view value) {
-    std::string_view final = value;
-    if (final.ends_with(':'))
-        final.remove_suffix(1);
+void Parser::parseTypos(std::size_t num, std::filesystem::path filename,
+                        std::string_view line, std::string_view expected) {
+    std::string_view trimmed = trim_view(line);
+    if (trimmed.empty())
+        return;
 
-    if (std::size_t pos = final.rfind('{'); pos != std::string_view::npos)
-        final.remove_suffix(2);
+    std::string_view display = expected;
+    if (display.ends_with(':'))
+        display.remove_suffix(1);
+    else if (display.ends_with('{'))
+        display = trim_view(display.substr(0, display.size() - 1));
 
-    if (is_typo(line, value)) {
-        hp::printlnCl(std::format("[HelpMake] Error: Found '{}' in {}. Did You mean {} ?", line, filename.string(), final), hp::RED);
-        hp::printlnCl("\n[HelpMake] Build Cancelled.", hp::RED);
-        exit(EXIT_FAILURE);
+    if (is_typo(trimmed, expected)) {
+        cfg.v_Errors.push_back(std::format("\n[HelpMake] Error: {}:{}: Found '{}'. Did You mean {} ?", filename.string(), num, trimmed, display));
     }
 }
 

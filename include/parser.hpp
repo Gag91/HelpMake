@@ -29,6 +29,7 @@ struct Config {
     std::vector<std::string> v_Github;
     std::vector<std::string> v_Postcmd;
     std::vector<std::string> v_Precmd;
+    std::vector<std::string> v_Errors;
 
     bool verbose = false;
     bool debug = false;
@@ -94,7 +95,7 @@ class Parser {
     void install();
     void Notify(const double &time, bool success = true);
     void parseArgument(Config &config, std::string_view value);
-    void parseTypos(std::filesystem::path filename, std::string_view line, std::string_view value);
+    void parseTypos(std::size_t num, std::filesystem::path filename, std::string_view line, std::string_view value);
 
     std::vector<std::string> getInputFile();
     std::vector<std::string> getInclude();
