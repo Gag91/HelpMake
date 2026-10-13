@@ -1390,3 +1390,9 @@ std::string Parser::getOutput() {
 std::string Parser::getVersion() {
     return cfg.version;
 }
+std::string Parser::getKind() {
+    return cfg.kind;
+}
+std::map<std::string, Config> &Parser::getConfigs() {
+    return configs;
+}

@@ -107,6 +107,9 @@ class Parser {
     std::vector<std::string> getModules();
     std::vector<std::string> getGithub();
 
+    std::map<std::string, Config> &getConfigs();
+
+    std::string getKind();
     std::string processGithubEntry(const std::string &value);
     std::string getCompiler();
     std::string getOutput();
