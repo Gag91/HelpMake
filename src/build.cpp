@@ -33,6 +33,7 @@ Build Options (use with -b):
   -Sere          Use Sere Compiler
   -C=<compiler>  Use any compiler (e.g., -C=gcc, -C=python)
   -V=<version>   Use any version (e.g., -V=std=c99)
+  --Kind=<kind>  Set target kind: executable (default), static
 
 Build Flags:
   -I<path>       Include a specified directory
@@ -47,6 +48,8 @@ Build Flags:
       --rebuild  Force full rebuild (ignore timestamps)
       --json     Generate compile_commands.json
       --no-sep   Disable incremental build (one-shot compile)
+      --notify   Desktop notification when the build finishes
+      --quiet    Suppress warnings
       --clean    Clean build (delete build/HelpMake directory)
 
 Config Blocks:
@@ -64,6 +67,20 @@ Config Blocks:
     hm -b --config debug
     hm -b --config release
 
+Static Libraries:
+  Set Kind: static in HelpMake.txt to build a static library:
+    Kind:   static
+    Output: build/libmath.a
+  Link against it from another config:
+    Config: app {
+        Output: build/app.exe
+        InputFiles { src/main.cpp }
+        Flags {
+            -Lbuild
+            -lmath
+        }
+    }
+
 Examples:
   Build from HelpMake.txt
     hm -b
@@ -73,6 +90,9 @@ Examples:
 
   Build a config
     hm -b --config release
+
+  Build a static library
+    hm -b --Kind=static -o build/libmath.a
 
   Build from command line (no config file)
     hm -b --nofile -gcc main.cpp -o main.exe
@@ -99,7 +119,7 @@ Examples:
 
     void version() const {
         constexpr std::string_view version = R"(Help_Make (hm) - Build System
-Version: 7.5.0
+Version: 8.0.0
 Author : Xavi99
 Website: https://github.com/Gag91/Help_Make
 This program is licensed under the MIT License. See "--license" for details.
