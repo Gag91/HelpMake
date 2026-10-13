@@ -1,6 +1,7 @@
 #include "hp/borderStyle/border.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
+#include "hp/string/string.hpp"
 #include "parser.hpp"
 #include <filesystem>
 #include <format>
@@ -142,8 +143,6 @@ int main(int argc, char *argv[]) {
     std::vector<std::string> selectedConfigs;
     Build build;
 
-    bool install = false;
-
     if (argc < 2) {
         build.help();
         return 0;
@@ -259,7 +258,7 @@ int main(int argc, char *argv[]) {
                     if (i + 1 < argc && argv[i + 1][0] != '-')
                         value = argv[++i];
                     else {
-                        hp::printlnCl(std::format("Error: Compiler not specified after '-C='."), hp::Color::RED);
+                        hp::printlnCl(std::format("[HelpMake] Error: Compiler not specified after '-C='."), hp::Color::RED);
                         exit(EXIT_FAILURE);
                     }
                 }
@@ -273,7 +272,7 @@ int main(int argc, char *argv[]) {
                     if (i + 1 < argc && argv[i + 1][0] != '-')
                         value = argv[++i];
                     else {
-                        hp::printlnCl(std::format("Error: Version not specified after '-V='."), hp::Color::RED);
+                        hp::printlnCl(std::format("[HelpMake] Error: Version not specified after '-V='."), hp::Color::RED);
                         exit(EXIT_FAILURE);
                     }
                 }
@@ -287,7 +286,7 @@ int main(int argc, char *argv[]) {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     config.output = argv[++i];
                 } else {
-                    hp::printlnCl("Error: Output file not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Output file not specified after '" + std::string(arg) + "'.", hp::Color::RED);
                     exit(EXIT_FAILURE);
                 }
 
@@ -300,7 +299,7 @@ int main(int argc, char *argv[]) {
                         config.v_Flags.push_back(" ");
                     config.v_Flags.push_back(argv[++i]);
                 } else {
-                    hp::printlnCl("Error: Additional flags not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Additional flags not specified after '" + std::string(arg) + "'.", hp::Color::RED);
                     exit(EXIT_FAILURE);
                 }
 
@@ -316,7 +315,7 @@ int main(int argc, char *argv[]) {
                         config.flags += " ";
                     config.flags += "-I" + std::string(argv[++i]);
                 } else {
-                    hp::printlnCl("Error: Include path not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Include path not specified after '" + std::string(arg) + "'.", hp::Color::RED);
                     exit(EXIT_FAILURE);
                 }
 
@@ -332,7 +331,7 @@ int main(int argc, char *argv[]) {
                         config.flags += " ";
                     config.flags += "-L" + std::string(argv[++i]);
                 } else {
-                    hp::printlnCl("Error: Library path not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Library path not specified after '" + std::string(arg) + "'.", hp::Color::RED);
                     exit(EXIT_FAILURE);
                 }
 
@@ -346,7 +345,7 @@ int main(int argc, char *argv[]) {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     filename = std::string(argv[++i]);
                 } else {
-                    hp::printlnCl("Error: filename not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: filename not specified after '" + std::string(arg) + "'.", hp::Color::RED);
                     exit(EXIT_FAILURE);
                 }
 
@@ -354,13 +353,22 @@ int main(int argc, char *argv[]) {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     selectedConfigs.push_back(std::string(argv[++i]));
                 } else {
-                    hp::printlnCl("Error: Config name not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Config name not specified after '" + std::string(arg) + "'.", hp::Color::RED);
                     exit(EXIT_FAILURE);
                 }
             } else if (arg.rfind("--config=", 0) == 0 && arg.size() > 9) {
                 std::string configName = std::string(arg).substr(9);
                 selectedConfigs.push_back(configName);
 
+            } else if (arg == "--Kind") {
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    config.kind = hp::str::to_lower(argv[++i]);
+                } else {
+                    hp::printlnCl(std::format("[HelpMake] Error: Kind not specified after '{}'.", arg), hp::Color::RED);
+                    exit(EXIT_FAILURE);
+                }
+            } else if (arg.rfind("--Kind=", 0) == 0 && arg.size() > 9) {
+                config.kind = hp::str::to_lower(arg.substr(7));
             } else if (arg.rfind("--config-all", 0) == 0 && arg.size() > 9) {
                 config.allCfgs = true;
             } else if (arg.rfind("-f", 0) == 0 && arg.size() > 2) {
@@ -436,12 +444,12 @@ int main(int argc, char *argv[]) {
                 hp::printlnCl("Building from command-line arguments only\n", hp::Color::CYAN);
 
             if (config.compiler.empty()) {
-                hp::printlnCl("Error: No compiler specified. Use -Gcc, -Clang, -MSVC, -Zig, -Sere or -C=<compiler>", hp::Color::RED);
+                hp::printlnCl("[HelpMake] Error: No compiler specified. Use -Gcc, -Clang, -MSVC, -Zig, -Sere or -C=<compiler>", hp::Color::RED);
                 exit(EXIT_FAILURE);
             }
 
             if (config.inputFile.empty()) {
-                hp::printlnCl("Error: No input files specified.", hp::Color::RED);
+                hp::printlnCl("[HelpMake] Error: No input files specified.", hp::Color::RED);
                 exit(EXIT_FAILURE);
             }
 
@@ -464,7 +472,7 @@ int main(int argc, char *argv[]) {
                 parser.execute();
         }
     } else {
-        hp::printlnCl("Error: Invalid command. Use \"--help\" for available commands.", hp::Color::RED);
+        hp::printlnCl("[HelpMake] Error: Invalid command. Use \"--help\" for available commands.", hp::Color::RED);
     }
 
     return 0;

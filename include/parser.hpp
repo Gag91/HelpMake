@@ -1,7 +1,6 @@
 #pragma once
 
 #include <filesystem>
-#include <fstream>
 #include <map>
 #include <string>
 #include <vector>
@@ -18,7 +17,7 @@ struct Config {
     std::string modules;
     std::string Precmd;
     std::string Postcmd;
-    std::string kind = "executable";
+    std::string kind;
 
     std::vector<std::string> preBuild;
     std::vector<std::string> postBuild;

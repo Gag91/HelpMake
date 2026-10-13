@@ -1,9 +1,7 @@
 #include "parser.hpp"
 #include "hp/colors/color.hpp"
-#include "hp/containers/containers.hpp"
 #include "hp/other/other.hpp"
 #include "hp/serializer/serialize.hpp"
-#include "hp/string/string.hpp"
 #include "hp/system/command.hpp"
 #include "hp/time/time.hpp"
 
@@ -13,7 +11,6 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <ranges>
 #include <regex>
 #include <sstream>
 #include <string_view>
@@ -153,7 +150,33 @@ static std::string compilerCommand(const std::string &compiler) {
     return compiler;
 }
 
+static constexpr std::array<std::string_view, 2> validKinds = {
+    "executable",
+    "static",
+};
+
+static bool isValidKind(std::string_view key) {
+    std::string k = to_lower(key);
+
+    for (auto v : validKinds) {
+        if (v == k)
+            return true;
+        if (is_typo(k, v)) {
+            hp::printlnCl(std::format("[HelpMake] Error: Invalid Kind '{}'. Did you mean {} ?", k, v), hp::RED);
+            exit(EXIT_FAILURE);
+        }
+    }
+    return false;
+}
+
 void Parser::parse() {
+
+    if (cfg.kind.empty())
+        cfg.kind = "executable";
+
+    if (!isValidKind(cfg.kind)) {
+        cfg.v_Errors.push_back(std::format("[HelpMake] Error: Invalid Kind '{}'", cfg.kind));
+    }
 
     if (cfg.create) {
         hp::File file;
@@ -438,7 +461,7 @@ void Parser::parse() {
             } else if (line.find("Kind:") != std::string::npos) {
                 value = extractValue(line, "Kind:");
                 currentConfig.kind = to_lower(value);
-                if (currentConfig.kind != "executable" && currentConfig.kind != "static")
+                if (isValidKind(currentConfig.kind))
                     hp::printlnCl(std::format("[HelpMake] Error: {}:{}: Invalid Kind '{}' ", filename.string(), lines, currentConfig.kind), hp::RED);
                 if (cfg.debug)
                     std::cout << std::format("Kind found in config '{}': '{}'\n", currentConfig.name, value);
@@ -624,7 +647,7 @@ void Parser::parse() {
         } else if (line.find("Kind:") != std::string::npos) {
             std::string value = extractValue(line, "Kind:");
             cfg.kind = to_lower(value);
-            if (cfg.kind != "executable" && cfg.kind != "static")
+            if (!isValidKind(cfg.kind))
                 hp::printlnCl(std::format("[HelpMake] Error: {}:{}: Invalid Kind '{}' ", filename.string(), lines, cfg.kind), hp::RED);
             if (cfg.debug)
                 std::cout << std::format("Found Kind: '{}'\n", value);
