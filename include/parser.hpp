@@ -18,6 +18,7 @@ struct Config {
     std::string modules;
     std::string Precmd;
     std::string Postcmd;
+    std::string kind = "executable";
 
     std::vector<std::string> preBuild;
     std::vector<std::string> postBuild;
@@ -96,6 +97,10 @@ class Parser {
     void Notify(const double &time, bool success = true);
     void parseArgument(Config &config, std::string_view value);
     void parseTypos(std::size_t num, std::filesystem::path filename, std::string_view line, std::string_view value);
+    void compileLib();
+    void executeConfig(const Config &c, const std::string &name);
+
+    Config inheritConfig(const Config &child);
 
     std::vector<std::string> getInputFile();
     std::vector<std::string> getInclude();

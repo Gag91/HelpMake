@@ -46,3 +46,29 @@ Config: clang {
         -Wall
     }
 }
+# Static libraries support
+Config: lib {
+    Output: lib.exe
+    InputFiles {
+        test/lib/main.cpp 
+    }
+    Flags {
+        -Wall
+        -Lbuild
+        -lmath
+    }
+}
+# Static library math
+Config: math {
+    Kind: static
+    Output: build/libmath.a
+    InputFiles {
+        test/add.cpp 
+        test/mul.cpp  
+    }  
+         
+    Flags {
+        -Wall
+        -O2
+    }
+}
