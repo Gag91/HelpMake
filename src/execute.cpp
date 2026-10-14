@@ -339,6 +339,67 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         if (c.notify)
             Parser::Notify(elapsed);
 
+        if (!c.v_Copy.empty()) {
+            for (const auto &copy : c.v_Copy) {
+                std::size_t arrow = copy.find("->");
+
+                if (arrow == std::string::npos) {
+                    hp::printlnCl(std::format("\n{} Warning invalid copy value. Missing '->'", tag), hp::YELLOW);
+                    continue;
+                }
+
+                std::string src = trim(copy.substr(0, arrow));
+                std::string dest = trim(copy.substr(arrow + 2));
+                if (dest.empty()) {
+                    hp::printlnCl(std::format("\n{} Warning invalid copy value. Missing value after '->'", tag), hp::YELLOW);
+                    continue;
+                }
+
+                if (src.empty()) {
+                    hp::printlnCl(std::format("\n{} Warning invalid copy value. Missing value before '->'", tag), hp::YELLOW);
+                    continue;
+                }
+
+                try {
+                    if (src.find('*') != std::string::npos) {
+
+                        std::filesystem::path p(copy);
+                        std::string dir = p.parent_path().string();
+                        if (dir.empty())
+                            dir = ".";
+
+                        std::string ext = p.extension().string();
+
+                        for (const auto &entry : std::filesystem::directory_iterator(dir)) {
+                            if (!entry.is_regular_file())
+                                continue;
+                            if (!ext.empty() && entry.path().extension() != ext)
+                                continue;
+
+                            std::filesystem::copy_file(entry.path(), std::filesystem::path(dest) / entry.path().filename(),
+                                                       std::filesystem::copy_options::overwrite_existing);
+                        }
+
+                    } else if (std::filesystem::is_directory(src)) {
+                        std::filesystem::create_directories(dest);
+                        std::filesystem::copy(src, dest, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+                    } else if (std::filesystem::exists(src)) {
+                        std::filesystem::create_directories(dest);
+                        std::filesystem::copy_file(src, std::filesystem::path(dest) / std::filesystem::path(src).filename(),
+                                                   std::filesystem::copy_options::overwrite_existing);
+                    } else {
+                        hp::printlnCl(std::format("{} Error: Copy source '{}' does not exist", tag, src), hp::Color::RED);
+                        hp::printlnCl(std::format("{} Build Failed.", tag), hp::RED);
+                        exit(EXIT_FAILURE);
+                    }
+                } catch (const std::filesystem::filesystem_error &e) {
+                    hp::printlnCl(std::format("{} Copy failed: {}", tag, e.what()), hp::Color::RED);
+                    hp::printlnCl(std::format("{} Build Failed.", tag), hp::RED);
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
         if (isConfig)
             hp::printlnCl(std::format("\nConfig '{}' compiled successfully. Output: {}", name, c.output), hp::Color::GREEN);
         else
@@ -423,6 +484,8 @@ Config Parser::inheritConfig(const Config &child) {
         local.Postcmd = cfg.Postcmd;
     if (local.kind.empty())
         local.kind = cfg.kind;
+    if (local.v_Copy.empty())
+        local.v_Copy = cfg.v_Copy;
 
     local.verbose = local.verbose || cfg.verbose;
     local.debug = local.debug || cfg.debug;

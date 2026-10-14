@@ -198,6 +198,7 @@ struct Config {
     std::vector<std::string> v_Postcmd;
     std::vector<std::string> v_Precmd;
     std::vector<std::string> v_Errors;
+    std::vector<std::string> v_Copy;
 
     bool verbose = false;
     bool debug = false;
@@ -236,6 +237,7 @@ class Parser {
     bool isPostBuildSet = false;
     bool isConfigSet = false;
     bool isArgSet = false;
+    bool isCopySet = false;
 
     Config currentConfig;
     std::map<std::string, Config> configs;

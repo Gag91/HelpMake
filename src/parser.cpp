@@ -122,6 +122,7 @@ void Parser::parse() {
         "Run:",
         "Arguments:",
         "Kind:",
+        "Copy {",
         "InputFiles {",
         "Includes {",
         "Flags {",
@@ -207,7 +208,8 @@ void Parser::parse() {
 
                 } else if (currentBlock == "PreBuild") {
                     currentConfig.preBuild.push_back(value);
-
+                } else if (currentBlock == "Copy") {
+                    currentConfig.v_Copy.push_back(value);
                 } else if (currentBlock == "PostBuild") {
                     currentConfig.postBuild.push_back(value);
                 } else if (currentBlock == "Argument") {
@@ -246,6 +248,10 @@ void Parser::parse() {
             }
             if (line.find("Arguments {") != std::string::npos) {
                 currentBlock = "Argument";
+                continue;
+            }
+            if (line.find("Copy {") != std::string::npos) {
+                currentBlock = "Copy";
                 continue;
             }
 
@@ -416,7 +422,7 @@ void Parser::parse() {
                 cfg.v_Flags.push_back(value);
             }
         } else if (line.find("Flags:") != std::string::npos) {
-            cfg.flags += " " + extractValue(line, "Flags:");
+            cfg.flags += (cfg.flags.empty() ? "" : " ") + extractValue(line, "Flags:");
             if (cfg.debug)
                 std::cout << std::format("Found Flags: '{}'\n", cfg.flags);
 
@@ -499,6 +505,17 @@ void Parser::parse() {
                 hp::printlnCl(std::format("[HelpMake] Error: {}:{}: Invalid Kind '{}' ", filename.string(), lines, cfg.kind), hp::RED);
             if (cfg.debug)
                 std::cout << std::format("Found Kind: '{}'\n", value);
+        } else if (line.find("Copy {") != std::string::npos) {
+            isCopySet = true;
+        } else if (line.find("}") != std::string::npos && isCopySet) {
+            isCopySet = false;
+        } else if (isCopySet) {
+            std::string value = trim(line);
+            if (!value.empty()) {
+                cfg.v_Copy.push_back(value);
+                if (cfg.debug)
+                    std::cout << std::format("Needs Copy: {}\n", value);
+            }
         } else if (line.find("Config:") != std::string::npos) {
             std::string rest = line.substr(line.find("Config:") + 7);
             std::size_t brace = rest.find('{');
