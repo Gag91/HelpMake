@@ -13,6 +13,7 @@
 - **C++20 modules** - GCC and Clang workflows, non-standard extensions supported
 - **Incremental builds** - Only recompiles what changed
 - **Header tracking** - Rebuilds when headers change, via `.d` files
+- **Parallel builds** - `-j N` compiles N files at once
 - **Fetch dependencies** - `Fetch { }` clones git repos into `build/HelpMake/dep/`
 - **PreBuild / PostBuild** - Run commands before and after the build
 - **Per-config arguments** - `Arguments { }` toggles flags per config
@@ -126,6 +127,7 @@ Options:
   -b, --build              Build using HelpMake.txt
   -l, --license            Show license
   -f, --file               Use a custom config file
+  -j, --jobs N   Compile N files in parallel (default: all cores)
   --show                   Show current configuration
   --dump                   Print raw HelpMake.txt
   --create                 Generate HelpMake.txt from args
