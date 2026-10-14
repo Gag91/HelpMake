@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <thread>
 
 class Build {
   public:
@@ -374,6 +375,26 @@ int main(int argc, char *argv[]) {
                     exit(EXIT_FAILURE);
                 }
 
+            } else if (arg == "-j" || arg == "--jobs") {
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    try {
+                        config.jobs = std::stoul(argv[++i]);
+                    } catch (...) {
+                        hp::printlnCl(std::format("Error: Invalid value for '{}'", arg), hp::Color::RED);
+                        exit(EXIT_FAILURE);
+                    }
+                } else {
+                    config.jobs = std::thread::hardware_concurrency();
+                    if (config.jobs == 0)
+                        config.jobs = 1;
+                }
+            } else if (arg.rfind("-j", 0) == 0 && arg.size() > 2) {
+                try {
+                    config.jobs = std::stoul(std::string(arg).substr(2));
+                } catch (...) {
+                    hp::printlnCl(std::format("Error: Invalid value for '-j{}'", std::string(arg).substr(2)), hp::Color::RED);
+                    exit(EXIT_FAILURE);
+                }
             } else if (arg == "--config") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     selectedConfigs.push_back(std::string(argv[++i]));
@@ -384,7 +405,6 @@ int main(int argc, char *argv[]) {
             } else if (arg.rfind("--config=", 0) == 0 && arg.size() > 9) {
                 std::string configName = std::string(arg).substr(9);
                 selectedConfigs.push_back(configName);
-
             } else if (arg == "--Kind") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     config.kind = hp::str::to_lower(argv[++i]);
@@ -424,17 +444,14 @@ int main(int argc, char *argv[]) {
                 filename = std::string(arg) + "HelpMake.txt";
                 if (config.verbose)
                     std::cout << "Build file: " << filename << std::endl;
-
             } else if (arg.find(".txt") != std::string::npos && std::filesystem::is_regular_file(arg)) {
                 filename = std::string(arg);
                 if (config.verbose)
                     std::cout << "Build file: " << filename << std::endl;
-
             } else if (std::filesystem::is_directory(arg)) {
                 filename = std::string(arg) + "/HelpMake.txt";
                 if (config.verbose)
                     std::cout << "Build file: " << filename << std::endl;
-
             } else if (arg.rfind("-", 0) != 0) {
                 if (!config.inputFile.empty())
                     config.inputFile += " ";
