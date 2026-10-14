@@ -1,7 +1,6 @@
 #include "hp/borderStyle/border.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
-#include "hp/string/string.hpp"
 #include "parser.hpp"
 #include <filesystem>
 #include <format>
@@ -409,13 +408,13 @@ int main(int argc, char *argv[]) {
                 selectedConfigs.push_back(configName);
             } else if (arg == "--Kind") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
-                    config.kind = hp::str::to_lower(argv[++i]);
+                    config.kind = to_lower(argv[++i]);
                 } else {
                     hp::printlnCl(std::format("[HelpMake] Error: Kind not specified after '{}'.", arg), hp::Color::RED);
                     exit(EXIT_FAILURE);
                 }
             } else if (arg.rfind("--Kind=", 0) == 0 && arg.size() > 9) {
-                config.kind = hp::str::to_lower(arg.substr(7));
+                config.kind = to_lower(arg.substr(7));
             } else if (arg.rfind("--config-all", 0) == 0 && arg.size() > 9) {
                 config.allCfgs = true;
             } else if (arg.rfind("-f", 0) == 0 && arg.size() > 2) {

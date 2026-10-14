@@ -3,6 +3,7 @@
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
 #include "hp/serializer/serialize.hpp"
+#include "hp/string/inputs.hpp"
 #include "hp/system/command.hpp"
 #include "hp/time/time.hpp"
 
