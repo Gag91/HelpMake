@@ -1,8 +1,12 @@
 #pragma once
+
+#include "hp/other/type_traits.hpp"
 #include "hp/string/inputs.hpp"
 #include <filesystem>
 #include <functional>
 #include <iostream>
+#include <meta>
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -15,7 +19,7 @@ namespace hp {
             std::string result;
             result.reserve(str.size());
             for (char c : str) {
-                result.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+                result.push_back(static_cast<unsigned char>(std::toupper(static_cast<unsigned char>(c))));
             }
             return result;
         }
@@ -25,7 +29,7 @@ namespace hp {
             std::string result;
             result.reserve(str.size());
             for (char c : str) {
-                result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+                result.push_back(static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(c))));
             }
             return result;
         }
@@ -36,7 +40,29 @@ namespace hp {
             using DecayedT = std::remove_cvref_t<T>;
 
             if constexpr (std::is_same_v<DecayedT, std::string>) {
-                return str;
+                std::string result;
+                for (const char &c : str) {
+                    switch (c) {
+                        case '"':
+                            result += "\\\"";
+                            break;
+                        case '\\':
+                            result += "\\\\";
+                            break;
+                        case '\n':
+                            result += "\\n";
+                            break;
+                        case '\t':
+                            result += "\\t";
+                            break;
+                        case '\r':
+                            result += "\\r";
+                            break;
+                        default:
+                            result += c;
+                    }
+                }
+                return result;
 
             } else if constexpr (std::is_same_v<DecayedT, std::string_view>) {
                 return std::string_view(str);
@@ -97,9 +123,136 @@ namespace hp {
                 unsigned long val = std::stoul(str);
                 return static_cast<uint8_t>(val);
 
+            } else if constexpr (std::is_enum_v<DecayedT>) {
+                static constexpr auto members = std::define_static_array(
+                    std::meta::enumerators_of(^^T));
+
+                template for (constexpr auto m : members) {
+                    if (str == std::meta::identifier_of(m)) {
+                        return [:m:];
+                    }
+                }
+
             } else {
                 throw std::runtime_error("Unsupported type");
             }
+        }
+
+        // ----- T to String
+        template <typename T>
+        std::string to_string(const T &value) {
+            using DecayedT = std::remove_cvref_t<T>;
+
+            if constexpr (std::is_same_v<DecayedT, std::string>) {
+                return value;
+
+            } else if constexpr (std::is_same_v<DecayedT, std::string_view>) {
+                return std::string(value);
+
+            } else if constexpr (std::is_same_v<DecayedT, std::filesystem::path>) {
+                return value.string();
+
+            } else if constexpr (std::is_same_v<DecayedT, char>) {
+                return std::string(1, value);
+
+            } else if constexpr (std::is_same_v<DecayedT, bool>) {
+                return value ? "true" : "false";
+
+            } else if constexpr (hp::any_of<DecayedT, short, int, long, long long, unsigned short,
+                                            unsigned int, unsigned long, unsigned long long,
+                                            float, double, long double>()) {
+                return std::to_string(value);
+
+            } else if constexpr (std::is_enum_v<DecayedT>) {
+                static constexpr auto enums = std::define_static_array(std::meta::enumerators_of(^^DecayedT));
+                template for (constexpr auto &e : enums) {
+                    if (value == [:e:]) {
+                        return std::format("{}", std::meta::identifier_of(e));
+                    }
+                }
+                return std::to_string(static_cast<std::underlying_type_t<DecayedT>>(value));
+
+            } else if constexpr (hp::is_weak_ptr_v<DecayedT>) {
+                auto locked = value.lock();
+                if (locked == nullptr)
+                    return "nullptr";
+                return hp::str::to_string(*locked);
+
+            } else if constexpr (hp::is_unique_ptr_v<DecayedT> ||
+                                 hp::is_shared_ptr_v<DecayedT>) {
+                if (value == nullptr)
+                    return "nullptr";
+                return hp::str::to_string(*value);
+
+            } else if constexpr (requires { value.to_string(); }) {
+                return value.to_string();
+
+            } else if constexpr (requires { std::to_string(value); }) {
+                return std::to_string(value);
+
+            } else if constexpr (std::is_enum_v<DecayedT>) {
+                static constexpr auto members = std::define_static_array(
+                    std::meta::enumerators_of(^^T));
+
+                template for (constexpr auto m : members) {
+                    if (value == [:m:]) {
+                        return std::string(std::meta::identifier_of(m));
+                    }
+                }
+            } else {
+                throw std::runtime_error("Unsupported type");
+            }
+        }
+
+        // ----- Similar String
+        template <typename T, typename U>
+        inline bool is_typo(T value1, U value2) {
+            std::string str1, str2;
+            if constexpr (!std::is_same_v<std::decay_t<T>, std::string>) {
+                str1 = hp::str::to_string(value1);
+                str2 = hp::str::to_string(value2);
+            } else {
+                str1 = value1;
+                str2 = value2;
+            }
+
+            if (str1 == str2)
+                return false;
+
+            std::string a = hp::str::to_lower(str1);
+            std::string b = hp::str::to_lower(str2);
+
+            if (a == b)
+                return true;
+
+            int errors = 0;
+            if (a.size() == b.size()) {
+
+                for (std::size_t i = 0; i < a.size(); ++i)
+                    if (a[i] != b[i] && ++errors >= 2)
+                        return false;
+                return true;
+            }
+            if (a.size() > b.size())
+                std::swap(a, b);
+            if (b.size() != a.size() + 1)
+                return false;
+
+            std::size_t i = 0, j = 0;
+            bool skipped = false;
+            while (i < a.size()) {
+                if (a[i] != b[j]) {
+                    if (skipped)
+                        return false;
+                    skipped = true;
+                    ++j;
+                } else {
+                    ++i;
+                    ++j;
+                }
+            }
+
+            return true;
         }
 
         namespace trim {
@@ -168,7 +321,7 @@ namespace hp {
         int consoleWidth = 80;
 #endif
         int msgLen = msg.length() + 2;
-        int totalWidth = consoleWidth;
+        std::size_t totalWidth = consoleWidth;
         int sideLen = (totalWidth - msgLen) / 2;
 
         std::string result;

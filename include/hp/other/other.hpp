@@ -6,7 +6,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
-#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -154,13 +153,9 @@ namespace hp {
     }
 
     inline void setCenter(int row, int width) {
-#ifdef _WIN32
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
         int consoleWidth = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-#else
-        int consoleWidth = 80;
-#endif
         int col = (consoleWidth - width) / 2;
         std::cout << "\033[" << row << ";" << col << "H";
     }
