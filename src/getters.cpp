@@ -30,3 +30,6 @@ std::string Parser::getKind() {
 std::map<std::string, Config> &Parser::getConfigs() {
     return configs;
 }
+std::vector<std::string> Parser::getCopy() {
+    return cfg.v_Copy;
+}

@@ -234,6 +234,7 @@ int main(int argc, char *argv[]) {
         printList("Flags", parser.getFlags());
         printList("Modules", parser.getModules());
         printList("Fetch", parser.getGithub());
+        printList("Copy", parser.getCopy());
 
         const auto &configs = parser.getConfigs();
         if (configs.empty())

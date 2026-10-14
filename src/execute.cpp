@@ -261,10 +261,8 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 
         if (exitCode == 0) {
             int rc = runJobs(jobs, c.jobs);
-            if (rc != 0) {
-                hp::printlnCl(std::format("\n{} Compilation failed.", tag), hp::Color::RED);
+            if (rc != 0)
                 exitCode = rc;
-            }
         }
 
         if (exitCode == 0) {
@@ -722,7 +720,7 @@ void Parser::parseTypos(std::size_t num, std::filesystem::path filename,
     }
 }
 
-int Parser::runJobs(const std::vector<Job> &jobs, std::size_t n) {
+int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
     if (jobs.empty())
         return 0;
     if (n == 0)
@@ -732,11 +730,10 @@ int Parser::runJobs(const std::vector<Job> &jobs, std::size_t n) {
     n = std::min<std::size_t>(n, jobs.size());
 
     std::vector<int> results(n, 0);
-    std::vector<double> times;
+    std::vector<double> times(jobs.size(), 0.0);
     std::vector<std::thread> pool;
     std::size_t chunk = (jobs.size() + n - 1) / n;
 
-    auto compileTime = hp::startTimer();
     for (std::size_t t = 0; t < n; ++t) {
         std::size_t begin = t * chunk;
         std::size_t end = std::min(begin + chunk, jobs.size());
@@ -745,14 +742,28 @@ int Parser::runJobs(const std::vector<Job> &jobs, std::size_t n) {
 
         pool.emplace_back([&, t, begin, end]() {
             for (std::size_t i = begin; i < end; ++i) {
-                const auto &j = jobs[i];
+                auto &j = jobs[i];
                 std::string redirect = std::format("{} > \"{}\" 2>&1", j.cmd, j.logPath);
                 auto timer = hp::startTimer();
                 int rc = std::system(redirect.c_str());
                 double elapsed = hp::stopTimer(timer);
-                times.push_back(elapsed);
+
+                times[i] = elapsed;
+
                 if (rc != 0) {
                     results[t] = rc;
+                    j.failed = true;
+
+                    std::ifstream logFile(j.logPath);
+                    if (logFile.is_open()) {
+                        std::string content((std::istreambuf_iterator<char>(logFile)),
+                                            std::istreambuf_iterator<char>());
+                        if (!content.empty()) {
+                            std::cerr << content;
+                            if (content.back() != '\n')
+                                std::cerr << '\n';
+                        }
+                    }
                     return;
                 }
             }
@@ -762,12 +773,17 @@ int Parser::runJobs(const std::vector<Job> &jobs, std::size_t n) {
     for (auto &th : pool)
         th.join();
 
+    hp::printlnCl("\n[HelpMake] Compile phase:", hp::YELLOW);
+    for (std::size_t i = 0; i < jobs.size(); ++i) {
+        if (jobs[i].failed)
+            hp::printlnCl(std::format("- {} failed to compile", jobs[i].file), hp::RED);
+        else
+            hp::printlnCl(std::format("- {} compiled in {}s", jobs[i].file, times[i]), hp::YELLOW);
+    }
+
     for (int rc : results)
         if (rc != 0)
             return rc;
-    hp::printlnCl("\n[HelpMake] Compile phase:", hp::YELLOW);
-    for (std::size_t i = 0; i < times.size(); ++i) {
-        hp::printlnCl(std::format("- {} compiled in {}s ", jobs[i].file, times[i]), hp::YELLOW);
-    }
+
     return 0;
 }

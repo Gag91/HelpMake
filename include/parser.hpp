@@ -221,6 +221,7 @@ struct Job {
     std::string file;
     std::string cmd;
     std::string logPath;
+    bool failed;
 };
 
 class Parser {
@@ -265,7 +266,7 @@ class Parser {
         void run();
     };
 
-    int runJobs(const std::vector<Job> &jobs, std::size_t num);
+    int runJobs(std::vector<Job> &jobs, std::size_t num);
 
     void parse();
     void execute();
@@ -286,6 +287,7 @@ class Parser {
     std::vector<std::string> getFlags();
     std::vector<std::string> getModules();
     std::vector<std::string> getGithub();
+    std::vector<std::string> getCopy();
 
     std::map<std::string, Config> &getConfigs();
 

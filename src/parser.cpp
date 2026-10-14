@@ -558,6 +558,11 @@ void Parser::parse() {
         hp::printlnCl("Error: InputFile not found in the file.", hp::Color::RED);
         exit(EXIT_FAILURE);
     }
+
+    dotPos = cfg.output.find_last_of('.');
+    baseName = (dotPos != std::string::npos) ? cfg.output.substr(0, dotPos) : cfg.output;
+    r_logPath = r_logDir + "/" + baseName + ".txt";
+    logPath = logDir + "/" + baseName + ".txt";
 }
 
 std::vector<std::string> Parser::splitArgs(const std::string &args) {
