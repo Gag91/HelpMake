@@ -42,6 +42,7 @@ Build Flags:
   -F<flags>      Add specified compiler flags
   -o<file>       Set output filename
   -r, --run      Run output file after compilation
+  -j, --jobs N   Compile N files in parallel (default: all cores)
       --config   Build a specific config from HelpMake.txt
       --nofile   Build from command line only (no config file)
       --verbose  Show detailed build output
