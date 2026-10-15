@@ -140,13 +140,21 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 
         std::vector<std::string> expandedFiles;
         for (const auto &entry : c.v_inputFiles) {
-            if (entry.find('*') != std::string::npos) {
-                std::filesystem::path p(entry);
+            std::filesystem::path p(entry);
+            std::string extension = p.extension().string();
+            if (entry.find("**") != std::string::npos) {
+                std::size_t pos = entry.find("**");
+                std::filesystem::path folder = entry.substr(0, pos);
+                for (const auto &f : std::filesystem::recursive_directory_iterator(folder)) {
+                    if (f.is_regular_file() && f.path().extension() == extension) {
+                        expandedFiles.push_back(f.path().generic_string());
+                    }
+                }
+            } else if (entry.find('*') != std::string::npos) {
                 std::string dir = p.parent_path().string();
                 if (dir.empty())
                     dir = ".";
 
-                std::string extension = p.extension().string();
                 if (extension.empty()) {
                     expandedFiles.push_back(entry);
                     continue;
