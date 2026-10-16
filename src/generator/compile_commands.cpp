@@ -1,4 +1,4 @@
-#include "parser.hpp"
+#include "hm/parser/parser.hpp"
 
 void Parser::generateCompileCommands(const Config &c) {
     std::ofstream json("compile_commands.json");

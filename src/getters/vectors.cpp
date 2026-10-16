@@ -1,4 +1,4 @@
-#include "parser.hpp"
+#include "hm/parser/parser.hpp"
 
 std::vector<std::string> Parser::getInputFile() {
     return cfg.v_inputFiles;
@@ -14,21 +14,6 @@ std::vector<std::string> Parser::getModules() {
 }
 std::vector<std::string> Parser::getGithub() {
     return cfg.v_Github;
-}
-std::string Parser::getCompiler() {
-    return cfg.compiler;
-}
-std::string Parser::getOutput() {
-    return cfg.output;
-}
-std::string Parser::getVersion() {
-    return cfg.version;
-}
-std::string Parser::getKind() {
-    return cfg.kind;
-}
-std::map<std::string, Config> &Parser::getConfigs() {
-    return configs;
 }
 std::vector<std::string> Parser::getCopy() {
     return cfg.v_Copy;

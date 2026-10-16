@@ -1,7 +1,4 @@
-#include "hp/other/other.hpp"
-#include "hp/time/time.hpp"
-#include "parser.hpp"
-#include <string_view>
+#include "hm/parser/parser.hpp"
 
 void Parser::install() {
     hp::printlnCl("[HelpMake] Installing HelpMake...", hp::Color::CYAN);

@@ -1,7 +1,8 @@
+#include "hm/parser/parser.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
 #include "hp/time/time.hpp"
-#include "parser.hpp"
+
 
 #include <array>
 #include <filesystem>
@@ -131,7 +132,7 @@ void Parser::Init::chooseLanguage() {
             hp::printlnCl("  Invalid choice. Try again.", hp::RED);
             hp::wait(1);
             std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cin.ignore((std::numeric_limits<std::streamsize>::max)(), '\n');
             chooseLanguage();
     }
 }

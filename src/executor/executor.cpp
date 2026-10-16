@@ -1,4 +1,6 @@
-#include "parser.hpp"
+#include "hm/parser/parser.hpp"
+#include "hm/process/process.hpp"
+#include "hm/toolchain/compiler.hpp"
 
 void Parser::execute() {
     executeConfig(cfg, "");
@@ -41,13 +43,13 @@ void Parser::buildCommand() {
 }
 
 void Parser::executeConfig(const Config &c, const std::string &name) {
-    std::string comp = compilerCommand(c.compiler);
-    if (comp.empty()) {
-        hp::printlnCl("Error: Unspecified Compiler.", hp::Color::RED);
+    auto comp = hm::makeCompiler(c.compiler);
+    if (!comp) {
+        hp::printlnCl(std::format("Error: Unknown compiler '{}'.", c.compiler), hp::Color::RED);
         exit(EXIT_FAILURE);
     }
 
-    bool isClang = (comp == "clang++" || comp == "clang");
+    bool isClang = (comp->name() == "clang");
     bool showOutput = c.verbose || c.debug;
     bool isConfig = !name.empty();
 
@@ -60,13 +62,15 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
     if (!c.Precmd.empty()) {
         if (showOutput)
             hp::printlnCl(std::format("{} Running pre-build command: {}", tag, c.Precmd), hp::Color::CYAN);
-        int error = std::system(c.Precmd.c_str());
-        if (error == -1) {
+
+        auto pre = hm::Process::run(c.Precmd);
+
+        if (pre.exitCode == -1) {
             hp::printlnCl("Error: Could not launch pre-build command.", hp::Color::RED);
             exit(EXIT_FAILURE);
         }
-        if (error != 0) {
-            hp::printlnCl(std::format("Error: Pre-build command failed (exit code {}).", error), hp::Color::RED);
+        if (pre.exitCode != 0) {
+            hp::printlnCl(std::format("Error: Pre-build command failed (exit code {}).", pre.exitCode), hp::Color::RED);
             exit(EXIT_FAILURE);
         }
         if (showOutput)
@@ -108,7 +112,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
     if (isConfig) {
         hp::printlnCl(std::format("\nBuilding config: {}", name), hp::Color::CYAN);
         if (showOutput) {
-            std::string displayCommand = std::format("{} {} {} -o {}", comp, CommandFlags, c.inputFile, c.output);
+            std::string displayCommand = std::format("{} {} {} -o {}", comp->binary(), CommandFlags, c.inputFile, c.output);
             std::cout << std::format("Config '{}': Command: {}\n", name, displayCommand);
         }
     }
@@ -159,66 +163,34 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         std::vector<Job> jobs;
 
         for (const auto &file : expandedFiles) {
-            std::string objCmd;
             std::string baseName = std::filesystem::path(file).stem().string();
-            std::string objPath;
 
-            bool isMod = isModule(file);
-            bool userDeclared = isDeclaredModule(file, c.v_Modules);
-            bool treatAsModule = isMod || userDeclared;
+            std::string objPath = "build/HelpMake/obj/" + baseName + comp->objectExt();
 
-            if (isClang && treatAsModule) {
-                std::string moduleName = extractModule(file);
-                std::string pcmPath = "build/HelpMake/modules/" + baseName + ".pcm";
-                std::string moduleObj = "build/HelpMake/obj/" + baseName + ".o";
+            std::vector<std::string> args;
+            args.push_back(comp->binary());
 
-                std::string langFlag;
-                if (!isMod)
-                    langFlag = "-xc++-module ";
+            std::istringstream iss(compileFlags);
+            std::string tok;
+            while (iss >> tok)
+                args.push_back(tok);
 
-                bool pcmNeedsRebuild = c.rebuild || !std::filesystem::exists(pcmPath) || std::filesystem::last_write_time(file) > std::filesystem::last_write_time(pcmPath);
+            for (auto &a : comp->compileArgs(file))
+                args.push_back(a);
 
-                if (pcmNeedsRebuild) {
-                    std::string pcmCmd = std::format("{} -fdiagnostics-color=always {}{} --precompile \"{}\" -o \"{}\"",
-                                                     comp, langFlag, compileFlags, file, pcmPath);
+            for (auto &a : comp->objectOutputArgs(objPath))
+                args.push_back(a);
 
-                    if (showOutput)
-                        hp::printlnCl(std::format("\n{} Precompile Command: {}", tag, pcmCmd), hp::Color::YELLOW);
+            for (auto &a : comp->depArgs())
+                args.push_back(a);
 
-                    std::string pcmLog = std::format("build/HelpMake/logs/raw/{}.pcm.raw", baseName);
-                    std::string redirectCmd = std::format("{} > \"{}\" 2>&1", pcmCmd, pcmLog);
-                    auto objTimer = hp::startTimer();
-                    exitCode = std::system(redirectCmd.c_str());
-                    double objElapsed = hp::stopTimer(objTimer);
-
-                    if (exitCode != 0) {
-                        hp::printlnCl(std::format("\n{} Failed to precompile: {}", tag, file), hp::Color::RED);
-                        break;
-                    }
-                    if (showOutput || c.time) {
-                        hp::printlnCl(std::format("{} Precompiled '{}' in {}s", tag, file, objElapsed), hp::Color::YELLOW);
-                    }
-                }
-
-                objPath = moduleObj;
-                objCmd = std::format("{} -fdiagnostics-color=always {} -c \"{}\" -o \"{}\" {} -MMD -fmodule-file={}={}",
-                                     comp, langFlag, file, moduleObj, compileFlags, moduleName, pcmPath);
-            } else {
-                objPath = std::format("build/HelpMake/obj/{}.o", baseName);
-                if (comp == "g++") {
-                    objCmd = std::format("{} -fdiagnostics-color=always -xc++ -c \"{}\" -o \"{}\" {} -MMD",
-                                         comp, file, objPath, compileFlags);
-                } else {
-                    objCmd = std::format("{} -fdiagnostics-color=always -c \"{}\" -o \"{}\" {} -MMD",
-                                         comp, file, objPath, compileFlags);
-                }
-
-                if (isClang && !clangModules.empty()) {
-                    for (const auto &[modName, modPath] : clangModules) {
-                        objCmd += std::format(" -fmodule-file={}={}", modName, modPath);
-                    }
+            if (isClang && !clangModules.empty()) {
+                for (const auto &[modName, modPath] : clangModules) {
+                    args.push_back("-fmodule-file=" + modName + "=" + modPath);
                 }
             }
+
+            std::string objCmd = hm::Process::join(args);
 
             if (!needsRebuild(file, objPath, c.rebuild)) {
                 if (showOutput)
@@ -242,7 +214,8 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         }
 
         if (exitCode == 0) {
-            std::string linkCmd = comp + " -fdiagnostics-color=always ";
+            std::vector<std::string> args;
+            std::string binary;
 
             if (c.kind == "static") {
                 auto parent = std::filesystem::path(c.output).parent_path();
@@ -250,24 +223,44 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
                     std::filesystem::create_directories(parent);
                 std::filesystem::remove(c.output);
 
-                linkCmd = "ar rcs \"" + c.output + "\"";
+                binary = comp->archiveBinary();
+                args.push_back("rcs");
+                args.push_back(c.output);
                 for (const auto &obj : objects)
-                    linkCmd += " \"" + obj + "\"";
+                    args.push_back(obj);
             } else {
+                binary = comp->binary();
 
-                if (!compileFlags.empty())
-                    linkCmd += compileFlags + " ";
+                std::istringstream iss(compileFlags);
+                std::string tok;
+                while (iss >> tok)
+                    args.push_back(tok);
+
                 for (const auto &obj : objects)
-                    linkCmd += " \"" + obj + "\"";
-                if (!linkFlags.empty())
-                    linkCmd += " " + linkFlags;
-                linkCmd += " -o \"" + c.output + "\"" + (c.run ? " && " + c.output : "");
+                    args.push_back(obj);
+
+                std::istringstream iss2(linkFlags);
+                while (iss2 >> tok)
+                    args.push_back(tok);
+
+                for (auto &a : comp->executableOutputArgs(c.output))
+                    args.push_back(a);
             }
+
+            std::string linkCmd = binary + " " + hm::Process::join(args);
+            if (c.run)
+                linkCmd += " && " + c.output;
+
             if (showOutput)
                 hp::printlnCl(std::format("\n{} Link Command: {}", tag, linkCmd), hp::Color::YELLOW);
 
-            std::string redirectCmd = std::format("{} > \"{}\" 2>&1", linkCmd, r_logPath);
-            exitCode = std::system(redirectCmd.c_str());
+            auto linkResult = hm::Process::run(linkCmd);
+            exitCode = linkResult.exitCode;
+
+            {
+                std::ofstream linkLog(r_logPath);
+                linkLog << linkResult.output;
+            }
         }
 
     } else {
@@ -276,21 +269,37 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
             exit(EXIT_FAILURE);
         }
 
-        std::string command = comp + " -fdiagnostics-color=always";
-        if (!compileFlags.empty())
-            command += " " + compileFlags;
-        command += " " + c.inputFile;
-        if (!linkFlags.empty())
-            command += " " + linkFlags;
-        command += " -o " + c.output;
+        std::vector<std::string> args;
+        args.push_back(comp->binary());
+
+        std::istringstream iss(compileFlags);
+        std::string tok;
+        while (iss >> tok)
+            args.push_back(tok);
+
+        args.push_back(c.inputFile);
+
+        std::istringstream iss2(linkFlags);
+        while (iss2 >> tok)
+            args.push_back(tok);
+
+        for (auto &a : comp->executableOutputArgs(c.output))
+            args.push_back(a);
+
+        std::string command = hm::Process::join(args);
         if (c.run)
             command += " && " + c.output;
 
         if (showOutput)
             hp::printlnCl(std::format("{} Real Command: {}", tag, command), hp::Color::YELLOW);
 
-        std::string redirectCmd = std::format("{} > \"{}\" 2>&1", command, r_logPath);
-        exitCode = std::system(redirectCmd.c_str());
+        auto buildResult = hm::Process::run(command);
+        exitCode = buildResult.exitCode;
+
+        {
+            std::ofstream buildLog(r_logPath);
+            buildLog << buildResult.output;
+        }
     }
     double elapsed = hp::stopTimer(timer);
 
@@ -385,11 +394,13 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         if (!c.Postcmd.empty()) {
             if (showOutput)
                 hp::printlnCl(std::format("{} Running post-build command: {}", tag, c.Postcmd), hp::Color::CYAN);
-            int Error = std::system(c.Postcmd.c_str());
-            if (Error == -1 && !c.quiet)
+
+            auto post = hm::Process::run(c.Postcmd);
+
+            if (post.exitCode == -1 && !c.quiet)
                 hp::printlnCl("Warning: Could not launch post-build command.", hp::Color::YELLOW);
-            else if (Error != 0 && !c.quiet)
-                hp::printlnCl(std::format("Warning: Post-build command failed (exit code {}).", Error), hp::Color::YELLOW);
+            else if (post.exitCode != 0 && !c.quiet)
+                hp::printlnCl(std::format("Warning: Post-build command failed (exit code {}).", post.exitCode), hp::Color::YELLOW);
             else if (showOutput)
                 hp::printlnCl("Post-build command executed successfully.", hp::Color::GREEN);
         }
@@ -397,12 +408,12 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         if (c.notify)
             Parser::Notify(elapsed, false);
 #ifdef _WIN32
-        std::string whichCmd = std::format("where {} 2>nul", c.compiler == "zig" ? "zig" : comp);
+        std::string whichCmd = std::format("where {} 2>nul", c.compiler == "zig" ? "zig" : comp->binary());
         std::string test = hp::command(whichCmd);
         bool missing = test.find("INFO:") != std::string::npos;
 #else
-        std::string whichCmd = std::format("which {} 2>/dev/null", c.compiler == "zig" ? "zig" : comp);
-        bool missing = std::system(whichCmd.c_str()) != 0;
+        std::string whichCmd = std::format("which {} 2>/dev/null", c.compiler == "zig" ? "zig" : comp->binary());
+        bool missing = hm::Process::run(whichCmd).exitCode != 0;
 #endif
 
         if (missing) {
@@ -491,106 +502,6 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
     }
 }
 
-std::string Parser::processGithubEntry(const std::string &value) {
-    std::size_t arrow = value.find("->");
-    if (arrow == std::string::npos)
-        return "";
-
-    std::string url = trim(value.substr(0, arrow));
-    std::string folder = trim(value.substr(arrow + 2));
-
-    if (!gitAvailable()) {
-        hp::printlnCl("Error: Git system not found. Please install it and add it to PATH.", hp::Color::RED);
-        exit(EXIT_FAILURE);
-    }
-
-    hp::Folder f;
-    if (!f.exists("build/HelpMake/dep"))
-        f.create("build/HelpMake/dep");
-
-    if (cfg.verbose)
-        hp::printlnCl(std::format("\n[Help_Make] Downloading dependency '{}' ...\n", url), hp::Color::CYAN);
-
-    std::size_t slash = url.find_last_of("/");
-    std::string include = url.substr(slash + 1);
-    if (include.size() > 4 && include.substr(include.size() - 4) == ".git")
-        include.erase(include.size() - 4);
-
-    hp::command(std::format("git clone {} build/HelpMake/dep/{}", url, include));
-
-    std::string fullPath = std::format("build/HelpMake/dep/{}", include);
-    if (!folder.empty() && folder != ".")
-        fullPath += "/" + folder;
-
-    if (cfg.debug) {
-        hp::printlnCl(std::format("[Debug] Fetch Include Folder: '{}'", folder), hp::Color::YELLOW);
-        hp::printlnCl(std::format("[Debug] Fetch Clone Folder: '{}'", include), hp::Color::YELLOW);
-    }
-
-    return fullPath;
-}
-
-bool Parser::needsRebuild(const std::string &src, const std::string &obj, bool rebuild) {
-    if (!std::filesystem::exists(src)) {
-        hp::printlnCl(std::format("[HelpMake] Error: source file not found: {}", src), hp::Color::RED);
-        exit(EXIT_FAILURE);
-    }
-
-    if (rebuild)
-        return true;
-
-    if (!std::filesystem::exists(obj))
-        return true;
-
-    auto srcTime = std::filesystem::last_write_time(src);
-    auto objTime = std::filesystem::last_write_time(obj);
-
-    if (srcTime > objTime) {
-        if (cfg.debug)
-            hp::printlnCl(std::format("\n[Debug] Source file '{}' is newer than object '{}'. Rebuilding.", src, obj), hp::Color::YELLOW);
-        return true;
-    }
-
-    std::ifstream depFile(std::filesystem::path(obj).replace_filename(std::filesystem::path(obj).stem().string() + ".d").generic_string());
-    if (!depFile.is_open()) {
-        if (!cfg.quiet)
-            hp::printlnCl(std::format("\nWarning: Could not open dependency file for '{}'. Rebuilding.\n", obj), hp::Color::YELLOW);
-        return true;
-    }
-    std::string line;
-    auto depTime = std::filesystem::file_time_type::min();
-
-    while (std::getline(depFile, line)) {
-        std::istringstream iss(line);
-        std::string depFilePath;
-        while (iss >> depFilePath) {
-            if (depFilePath.find(":") != std::string::npos || depFilePath == "\\" || (depFilePath.length() <= 2 && depFilePath.back() == '\\'))
-                continue;
-
-            if (depFilePath == "CXX_IMPORTS" || depFilePath == "+=")
-                continue;
-
-            if (depFilePath.find(".c++-module") != std::string::npos)
-                continue;
-
-            if (!std::filesystem::exists(depFilePath)) {
-                if (!cfg.quiet)
-                    hp::printlnCl(std::format("Warning: Dependency file '{}' does not exist. Rebuilding.", depFilePath), hp::Color::YELLOW);
-                return true;
-            }
-
-            depTime = std::filesystem::last_write_time(depFilePath);
-            if (depTime > objTime) {
-                if (cfg.debug)
-                    hp::printlnCl(std::format("[Debug] Dependency '{}' is newer than object '{}'. Rebuilding.", depFilePath, obj), hp::Color::YELLOW);
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 void Parser::Notify(const double &time, bool success) {
     std::string timeStr;
     if (success) {
@@ -616,111 +527,5 @@ void Parser::Notify(const double &time, bool success) {
     notifyCmd = "notify-send 'HelpMake' 'Build " + status + timeStr + "'";
 #endif
 
-    std::system(notifyCmd.c_str());
-}
-
-void Parser::parseArgument(Config &config, std::string_view value) {
-
-    if (similar(value, "Verbose")) {
-        config.verbose = true;
-    } else if (similar(value, "debug")) {
-        config.debug = true;
-    } else if (similar(value, "Run")) {
-        config.run = true;
-    } else if (similar(value, "time")) {
-        config.time = true;
-    } else if (similar(value, "json")) {
-        config.json = true;
-    } else if (similar(value, "rebuild")) {
-        config.rebuild = true;
-    } else if (similar(value, "notify")) {
-        config.notify = true;
-    } else if (similar(value, "quiet")) {
-        config.quiet = true;
-    }
-}
-
-void Parser::parseTypos(std::size_t num, std::filesystem::path filename,
-                        std::string_view line, std::string_view expected) {
-    std::string_view trimmed = trim_view(line);
-    if (trimmed.empty())
-        return;
-
-    std::string_view display = expected;
-    if (display.ends_with(':'))
-        display.remove_suffix(1);
-    else if (display.ends_with('{'))
-        display = trim_view(display.substr(0, display.size() - 1));
-
-    if (is_typo(trimmed, expected)) {
-        cfg.v_Errors.push_back(std::format("\n[HelpMake] Error: {}:{}: Found '{}'. Did You mean {} ?", filename.string(), num, trimmed, display));
-    }
-}
-
-int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
-    if (jobs.empty())
-        return 0;
-    if (n == 0)
-        n = std::thread::hardware_concurrency();
-    if (n == 0)
-        n = 1;
-    n = std::min<std::size_t>(n, jobs.size());
-
-    std::vector<int> results(n, 0);
-    std::vector<double> times(jobs.size(), 0.0);
-    std::vector<std::thread> pool;
-    std::size_t chunk = (jobs.size() + n - 1) / n;
-
-    for (std::size_t t = 0; t < n; ++t) {
-        std::size_t begin = t * chunk;
-        std::size_t end = std::min(begin + chunk, jobs.size());
-        if (begin >= jobs.size())
-            break;
-
-        pool.emplace_back([&, t, begin, end]() {
-            for (std::size_t i = begin; i < end; ++i) {
-                auto &j = jobs[i];
-                std::string redirect = std::format("{} > \"{}\" 2>&1", j.cmd, j.logPath);
-                auto timer = hp::startTimer();
-                int rc = std::system(redirect.c_str());
-                double elapsed = hp::stopTimer(timer);
-
-                times[i] = elapsed;
-
-                if (rc != 0) {
-                    results[t] = rc;
-                    j.failed = true;
-
-                    std::ifstream logFile(j.logPath);
-                    if (logFile.is_open()) {
-                        std::string content((std::istreambuf_iterator<char>(logFile)),
-                                            std::istreambuf_iterator<char>());
-                        if (!content.empty()) {
-                            std::cerr << content;
-                            if (content.back() != '\n')
-                                std::cerr << '\n';
-                        }
-                    }
-                    return;
-                }
-            }
-        });
-    }
-
-    for (auto &th : pool)
-        th.join();
-
-    hp::printlnCl(std::format("\n[HelpMake] Compile phase ({} job{}):", n, n == 0 ? "" : "s"), hp::YELLOW);
-    for (std::size_t i = 0; i < jobs.size(); ++i) {
-        if (jobs[i].failed)
-            hp::printlnCl(std::format("- {} failed to compile", jobs[i].file), hp::RED);
-        else
-            hp::printlnCl(std::format("- {} compiled in {}s", jobs[i].file, times[i]), hp::YELLOW);
-    }
-
-    for (int rc : results)
-        if (rc != 0)
-            return rc;
-
-    return 0;
+    hm::Process::run(notifyCmd);
 }

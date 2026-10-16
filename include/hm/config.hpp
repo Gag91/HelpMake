@@ -1,0 +1,48 @@
+#pragma once
+
+#include <string>
+#include <vector>
+
+struct Config {
+    std::string name;
+
+    std::string compiler;
+    std::string version;
+    std::string output;
+    std::string flags;
+    std::string inputFile;
+    std::string includes;
+    std::string modules;
+    std::string Precmd;
+    std::string Postcmd;
+    std::string kind;
+
+    std::vector<std::string> preBuild;
+    std::vector<std::string> postBuild;
+
+    std::vector<std::string> includeFiles;
+    std::vector<std::string> v_inputFiles;
+    std::vector<std::string> v_Flags;
+    std::vector<std::string> v_Modules;
+    std::vector<std::string> v_Github;
+    std::vector<std::string> v_Postcmd;
+    std::vector<std::string> v_Precmd;
+    std::vector<std::string> v_Errors;
+    std::vector<std::string> v_Copy;
+
+    bool verbose = false;
+    bool debug = false;
+    bool run = false;
+    bool n_file = false;
+    bool buildSere = false;
+    bool create = false;
+    bool allCfgs = false;
+    bool json = false;
+    bool seperate = true;
+    bool rebuild = false;
+    bool quiet = false;
+    bool notify = false;
+    bool time = false;
+
+    int jobs = 0;
+};

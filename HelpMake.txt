@@ -4,7 +4,7 @@ Output: hmm.exe
 Jobs: 8
 
 InputFiles {
-    src/*.cpp
+    src/**/*.cpp
 }
 
 Includes {
@@ -72,4 +72,19 @@ Config: math {
         -Wall
         -O2
     }
+}
+# MSVC test
+Config: msvc {
+    Compiler: msvc
+    Output: hmm-msvc.exe
+    Version: /std:c++20
+    InputFiles {
+      src/**/*.cppc
+      }
+
+    Flags {
+      /W4
+      /EHsc
+      Iinclude
+      }
 }
