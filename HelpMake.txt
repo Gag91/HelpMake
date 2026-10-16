@@ -1,6 +1,7 @@
 Compiler: g++
 Version: std=c++20
 Output: hmm.exe
+Jobs: 8
 
 InputFiles {
     src/*.cpp

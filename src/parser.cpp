@@ -58,6 +58,7 @@ void Parser::parse() {
         "Run:",
         "Arguments:",
         "Kind:",
+        "Jobs:",
         "Copy {",
         "InputFiles {",
         "Includes {",
@@ -255,26 +256,38 @@ void Parser::parse() {
                     hp::printlnCl(std::format("[HelpMake] Error: {}:{}: Invalid Kind '{}' ", filename.string(), lines, currentConfig.kind), hp::RED);
                 if (cfg.debug)
                     std::cout << std::format("Kind found in config '{}': '{}'\n", currentConfig.name, value);
+            } else if (line.find("Jobs:") != std::string::npos) {
+                value = extractValue(line, "Jobs:");
+                try {
+                    currentConfig.jobs = std::stoul(value);
+                } catch (const std::invalid_argument &) {
+                    cfg.v_Errors.push_back(std::format("[HelpMake] Error: '{}' is not a valid number for 'jobs'", value));
+                } catch (const std::out_of_range &) {
+                    cfg.v_Errors.push_back(std::format("[HelpMake] Error: '{}' is out of range for 'jobs'", value));
+                }
+                if (cfg.debug)
+                    std::cout << std::format("Jobs found in config '{}': '{}'\n", currentConfig.name, value);
             }
             continue;
         }
+        std::string value;
 
         if (line.find("Arguments:") != std::string::npos) {
-            std::string value = extractValue(line, "Arguments:");
+            value = extractValue(line, "Arguments:");
             parseArgument(cfg, value);
         } else if (line.find("Arguments {") != std::string::npos) {
             isArgSet = true;
         } else if (line.find("}") != std::string::npos && isArgSet) {
             isArgSet = false;
         } else if (isArgSet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (!value.empty()) {
                 if (cfg.debug)
                     hp::printlnCl(std::format("Found Argument: {}", value), hp::Color::YELLOW);
                 parseArgument(cfg, value);
             }
         } else if (line.find("Compiler:") != std::string::npos) {
-            std::string value = extractValue(line, "Compiler:");
+            value = extractValue(line, "Compiler:");
             if (cfg.compiler.empty())
                 cfg.compiler = value;
 
@@ -294,7 +307,7 @@ void Parser::parse() {
             if (cfg.debug)
                 std::cout << std::format("Found Version: '{}'\n", cfg.version);
         } else if (line.find("Output:") != std::string::npos) {
-            std::string value = extractValue(line, "Output:");
+            value = extractValue(line, "Output:");
             if (cfg.output.empty())
                 cfg.output = value;
             if (cfg.output.empty()) {
@@ -308,23 +321,22 @@ void Parser::parse() {
             if (cfg.debug)
                 std::cout << std::format("Found Output: '{}'\n", cfg.output);
         } else if (line.find("InputFiles:") != std::string::npos) {
-            std::string value = extractValue(line, "InputFiles:");
+            value = extractValue(line, "InputFiles:");
             cfg.inputFile += (cfg.inputFile.empty() ? "" : " ") + value;
         } else if (line.find("InputFiles {") != std::string::npos) {
             isInputFileSet = true;
         } else if (line.find("}") != std::string::npos && isInputFileSet) {
             isInputFileSet = false;
         } else if (isInputFileSet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (!value.empty()) {
                 cfg.inputFile += (cfg.inputFile.empty() ? "" : " ") + value;
                 cfg.v_inputFiles.push_back(value);
                 if (cfg.debug)
                     std::cout << std::format("Found Input Files: '{}'\n", cfg.inputFile);
             }
-
         } else if (line.find("Includes:") != std::string::npos) {
-            std::string value = extractValue(line, "Includes:");
+            value = extractValue(line, "Includes:");
             cfg.flags += (cfg.flags.empty() ? "" : " ") + value;
         } else if (line.find("Includes {") != std::string::npos) {
             isIncludeSet = true;
@@ -335,9 +347,8 @@ void Parser::parse() {
                 for (const auto &vec : cfg.includeFiles)
                     std::cout << std::format("- {}\n", vec == "." ? "[root]" : vec);
             }
-
         } else if (isIncludeSet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (!value.empty()) {
                 cfg.flags += std::format(" -I{}", value);
                 cfg.includeFiles.push_back(value);
@@ -352,7 +363,7 @@ void Parser::parse() {
                     std::cout << std::format("- {}\n", vec);
             }
         } else if (isFlagsSet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (!value.empty()) {
                 cfg.flags += (cfg.flags.empty() ? "" : " ") + value;
                 cfg.v_Flags.push_back(value);
@@ -361,13 +372,12 @@ void Parser::parse() {
             cfg.flags += (cfg.flags.empty() ? "" : " ") + extractValue(line, "Flags:");
             if (cfg.debug)
                 std::cout << std::format("Found Flags: '{}'\n", cfg.flags);
-
         } else if (line.find("Fetch {") != std::string::npos) {
             isFetchSet = true;
         } else if (line.find("}") != std::string::npos && isFetchSet) {
             isFetchSet = false;
         } else if (isFetchSet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (value.empty())
                 continue;
 
@@ -376,9 +386,8 @@ void Parser::parse() {
                 cfg.flags += std::format(" -I{}", path);
                 cfg.v_Github.push_back(std::format("{} -> {}", value.substr(0, value.find("->")), path));
             }
-
         } else if (line.find("Modules:") != std::string::npos) {
-            std::string value = extractValue(line, "Modules:");
+            value = extractValue(line, "Modules:");
             if (cfg.modules.empty())
                 cfg.modules = value;
             else
@@ -394,9 +403,8 @@ void Parser::parse() {
                 for (const auto &m : cfg.v_Modules)
                     std::cout << std::format("- {}\n", m);
             }
-
         } else if (isModulesSet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (!value.empty()) {
                 if (cfg.modules.empty())
                     cfg.modules = value;
@@ -409,7 +417,7 @@ void Parser::parse() {
         } else if (line.find("}") != std::string::npos && isPreBuildSet) {
             isPreBuildSet = false;
         } else if (isPreBuildSet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (!value.empty()) {
                 if (cfg.Precmd.empty())
                     cfg.Precmd = value;
@@ -424,7 +432,7 @@ void Parser::parse() {
         } else if (line.find("}") != std::string::npos && isPostBuildSet) {
             isPostBuildSet = false;
         } else if (isPostBuildSet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (!value.empty()) {
                 if (cfg.Postcmd.empty())
                     cfg.Postcmd = value;
@@ -435,18 +443,30 @@ void Parser::parse() {
                 cfg.v_Postcmd.push_back(value);
             }
         } else if (line.find("Kind:") != std::string::npos) {
-            std::string value = extractValue(line, "Kind:");
+            value = extractValue(line, "Kind:");
             cfg.kind = to_lower(value);
             if (!isValidKind(cfg.kind))
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Invalid Kind '{}' ", filename.string(), lines, cfg.kind));
             if (cfg.debug)
                 std::cout << std::format("Found Kind: '{}'\n", value);
+        } else if (line.find("Jobs:") != std::string::npos) {
+            value = extractValue(line, "Jobs:");
+            try {
+                if (cfg.jobs == 0)
+                    cfg.jobs = std::stoul(value);
+            } catch (const std::invalid_argument &) {
+                cfg.v_Errors.push_back(std::format("[HelpMake] Error: '{}' is not a valid number for 'jobs'", value));
+            } catch (const std::out_of_range &) {
+                cfg.v_Errors.push_back(std::format("[HelpMake] Error: '{}' is out of range for 'jobs'", value));
+            }
+            if (cfg.debug)
+                std::cout << std::format("Found Jobs: '{}'\n", value);
         } else if (line.find("Copy {") != std::string::npos) {
             isCopySet = true;
         } else if (line.find("}") != std::string::npos && isCopySet) {
             isCopySet = false;
         } else if (isCopySet) {
-            std::string value = trim(line);
+            value = trim(line);
             if (!value.empty()) {
                 cfg.v_Copy.push_back(value);
                 if (cfg.debug)

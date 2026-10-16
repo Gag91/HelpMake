@@ -223,7 +223,7 @@ struct Config {
     bool notify = false;
     bool time = false;
 
-    int jobs;
+    int jobs = 0;
 };
 
 struct Job {
