@@ -54,7 +54,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
     std::string tag = isConfig ? std::format("[HelpMake] Config '{}':", name) : "[HelpMake]";
 
     if (c.json) {
-        Parser::generateCompileCommands();
+        Parser::generateCompileCommands(c);
     }
 
     if (!c.Precmd.empty()) {
@@ -138,40 +138,8 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
             }
         }
 
-        std::vector<std::string> expandedFiles;
-        for (const auto &entry : c.v_inputFiles) {
-            std::filesystem::path p(entry);
-            std::string extension = p.extension().string();
-            if (entry.find("**") != std::string::npos) {
-                std::size_t pos = entry.find("**");
-                std::filesystem::path folder = entry.substr(0, pos);
-                for (const auto &f : std::filesystem::recursive_directory_iterator(folder)) {
-                    if (f.is_regular_file() && f.path().extension() == extension) {
-                        expandedFiles.push_back(f.path().generic_string());
-                    }
-                }
-            } else if (entry.find('*') != std::string::npos) {
-                std::string dir = p.parent_path().string();
-                if (dir.empty())
-                    dir = ".";
+        std::vector<std::string> expandedFiles = expandInputs(c);
 
-                if (extension.empty()) {
-                    expandedFiles.push_back(entry);
-                    continue;
-                }
-
-                for (const auto &file : std::filesystem::directory_iterator(dir)) {
-                    if (file.is_regular_file() && file.path().extension() == extension)
-                        expandedFiles.push_back(file.path().string());
-                }
-            } else {
-                expandedFiles.push_back(entry);
-            }
-        }
-
-        for (const auto &m : c.v_Modules) {
-            expandedFiles.push_back(m);
-        }
         std::partition(expandedFiles.begin(), expandedFiles.end(), [&](const std::string &s) {
             return isModule(s) || isDeclaredModule(s, c.v_Modules);
         });
@@ -560,45 +528,6 @@ std::string Parser::processGithubEntry(const std::string &value) {
     }
 
     return fullPath;
-}
-
-void Parser::generateCompileCommands() {
-    std::ofstream json("compile_commands.json");
-    if (!json.is_open()) {
-        if (!cfg.quiet)
-            hp::printlnCl("Warning: Could not write compile_commands.json", hp::Color::YELLOW);
-        return;
-    }
-
-    std::string cwd = std::filesystem::current_path().generic_string();
-    std::string comp;
-    comp = compilerCommand(cfg.compiler);
-
-    std::string incFlags;
-    for (const auto &inc : cfg.includeFiles)
-        incFlags += std::format(" -I{}", inc);
-
-    json << "[\n";
-    bool first = true;
-    for (const auto &file : cfg.v_inputFiles) {
-        if (!first)
-            json << ",\n";
-        first = false;
-
-        std::string command = std::format("{} -{} {} -o {} {}{}",
-                                          comp, cfg.version, file, cfg.output, cfg.flags, incFlags);
-
-        json << "  {\n";
-        json << "    \"directory\": \"" << cwd << "\",\n";
-        json << "    \"command\": \"" << command << "\",\n";
-        json << "    \"file\": \"" << file << "\"\n";
-        json << "  }";
-    }
-    json << "\n]\n";
-    json.close();
-
-    if (cfg.verbose)
-        hp::printlnCl("Generated compile_commands.json", hp::Color::GREEN);
 }
 
 bool Parser::needsRebuild(const std::string &src, const std::string &obj, bool rebuild) {

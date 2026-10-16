@@ -2,19 +2,12 @@
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
 #include "hp/serializer/serialize.hpp"
-#include "hp/system/command.hpp"
-#include "hp/time/time.hpp"
-
-#include <algorithm>
-#include <array>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <regex>
 #include <sstream>
 #include <string_view>
-#include <thread>
 #include <vector>
 
 void Parser::parse() {
@@ -315,7 +308,7 @@ void Parser::parse() {
             } else if (line.find("Kind:") != std::string::npos) {
                 value = extractValue(line, "Kind:");
                 currentConfig.kind = to_lower(value);
-                if (isValidKind(currentConfig.kind))
+                if (!isValidKind(currentConfig.kind))
                     hp::printlnCl(std::format("[HelpMake] Error: {}:{}: Invalid Kind '{}' ", filename.string(), lines, currentConfig.kind), hp::RED);
                 if (cfg.debug)
                     std::cout << std::format("Kind found in config '{}': '{}'\n", currentConfig.name, value);
@@ -502,7 +495,7 @@ void Parser::parse() {
             std::string value = extractValue(line, "Kind:");
             cfg.kind = to_lower(value);
             if (!isValidKind(cfg.kind))
-                hp::printlnCl(std::format("[HelpMake] Error: {}:{}: Invalid Kind '{}' ", filename.string(), lines, cfg.kind), hp::RED);
+                cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Invalid Kind '{}' ", filename.string(), lines, cfg.kind));
             if (cfg.debug)
                 std::cout << std::format("Found Kind: '{}'\n", value);
         } else if (line.find("Copy {") != std::string::npos) {

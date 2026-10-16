@@ -157,8 +157,12 @@ inline std::string compilerCommand(const std::string &compiler) {
 
 inline constexpr std::array<std::string_view, 2> validKinds = {
     "executable",
-    "static",
-};
+    "static"};
+
+inline std::string replaceSlash(std::string &s) {
+    std::replace(s.begin(), s.end(), '\\', '/');
+    return s;
+}
 
 inline bool isValidKind(std::string_view key) {
     std::string k = to_lower(key);
@@ -172,6 +176,10 @@ inline bool isValidKind(std::string_view key) {
         }
     }
     return false;
+}
+
+inline std::string replaceSlash(std::string_view s) {
+    return std::filesystem::path{s}.generic_string();
 }
 
 struct Config {
@@ -225,6 +233,101 @@ struct Job {
     bool failed;
 };
 
+inline std::string escapeJson(const std::string &s) {
+    std::string out;
+    out.reserve(s.size() + 8);
+    for (char ch : s) {
+        switch (ch) {
+            case '"':
+                out += "\\\"";
+                break;
+            case '\\':
+                out += "\\\\";
+                break;
+            case '\n':
+                out += "\\n";
+                break;
+            case '\r':
+                out += "\\r";
+                break;
+            case '\t':
+                out += "\\t";
+                break;
+            default:
+                out += ch;
+                break;
+        }
+    }
+    return out;
+}
+
+inline std::string toUnixPath(const std::string &s) {
+    std::string out = s;
+    for (char &ch : out)
+        if (ch == '\\')
+            ch = '/';
+    return out;
+}
+
+inline std::vector<std::string> expandInputs(const Config &c) {
+    std::vector<std::string> expanded;
+
+    for (const auto &entry : c.v_inputFiles) {
+        bool hasRecursive = entry.find("**") != std::string::npos;
+        bool hasGlob = entry.find('*') != std::string::npos;
+
+        if (hasRecursive) {
+            std::size_t starPos = entry.find("**");
+            std::filesystem::path folder = entry.substr(0, starPos);
+            if (folder.empty())
+                folder = ".";
+
+            std::string extension = std::filesystem::path(entry).extension().string();
+
+            if (std::filesystem::exists(folder)) {
+                for (const auto &f : std::filesystem::recursive_directory_iterator(folder)) {
+                    if (!f.is_regular_file())
+                        continue;
+                    if (!extension.empty() && f.path().extension() != extension)
+                        continue;
+                    expanded.push_back(f.path().generic_string());
+                }
+            }
+        } else if (hasGlob) {
+            std::filesystem::path p(entry);
+            std::string dir = p.parent_path().string();
+            if (dir.empty())
+                dir = ".";
+
+            std::string extension = p.extension().string();
+            if (extension.empty()) {
+                expanded.push_back(entry);
+                continue;
+            }
+
+            if (std::filesystem::exists(dir)) {
+                for (const auto &f : std::filesystem::directory_iterator(dir)) {
+                    if (!f.is_regular_file())
+                        continue;
+                    if (f.path().extension() != extension)
+                        continue;
+                    expanded.push_back(f.path().generic_string());
+                }
+            }
+        } else {
+            expanded.push_back(entry);
+        }
+    }
+
+    for (const auto &m : c.v_Modules)
+        expanded.push_back(m);
+
+    std::sort(expanded.begin(), expanded.end());
+    expanded.erase(std::unique(expanded.begin(), expanded.end()), expanded.end());
+
+    return expanded;
+}
+
 class Parser {
   private:
     std::filesystem::path filename;
@@ -273,7 +376,7 @@ class Parser {
     void execute();
     void buildCommand();
     void executeConfigs(const std::vector<std::string> &names);
-    void generateCompileCommands();
+    void generateCompileCommands(const Config &c);
     void install();
     void Notify(const double &time, bool success = true);
     void parseArgument(Config &config, std::string_view value);

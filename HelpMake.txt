@@ -60,6 +60,7 @@ Config: lib {
 }
 # Static library math
 Config: math {
+    Kind: static
     Output: build/libmath.a
     InputFiles {
         test/add.cpp 
