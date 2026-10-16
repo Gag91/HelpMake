@@ -160,6 +160,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         }
 
         std::vector<std::string> objects;
+        std::vector<std::string> upToDate;
         std::vector<Job> jobs;
 
         for (const auto &file : expandedFiles) {
@@ -193,8 +194,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
             std::string objCmd = hm::Process::join(args);
 
             if (!needsRebuild(file, objPath, c.rebuild)) {
-                if (showOutput)
-                    hp::printlnCl(std::format("{} Skip (up to date): {}", tag, file), hp::Color::YELLOW);
+                upToDate.push_back(std::format("{} Skip (up to date): {}", tag, file));
                 objects.push_back(objPath);
                 continue;
             }
@@ -208,6 +208,10 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         }
 
         if (exitCode == 0) {
+            std::cout << '\n';
+            for (const auto &up : upToDate)
+                hp::printlnCl(up, hp::YELLOW);
+
             int rc = runJobs(jobs, c.jobs);
             if (rc != 0)
                 exitCode = rc;
