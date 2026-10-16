@@ -375,13 +375,15 @@ class Parser {
     void parse();
     void execute();
     void buildCommand();
+    void install();
+    void compileLib();
+
+    void createConfig(Config &c);
     void executeConfigs(const std::vector<std::string> &names);
     void generateCompileCommands(const Config &c);
-    void install();
     void Notify(const double &time, bool success = true);
     void parseArgument(Config &config, std::string_view value);
     void parseTypos(std::size_t num, std::filesystem::path filename, std::string_view line, std::string_view value);
-    void compileLib();
     void executeConfig(const Config &c, const std::string &name);
 
     Config inheritConfig(const Config &child);

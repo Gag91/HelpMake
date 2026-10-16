@@ -20,64 +20,7 @@ void Parser::parse() {
     }
 
     if (cfg.create) {
-        hp::File file;
-
-        cfg.v_inputFiles = splitArgs(cfg.inputFile);
-        cfg.v_Flags = splitArgs(cfg.flags);
-        cfg.includeFiles = splitArgs(cfg.includes);
-        cfg.v_Modules = splitArgs(cfg.modules);
-
-        if (file.exists(filename.string()) && !cfg.quiet) {
-            hp::printlnCl(std::format("Warning: {} already exists. Overwrite? (y/n)", filename.string()), hp::Color::YELLOW);
-            char verif = hp::get<char>("", "Invalid choice");
-            if (verif != 'y') {
-                hp::printlnCl("File was not overwritten.", hp::Color::GREEN);
-                return;
-            }
-        }
-
-        hp::save(filename.string(), {{"Compiler", cfg.compiler}, {"Version", cfg.version}, {"Output", cfg.output}});
-        std::ofstream make(filename.string(), std::ios::app);
-
-        make << "\nInputFiles {\n";
-        for (const auto &input : cfg.v_inputFiles)
-            make << "    " << input << "\n";
-        make << "}\n";
-
-        if (!cfg.v_Flags.empty()) {
-            make << "\nFlags {\n";
-            for (const auto &f : cfg.v_Flags)
-                make << "    " << f << "\n";
-            make << "}\n";
-        }
-        if (!cfg.v_Github.empty()) {
-            make << "\nGithub {\n";
-            for (const auto &g : cfg.v_Github)
-                make << "    " << g << "\n";
-            make << "}\n";
-        }
-        if (!cfg.v_Modules.empty()) {
-            make << "\nModules {\n";
-            for (const auto &m : cfg.v_Modules)
-                make << "    " << m << "\n";
-            make << "}\n";
-        }
-        if (!cfg.v_Precmd.empty()) {
-            make << "\nPreBuild {\n";
-            for (const auto &cmd : cfg.v_Precmd)
-                make << "    " << cmd << "\n";
-            make << "}\n";
-        }
-        if (!cfg.v_Postcmd.empty()) {
-            make << "\nPostBuild {\n";
-            for (const auto &cmd : cfg.v_Postcmd)
-                make << "    " << cmd << "\n";
-            make << "}\n";
-        }
-
-        make.close();
-        hp::printlnCl(std::format("{} was created successfully.", filename.string()), hp::Color::GREEN);
-        return;
+        createConfig(cfg);
     }
 
     if (cfg.buildSere || cfg.compiler == "sere") {
