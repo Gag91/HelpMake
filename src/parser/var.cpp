@@ -1,9 +1,24 @@
 #include "hm/parser/var.hpp"
+#include "hm/util/bools.hpp"
 
 #include <cstddef>
 #include <format>
 
 namespace hm {
+
+    bool Var::isValidVar(std::string_view var) const {
+        for (const auto &[key, value] : variables) {
+            if (key == var)
+                return true;
+            if (is_typo(key, var)) {
+                hp::printlnCl(
+                    std::format("[HelpMake] Error: Found '[[{}]]'. Did you mean '[[{}]]' ?", var, key),
+                    hp::YELLOW);
+            }
+        }
+        return false;
+    }
+
     void Var::defineVar(const std::string &key, const std::string &value) {
         variables[key] = value;
     }

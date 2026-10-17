@@ -1,5 +1,6 @@
 #include "hm/cli/cli.hpp"
 #include "hm/parser/parser.hpp"
+#include "hm/util/strings.hpp"
 
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
@@ -164,6 +165,32 @@ namespace hm::cli {
                 config.verbose = true;
             } else if (arg == "-r" || arg == "--run") {
                 config.run = true;
+            } else if (arg == "--var") {
+                if (i + 1 >= argc) {
+                    hp::printlnCl("[HelpMake] Error: --var requires NAME=VALUE", hp::RED);
+                    exit(EXIT_FAILURE);
+                }
+                std::string rest = argv[++i];
+                std::size_t pos = rest.find('=');
+                if (pos == std::string::npos || pos == 0) {
+                    hp::printlnCl(std::format("[HelpMake] Error: --var expects NAME=VALUE, got '{}'", rest), hp::RED);
+                    exit(EXIT_FAILURE);
+                }
+                std::string key = trim(rest.substr(0, pos));
+                std::string value = trim(rest.substr(pos + 1));
+                config.v_Vars[key] = value;
+
+            } else if (arg.rfind("--var", 0) == 0) {
+                std::string rest = std::string(arg).substr(5);
+                std::size_t pos = rest.find('=');
+                if (pos == std::string::npos || pos == 0) {
+                    hp::printlnCl(std::format("[HelpMake] Error: --var expects NAME=VALUE, got '{}'", arg), hp::RED);
+                    exit(EXIT_FAILURE);
+                }
+                std::string key = trim(rest.substr(0, pos));
+                std::string value = trim(rest.substr(pos + 1));
+                config.v_Vars[key] = value;
+
             } else if (arg == "--debug") {
                 config.debug = true;
             } else if (arg == "--nofile") {

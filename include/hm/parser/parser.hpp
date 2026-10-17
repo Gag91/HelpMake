@@ -44,8 +44,6 @@ class Parser {
     bool isVarSet = false;
 
     Config currentConfig;
-    hm::Var var;
-
     std::map<std::string, Config> configs;
     int configBraceDepth = 1;
     static std::vector<std::string> splitArgs(const std::string &args);

@@ -1,11 +1,13 @@
 #pragma once
 
+#include "hm/parser/var.hpp"
 #include <string>
 #include <vector>
 
 struct Config {
-    std::string name;
+    hm::Var var;
 
+    std::string name;
     std::string compiler;
     std::string version;
     std::string output;
@@ -29,6 +31,8 @@ struct Config {
     std::vector<std::string> v_Precmd;
     std::vector<std::string> v_Errors;
     std::vector<std::string> v_Copy;
+
+    std::map<std::string, std::string> v_Vars;
 
     bool verbose = false;
     bool debug = false;
