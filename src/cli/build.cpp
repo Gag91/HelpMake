@@ -198,6 +198,9 @@ namespace hm::cli {
                 if (!config.inputFile.empty())
                     config.inputFile += " ";
                 config.inputFile += std::string(arg);
+            } else {
+                hp::printlnCl(std::format("[HelpMake] Error: Invalid Argument '{}'.\n Use --help for the available arguments", arg), hp::RED);
+                exit(EXIT_FAILURE);
             }
         }
 

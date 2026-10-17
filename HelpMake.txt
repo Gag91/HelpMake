@@ -3,16 +3,21 @@ Version: std=c++20
 Output: hmm.exe
 Jobs: 8
 
+Set {
+    CPP_SOURCE: src/**/*.cpp
+    INCLUDE_DIR: include/
+    FLAGS: -Wall -lstdc++exp -O3
+}
 InputFiles {
-    src/**/*.cpp
+    [[CPP_SOURCE]]
 }
 
 Includes {
-    include
+    [[INCLUDE_DIR]]
 }
 
 Flags {
-    -Wall
+    [[FLAGS]]
 }
 
 # GCC modules config
@@ -79,7 +84,7 @@ Config: msvc {
     Output: hmm-msvc.exe
     Version: /std:c++20
     InputFiles {
-      src/**/*.cppc
+      src/**/*.cpp
       }
 
     Flags {
