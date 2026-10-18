@@ -1,4 +1,5 @@
 #include "hm/parser/parser.hpp"
+#include "hm/toolchain/compiler.hpp"
 
 void Parser::generateCompileCommands(const Config &c) {
     std::ofstream json("compile_commands.json");
@@ -11,6 +12,8 @@ void Parser::generateCompileCommands(const Config &c) {
     std::string cwd = std::filesystem::current_path().generic_string();
     std::string comp = compilerCommand(c.compiler);
     bool isClang = (comp == "clang++" || comp == "clang");
+    auto compilerObj = hm::makeCompiler(c.compiler);
+    std::string compilerName = compilerObj ? compilerObj->name() : c.compiler;
 
     std::string version = c.version;
     if (!version.empty() && version.front() != '-')
@@ -32,12 +35,12 @@ void Parser::generateCompileCommands(const Config &c) {
         std::string baseName = std::filesystem::path(file).stem().string();
         bool isModExt = isModule(file);
         bool isMod = isModExt || isDeclaredModule(file, c.v_Modules);
-        std::string objPath = std::format("build/HelpMake/obj/{}.o", baseName);
+        std::string objPath = std::format("build/HelpMake/{}/obj/{}.o", compilerName, baseName);
         std::string command;
 
         if (isClang && isMod) {
             std::string moduleName = extractModule(file);
-            std::string pcmPath = std::format("build/HelpMake/modules/{}.pcm", baseName);
+            std::string pcmPath = std::format("build/HelpMake/{}/modules/{}.pcm", compilerName, baseName);
             std::string langFlag = isModExt ? "" : "-xc++-module ";
             command = std::format("{} -fdiagnostics-color=always {}{} -c {} -o {} -MMD -fmodule-file={}={}", comp, langFlag, CommandFlags, file, objPath, moduleName, pcmPath);
         } else {

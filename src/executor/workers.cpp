@@ -44,7 +44,7 @@ int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
                                 std::cerr << '\n';
                         }
                     }
-                    return;
+                    continue;
                 }
             }
         });

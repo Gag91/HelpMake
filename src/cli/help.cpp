@@ -25,6 +25,8 @@ Build Options (use with -b):
   -Clang         Use LLVM Clang Compiler
   -MSVC          Use Microsoft Visual C++ Compiler, Windows only
   -Zig           Use Zig Compiler (C/C++ support)
+  -ZigCC         Use Zig Compiler (C mode, 'zig cc')
+  -ZigCpp        Use Zig Compiler (C++ mode, 'zig c++')
   -Sere          Use Sere Compiler
   -C=<compiler>  Use any compiler (e.g., -C=gcc, -C=python)
   -V=<version>   Use any version (e.g., -V=std=c99)

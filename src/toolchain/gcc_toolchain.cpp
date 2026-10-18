@@ -57,6 +57,13 @@ namespace hm {
             return {"-MMD"};
         }
 
+        std::vector<std::string> directBuildArgs(const std::vector<std::string> &inputs, const std::string &output) const override {
+            std::vector<std::string> args = inputs;
+            args.push_back("-o");
+            args.push_back(output);
+            return args;
+        }
+
         bool writesDepFile() const override {
             return true;
         }

@@ -7,7 +7,7 @@ Jobs: 8
 Set {
     CPP_SOURCE: src/**/*.cpp
     INCLUDE_DIR: include/
-    FLAGS: -Wall -lstdc++exp -O3
+    FLAGS: -Wall
 }
 InputFiles {
     [[CPP_SOURCE]]
@@ -92,5 +92,18 @@ Config: msvc {
       /W4
       /EHsc
       Iinclude
+      }
+}
+# ZigCC test
+Config: zigcc {
+    Compiler: zig cc
+    Output: zigcc-test.exe
+    Version: std=c23
+    InputFiles {
+      test/test.c
+      }
+
+    Flags {
+      -Wall
       }
 }

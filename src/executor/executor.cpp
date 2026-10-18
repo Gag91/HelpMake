@@ -51,6 +51,42 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         exit(EXIT_FAILURE);
     }
 
+    const std::string compilerDir = "build/HelpMake/" + comp->name();
+
+    {
+        std::size_t d = c.output.find_last_of('.');
+        baseName = (d != std::string::npos) ? c.output.substr(0, d) : c.output;
+    }
+
+    {
+        const std::filesystem::path marker = compilerDir + "/.buildid";
+        std::string current = comp->binary();
+        for (auto &s : comp->subcommand())
+            current += " " + s;
+        if (!c.version.empty())
+            current += " " + c.version;
+        if (!c.flags.empty())
+            current += " " + c.flags;
+
+        std::string previous;
+        if (std::ifstream in(marker); in)
+            std::getline(in, previous);
+
+        if (previous != current) {
+            if (!c.quiet && !previous.empty())
+                hp::printlnCl("[HelpMake] Build flags changed, invalidating objects.", hp::YELLOW);
+            std::error_code ec;
+            std::filesystem::remove_all(compilerDir + "/obj", ec);
+            std::filesystem::create_directories(compilerDir);
+            std::ofstream(marker) << current;
+        }
+    }
+
+    r_logDir = compilerDir + "/logs/raw";
+    logDir = compilerDir + "/logs";
+    r_logPath = r_logDir + "/" + baseName + ".txt";
+    logPath = logDir + "/" + baseName + ".txt";
+
     bool isClang = (comp->name() == "clang");
     bool showOutput = c.verbose || c.debug;
     bool isConfig = !name.empty();
@@ -99,7 +135,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         std::istringstream iss(CommandFlags);
         std::string tok;
         while (iss >> tok) {
-            if (tok.rfind("-l", 0) == 0) {
+            if (tok.rfind("-l", 0) == 0 || tok.rfind("/l", 0) == 0) {
                 if (!linkFlags.empty())
                     linkFlags += " ";
                 linkFlags += tok;
@@ -134,8 +170,12 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 
             std::vector<std::string> args = comp->pchCreateArgs(pchHeader, pchBinary);
             std::vector<std::string> full = {comp->binary()};
+            for (auto &s : comp->subcommand())
+                full.push_back(s);
+
             for (const auto &f : splitArgs(compileFlags))
                 full.push_back(f);
+
             for (const auto &a : args)
                 full.push_back(a);
 
@@ -171,11 +211,11 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         compileFlags = "-I" + pchIncludeDir + " " + compileFlags;
     }
 
-    if (c.seperate) {
+    if (c.seperate && comp->supportsSeparate()) {
 
-        std::filesystem::create_directories("build/HelpMake/obj");
+        std::filesystem::create_directories(compilerDir + "/obj");
         if (isClang)
-            std::filesystem::create_directories("build/HelpMake/modules");
+            std::filesystem::create_directories(compilerDir + "/modules");
 
         std::map<std::string, std::string> clangModules;
         if (isClang) {
@@ -184,7 +224,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
                     continue;
                 std::string moduleName = extractModule(m);
                 std::string moduleBase = std::filesystem::path(m).stem().string();
-                clangModules[moduleName] = "build/HelpMake/modules/" + moduleBase + ".pcm";
+                clangModules[moduleName] = compilerDir + "/modules/" + moduleBase + ".pcm";
             }
             if (showOutput && !clangModules.empty()) {
                 std::cout << std::format("{} Clang modules detected:\n", tag);
@@ -217,10 +257,13 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         for (const auto &file : expandedFiles) {
             std::string baseName = std::filesystem::path(file).stem().string();
 
-            std::string objPath = "build/HelpMake/obj/" + baseName + comp->objectExt();
+            std::string objPath = compilerDir + "/obj/" + baseName + comp->objectExt();
 
             std::vector<std::string> args;
             args.push_back(comp->binary());
+
+            for (auto &s : comp->subcommand())
+                args.push_back(s);
 
             std::istringstream iss(compileFlags);
             std::string tok;
@@ -258,7 +301,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
             if (showOutput)
                 hp::printlnCl(std::format("\n{} Object Command: {}", tag, objCmd), hp::YELLOW);
 
-            std::string perFileLog = std::format("build/HelpMake/logs/raw/{}.raw", baseName);
+            std::string perFileLog = std::format("{}/{}.raw", r_logDir, baseName);
             jobs.push_back({file, objCmd, perFileLog});
             objects.push_back(objPath);
         }
@@ -298,6 +341,11 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
                     args.push_back(obj);
             } else {
                 binary = comp->binary();
+
+                for (auto &s : comp->subcommand()) {
+                    binary += " ";
+                    binary += s;
+                }
 
                 std::istringstream iss(compileFlags);
                 std::string tok;
@@ -343,18 +391,24 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         std::vector<std::string> args;
         args.push_back(comp->binary());
 
+        for (auto &s : comp->subcommand())
+            args.push_back(s);
+
+        if (comp->isZig()) {
+            args.push_back("build-exe");
+        }
+
         std::istringstream iss(compileFlags);
         std::string tok;
         while (iss >> tok)
             args.push_back(tok);
 
-        args.push_back(c.inputFile);
-
         std::istringstream iss2(linkFlags);
         while (iss2 >> tok)
             args.push_back(tok);
 
-        for (auto &a : comp->executableOutputArgs(c.output))
+        std::vector<std::string> inputs = splitArgs(c.inputFile);
+        for (auto &a : comp->directBuildArgs(inputs, c.output))
             args.push_back(a);
 
         std::string command = hm::Process::join(args);

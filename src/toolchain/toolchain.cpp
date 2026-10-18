@@ -53,6 +53,10 @@ namespace hm {
             return {};
         }
 
+        std::vector<std::string> directBuildArgs(const std::vector<std::string> &inputs, const std::string &output) const override {
+            return {};
+        }
+
         bool writesDepFile() const override {
             return false;
         }
@@ -65,6 +69,15 @@ namespace hm {
             return makeClangCompiler();
         if (name == "msvc" || name == "cl")
             return makeMsvcCompiler();
+        if (name == "zig")
+            return makeZigCompiler();
+
+        if (name == "zig c++" || name == "zig-c++" || name == "zigcpp" || name == "zig-cpp")
+            return makeZigCppCompiler();
+
+        if (name == "zig cc" || name == "zig-cc" || name == "zigcc" || name == "zig-c")
+            return makeZigCCompiler();
+
         return std::make_unique<GenericCompiler>(name);
     }
 

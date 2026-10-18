@@ -191,6 +191,10 @@ namespace hm::cli {
                 std::string value = trim(rest.substr(pos + 1));
                 config.v_Vars[key] = value;
 
+            } else if (arg == "-ZigCpp" || arg == "-zigcpp" || arg == "-zig-c++" || arg == "-Zigc++") {
+                config.compiler = "zig c++";
+            } else if (arg == "-ZigCC" || arg == "-zigcc" || arg == "-zig-cc" || arg == "-Zigcc") {
+                config.compiler = "zig-cc";
             } else if (arg == "--debug") {
                 config.debug = true;
             } else if (arg == "--nofile") {

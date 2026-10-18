@@ -103,6 +103,10 @@ inline std::string extractModule(const std::filesystem::path &filename) {
 inline std::string compilerCommand(const std::string &compiler) {
     if (compiler == "msvc")
         return "cl";
+    if (compiler == "zig c++" || compiler == "zig-c++" || compiler == "zigcpp" || compiler == "zig-cpp")
+        return "zig c++";
+    if (compiler == "zig cc" || compiler == "zig-cc" || compiler == "zigcc" || compiler == "zig-c")
+        return "zig cc";
     return compiler;
 }
 

@@ -52,6 +52,12 @@ namespace hm {
             return {"/Fe:" + out};
         }
 
+        std::vector<std::string> directBuildArgs(const std::vector<std::string> &inputs, const std::string &output) const override {
+            std::vector<std::string> args = inputs;
+            args.push_back("/Fe:" + output);
+            return args;
+        }
+
         std::vector<std::string> depArgs() const override {
             return {};
         }
