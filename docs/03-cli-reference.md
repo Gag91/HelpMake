@@ -28,7 +28,7 @@ Complete list of `hm` command-line flags.
 |---|---|
 | `-Gcc` | GCC (`g++`) |
 | `-Clang` | Clang (`clang++`) |
-| `-MSVC` | MSVC (`cl.exe`) — Windows only |
+| `-MSVC` | MSVC (`cl.exe`) - Windows only |
 | `-Zig` | Zig (`zig build-exe`) |
 | `-ZigCpp` | Zig C++ mode (`zig c++`) |
 | `-ZigCC` | Zig C mode (`zig cc`) |
@@ -67,7 +67,7 @@ hm -b -C="zig cc"
 | `--debug` | Show parser trace plus every command (implies `--verbose` output). |
 | `--rebuild` | Force a full rebuild, ignoring timestamps and dep files. |
 | `--json` | Generate `compile_commands.json` alongside the build. |
-| `--no-sep` | One-shot compile — pass all sources to the compiler in one command. Disables incremental builds, PCH, and `Kind: static`. |
+| `--no-sep` | One-shot compile - pass all sources to the compiler in one command. Disables incremental builds, PCH, and `Kind: static`. |
 | `--notify` | Desktop notification on build completion (Windows Toast / notify-send on Linux). |
 | `--quiet` | Suppress warnings. Errors still print. |
 | `--time` | Print the total build time even without `--verbose`. |
@@ -125,7 +125,7 @@ Scripts can use `if hm -b; then …; fi` safely.
 
 ## Environment
 
-HelpMake does not read any environment variables for its behavior — everything is on the command line or in `HelpMake.txt`. The compilers and tools it invokes may read their own (`CXXFLAGS`, `CC`, etc.), but HelpMake itself doesn't.
+HelpMake does not read any environment variables for its behavior - everything is on the command line or in `HelpMake.txt`. The compilers and tools it invokes may read their own (`CXXFLAGS`, `CC`, etc.), but HelpMake itself doesn't.
 
 ## Aliases in Compiler:
 

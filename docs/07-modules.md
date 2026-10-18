@@ -47,8 +47,8 @@ hm -b
 
 GCC compiles a module interface unit in a single `-c` step that produces both:
 
-- `build/HelpMake/gcc/obj/math.o` — the object file
-- `gcm.cache/math.gcm` — the module interface cache
+- `build/HelpMake/gcc/obj/math.o` - the object file
+- `gcm.cache/math.gcm` - the module interface cache
 
 Subsequent consumers get `-fmodule-file=math=gcm.cache/math.gcm` implicitly via the default search path.
 
@@ -97,7 +97,7 @@ src/main.cpp       ← compiled after (can import math, graphics)
 src/util.cpp       ← compiled after
 ```
 
-Modules that import other modules still get compiled after their dependencies — HelpMake doesn't currently do topological sort, so if you have `module A; import B;` you need to list `B` before `A` in the file (or accept the resulting compile error and reorder).
+Modules that import other modules still get compiled after their dependencies - HelpMake doesn't currently do topological sort, so if you have `module A; import B;` you need to list `B` before `A` in the file (or accept the resulting compile error and reorder).
 
 ## Cleaning module caches
 

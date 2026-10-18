@@ -80,7 +80,7 @@ Flags {
     math.lib
 }
 ```
-HelpMake doesn't try to translate `-l` into `<name>.lib` automatically — spell out the full library name for MSVC.
+HelpMake doesn't try to translate `-l` into `<name>.lib` automatically - spell out the full library name for MSVC.
 
 ## Full example: lib + app in one file
 
@@ -128,7 +128,7 @@ hm -b --config math-lib
 hm -b --config app
 ```
 
-`app` requires `math-lib` to be built first — HelpMake doesn't (yet) have inter-config dependencies, so the CI script handles ordering:
+`app` requires `math-lib` to be built first - HelpMake doesn't (yet) have inter-config dependencies, so the CI script handles ordering:
 ```bash
 hm -b --config math-lib && hm -b --config app
 ```
@@ -144,7 +144,7 @@ Static library builds always use separate compilation.
 
 ## Gotcha: PCH interaction
 
-PCH works with `Kind: static` the same as it works with executables — the PCH is built once, cached per compiler, and injected into every source compile. No special handling needed.
+PCH works with `Kind: static` the same as it works with executables - the PCH is built once, cached per compiler, and injected into every source compile. No special handling needed.
 
 ## When to use static libraries
 
@@ -153,8 +153,8 @@ PCH works with `Kind: static` the same as it works with executables — the PCH 
 - **Distribution:** ship a `.a` + headers instead of source
 
 Not ideal for:
-- Single-binary distribution — use normal `Kind: executable` with all sources compiled in
-- Cross-platform binaries — `.a` is ABI-specific; ship source or use CMake
+- Single-binary distribution - use normal `Kind: executable` with all sources compiled in
+- Cross-platform binaries - `.a` is ABI-specific; ship source or use CMake
 
 ## Inspecting an archive
 

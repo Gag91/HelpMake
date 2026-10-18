@@ -38,7 +38,7 @@ Flags {
     -[[CXX_STD]]-optimized
 }
 ```
-`[[name]]` is expanded in every field and block entry. Values are substituted verbatim — no whitespace trimming happens on expansion.
+`[[name]]` is expanded in every field and block entry. Values are substituted verbatim - no whitespace trimming happens on expansion.
 
 ## CLI override
 
@@ -153,7 +153,7 @@ hm -b --config release --var CXX=cl
 Variables expand at parse time, before config inheritance. This means:
 
 - A `Set { }` at the root is visible to every config.
-- A `Config: name { }` block can define its own `Set { }` — that shadows for that config's fields only.
+- A `Config: name { }` block can define its own `Set { }` - that shadows for that config's fields only.
 - `--var` overrides every `Set { }` definition, regardless of scope.
 
 ## Limitations

@@ -45,13 +45,13 @@ Windows only. Uses `cl.exe` and `lib.exe`. Because MSVC's model is source-file-b
 - `pchUseArgs` returns `{"/Yu<header>", "/Fp<pch>"}` for every consumer source
 - Object output uses `/Fo:<path>` (MSVC's colon form)
 - Executable output uses `/Fe:<path>`
-- No dep file (`/showIncludes` output isn't parsed — incremental builds rely on mtimes only)
+- No dep file (`/showIncludes` output isn't parsed - incremental builds rely on mtimes only)
 
 MSVC incremental builds are less precise than GCC/Clang because header changes trigger rebuilds only via mtime comparison of the source file, not through a depfile. `--rebuild` is your friend when in doubt.
 
 ### Zig
 
-Standalone Zig (`.zig` sources). One-shot only — `supportsSeparate() = false` because Zig's `build-exe` produces a binary directly with no intermediate object step.
+Standalone Zig (`.zig` sources). One-shot only - `supportsSeparate() = false` because Zig's `build-exe` produces a binary directly with no intermediate object step.
 
 Command shape:
 ```text
@@ -64,14 +64,14 @@ No PCH, no modules, no static libraries. Use one of the C-family Zig modes below
 
 Zig's bundled C++ toolchain (`zig c++`). Behaviorally identical to Clang (Zig uses LLVM Clang under the hood) but links against Zig's bundled `libc++` instead of the system one.
 
-**Important:** Zig C++ and GCC objects are **not** link-compatible — Zig's `libc++` has a different ABI from GNU's `libstdc++`. HelpMake isolates them per compiler (`build/HelpMake/zig-c++/obj/`), so switching `Compiler: g++` → `Compiler: zig c++` never accidentally links mixed objects.
+**Important:** Zig C++ and GCC objects are **not** link-compatible - Zig's `libc++` has a different ABI from GNU's `libstdc++`. HelpMake isolates them per compiler (`build/HelpMake/zig-c++/obj/`), so switching `Compiler: g++` → `Compiler: zig c++` never accidentally links mixed objects.
 
 Command shape:
 ```text
 zig c++ -std=c++20 -Iinclude -Wall -fdiagnostics-color=always -c src/main.cpp -o build/HelpMake/zig-c++/obj/main.o -MMD
 ```
 
-The `zig` binary is invoked with the `c++` subcommand — that's why `Compiler:` accepts `zig c++`, `zig-c++`, `zigcpp`, and `zig-cpp` as equivalent.
+The `zig` binary is invoked with the `c++` subcommand - that's why `Compiler:` accepts `zig c++`, `zig-c++`, `zigcpp`, and `zig-cpp` as equivalent.
 
 Cold-start builds are slow (10–60s on first invocation) while Zig populates its global cache (`%LOCALAPPDATA%\zig\` on Windows, `~/.cache/zig` on Linux). Subsequent builds are fast.
 
@@ -119,7 +119,7 @@ HelpMake prevents this by construction:
 - Switching `Compiler:` finds an empty `obj/` and recompiles everything
 - Logs also live per-compiler, so `build/HelpMake/gcc/logs/` never confuses with `build/HelpMake/zig-c++/logs/`
 
-You **can** mix freely across `Config:` blocks — each config picks its own compiler and gets its own object tree:
+You **can** mix freely across `Config:` blocks - each config picks its own compiler and gets its own object tree:
 
 ```txt
 Compiler: g++

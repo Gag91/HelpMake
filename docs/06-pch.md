@@ -32,7 +32,7 @@ On the first build, HelpMake:
 2. Adds `-include include/pch.hpp` to every subsequent compile command
 3. Reuses the compiled header on every future build until it becomes stale
 
-The savings grow with header size — for a header including `<vector>`, `<string>`, `<map>`, and `<regex>`, expect 2–5× faster compile times.
+The savings grow with header size - for a header including `<vector>`, `<string>`, `<map>`, and `<regex>`, expect 2–5× faster compile times.
 
 ## How the cache works
 
@@ -71,8 +71,8 @@ When it rebuilds, every source file that depends on the PCH also recompiles auto
 | MSVC | `.pch` | `/Yu<header> /Fp<pch>` | Source-file-based, requires first-include rule |
 | Zig C++ | `.pch` | `-include-pch <pch>` | Same as Clang |
 | Zig CC | `.pch` | `-include-pch <pch>` | Same as Clang, but `-x c-header` |
-| Zig | — | — | Not supported (one-shot) |
-| Generic | — | — | Not supported |
+| Zig | - | - | Not supported (one-shot) |
+| Generic | - | - | Not supported |
 
 ## Common pitfalls
 
@@ -87,7 +87,7 @@ with no `#include` before it. Otherwise the compile fails with:
 ```text
 fatal error C1010: unexpected end of file while looking for precompiled header
 ```
-HelpMake generates a synthetic `build/HelpMake/headers/msvc/pch.cpp` that includes the header, and passes `/Yc` + `/Yu` correctly — but the first-include rule is on your sources, not on HelpMake.
+HelpMake generates a synthetic `build/HelpMake/headers/msvc/pch.cpp` that includes the header, and passes `/Yc` + `/Yu` correctly - but the first-include rule is on your sources, not on HelpMake.
 
 ### GCC uses -include <header>, not -include-pch <pch>
 For GCC, `-include-pch` doesn't exist. Instead:
