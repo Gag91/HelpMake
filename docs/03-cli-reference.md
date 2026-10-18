@@ -47,8 +47,8 @@ hm -b -C="zig cc"
 | Flag | Description |
 |---|---|
 | `-V=<version>` | Standard flag. `-V=std=c++20` becomes `-std=c++20` in the compile command. A leading `-` is added automatically if absent. |
-| `--Kind=<kind>` | `executable` (default) or `static`. See Static libraries. |
-| `--var NAME=VALUE` | Override a `Set { }` variable. See Variables. |
+| `--Kind=<kind>` | `executable` (default) or `static`. See [Static libraries](08-static-libs.md). |
+| `--var NAME=VALUE` | Override a `Set { }` variable. See [Variables](05-variables.md). |
 | `-I<path>` | Add `-I<path>` to compile flags (same as `Includes { }` inline). |
 | `-L<path>` | Add `-L<path>` to link flags. |
 | `-F<flags>` | Add raw flags to compile+link. |
