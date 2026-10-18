@@ -6,17 +6,19 @@
 
 ## Features
 
-- **Language-agnostic** - C, C++, Zig, Rust, Assembly, anything with a CLI compiler
-- **Any compiler** - `gcc`, `clang`, `msvc`, `zig`, `sere`, or any custom compiler
+- **Language-agnostic** - C, C++, Zig, Assembly, or anything with a CLI compiler
+- **Multiple built-in toolchains** - GCC, Clang, MSVC, Zig, Zig C++ (`zig c++`), Zig CC (`zig cc`), Sere, plus any custom compiler via `-C=`
+- **Precompiled headers** - first-class PCH support on GCC, Clang, MSVC, and Zig C/C++
 - **Config blocks** - Define multiple build targets in one file
-- **Static libraries** - `Kind: static` builds `.a` archives
+- **Variables** - `Set { }` block + `[[name]]` expansion + `--var NAME=VALUE` CLI override
+- **Static libraries** - `Kind: static` builds `.a` / `.lib` archives
 - **C++20 modules** - GCC and Clang workflows, non-standard extensions supported
-- **Incremental builds** - Only recompiles what changed
-- **Header tracking** - Rebuilds when headers change, via `.d` files
+- **Incremental builds** - Only recompiles what changed, header tracking via `.d` files
+- **Flag-change invalidation** - Changing `-O2` → `-O3` or switching compilers triggers an automatic clean rebuild
+- **Per-compiler build isolation** - Each toolchain gets its own `obj/`, `modules/`, and `logs/` directory, so switching compilers never mixes object files
 - **Parallel builds** - `-j N` compiles N files at once
 - **Fetch dependencies** - `Fetch { }` clones git repos into `build/HelpMake/dep/`
 - **PreBuild / PostBuild** - Run commands before and after the build
-- **Per-config arguments** - `Arguments { }` toggles flags per config
 - **`compile_commands.json`** - IDE / clangd integration
 - **Color-coded logs** - Raw + clean logs, per-file timings
 - **Typo detection** - Suggests the correct key when you misspell one
@@ -47,7 +49,6 @@ Flags {
 
 ```bash
 hm -b
-# Or hm --build for the long form.
 ```
 
 ## Installation
@@ -57,7 +58,7 @@ hm -b
 ```bash
 git clone https://github.com/Gag91/Help_Make.git
 cd Help_Make
-g++ -std=c++20 src/*.cpp -o hm.exe -Iinclude
+g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp src/generator/*.cpp src/getters/*.cpp src/init/*.cpp src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp src/main.cpp -o hm.exe -Iinclude -o hm.exe -Iinclude
 ```
 
 Then add the folder to PATH:
@@ -99,14 +100,33 @@ hm --dump              # Print raw HelpMake.txt
 hm --init              # Interactive project wizard
 ```
 
-### Any compiler, any language
+### Picking a toolchain
 
 ```bash
-hm -b -C=zig                    # Use Zig
-hm -b -C=nasm                   # Use NASM
-hm -b -V=std=c99                # Any standard
-hm -b --nofile -C=gcc main.c    # Build without a config file
+hm -b -Gcc             # GCC (g++)
+hm -b -Clang           # Clang (clang++)
+hm -b -MSVC            # MSVC (cl.exe) - Windows only
+hm -b -Zig             # Zig (build-exe)
+hm -b -ZigCpp          # Zig in C++ mode (zig c++)
+hm -b -ZigCC           # Zig in C mode  (zig cc)
+hm -b -Sere            # Sere compiler
 ```
+
+Or spell it out:
+
+```bash
+hm -b -C=zig-c++       # Same as -ZigCpp
+hm -b -C=python        # compile python
+hm -b -C=nasm          # Any compiler on PATH
+```
+
+### Variables
+
+```bash
+hm -b --var CXX=clang++ --var BUILD_TYPE=release
+```
+
+Overrides any `Set { }` entry of the same name. Useful for CI so you never edit `HelpMake.txt` per-platform.
 
 ### Static libraries
 
@@ -114,7 +134,7 @@ hm -b --nofile -C=gcc main.c    # Build without a config file
 hm -b --Kind=static -o build/libmath.a
 ```
 
-See the [Static Libraries](#static libraries) section below.
+See the Static Libraries section below.
 
 ## CLI Reference
 
@@ -127,7 +147,7 @@ Options:
   -b, --build              Build using HelpMake.txt
   -l, --license            Show license
   -f, --file               Use a custom config file
-  -j, --jobs N   Compile N files in parallel (default: all cores)
+  -j, --jobs N             Compile N files in parallel (default: all cores)
   --show                   Show current configuration
   --dump                   Print raw HelpMake.txt
   --create                 Generate HelpMake.txt from args
@@ -138,10 +158,13 @@ Options:
   --clean-all              Delete both
 
 Build Options:
-  -Gcc, -Clang, -MSVC, -Zig, -Sere  Pick a compiler
-  -C=<compiler>            Use any compiler
-  -V=<version>             Set the standard
+  -Gcc, -Clang, -MSVC,
+  -Zig, -ZigCpp, -ZigCC,
+  -Sere                    Pick a built-in toolchain
+  -C=<compiler>            Use any compiler (gcc, clang, msvc, zig, "zig c++", "zig cc", nasm...)
+  -V=<version>             Set the standard (e.g. -V=std=c++20)
   --Kind=<kind>            Target kind: executable (default), static
+  --var NAME=VALUE         Override a Set { } variable
 
 Build Flags:
   -I<path>                 Include directory
@@ -167,10 +190,11 @@ Build Flags:
 
 ```txt
 Compiler: g++         # Any compiler name or path
-Version: std=c++23     # Any standard
-Output: build/app      # Output path
-Kind: static           # executable (default) or static
-Run: true              # Run the output after building
+Version: std=c++23    # Any standard
+Output: build/app     # Output path
+Kind: static          # executable (default) or static
+Run: true             # Run the output after building
+PCH: include/pch.hpp  # Precompiled header (optional)
 ```
 
 Inline forms also work:
@@ -216,132 +240,75 @@ PostBuild {
 }
 ```
 
-`#` starts a comment. Lines inside blocks are one item per line.
+*Note: `#` starts a comment. Lines inside blocks are one item per line.*
 
-### Configs
+### Variables
 
-Multiple build targets in one file:
+Define reusable values with `Set { }`, expand with `[[name]]`:
+
+```txt
+Set {
+    CXX: g++
+    CXX_STD: std=c++20
+    OUT_DIR: build
+    OPT: -O2
+}
+
+Compiler: [[CXX]]
+Version: std=[[CXX_STD]]
+Output: [[OUT_DIR]]/app
+Flags {
+    -Wall
+    [[OPT]]
+}
+```
+
+Override from the CLI (works with CI, per-platform scripts, etc.):
+
+```bash
+hm -b --var CXX=clang++ --var OPT=-O3
+```
+
+Any name defined on the command line takes priority over the file. Undefined variables are reported as errors with `file:line`.
+
+Escape a literal `[[` by writing `[[[[`.
+
+### Precompiled Headers (PCH)
+
+Point `PCH:` at a header that every source includes. HelpMake compiles it once, caches it, and reuses it until either the header or a transitive dependency changes:
 
 ```txt
 Compiler: g++
 Version: std=c++20
-Output: build/app.exe
+Output: build/app
+PCH: include/pch.hpp
+
 InputFiles {
     src/*.cpp
 }
 
-Config: debug {
-    Flags: -g -O0 -DDEBUG
-    Output: build/debug.exe
+Includes {
+    include
 }
 
-Config: release {
-    Compiler: clang
-    Flags: -O3 -DNDEBUG -flto
-    Output: build/release.exe
+Flags {
+    -Wall
+    -O2
 }
 ```
 
-Build them:
+The cache lives at `build/HelpMake/headers/<compiler>/` and is invalidated when:
+- The PCH source header changes
+- Any header included by the PCH source changes
+- `--rebuild` is passed
+- The compiler or its flags change
 
-```bash
-hm -b --config debug
-hm -b --config release
-hm -b --config debug --config release  # both
-hm -b --config-all                    # every config
-```
+### Toolchain support
 
-Each config inherits from the root and overrides only what it sets.
-
-### Arguments
-
-Per-config boolean flags:
-
-```txt
-Config: dev {
-    Output: build/dev.exe
-    Arguments {
-        verbose
-        debug
-        run
-    }
-}
-```
-
-Available: `verbose`, `debug`, `run`, `time`, `json`, `rebuild`, `notify`, `quiet`.
-
-### Static Libraries
-
-Set `Kind: static` to build an archive instead of an executable:
-
-```txt
-Compiler: g++
-Version: std=c++20
-Kind: static
-Output: build/libmath.a
-InputFiles {
-    src/math/*.cpp
-}
-```
-
-HelpMake runs `ar rcs` (GCC/Clang) to produce the static library. To link a consumer:
-
-```txt
-Config: lib {
-    Output: app.exe
-    InputFiles {
-        src/main.cpp
-    }
-    Flags {
-        -Lbuild
-        -lmath
-    }
-}
-```
-
-HelpMake places `-l` flags after the object files automatically, so the link order is always correct.
-
-### C++20 Modules
-
-List module interface units under `Modules { }`:
-
-```txt
-Compiler: clang++
-Version: std=c++20
-Output: build/app.exe
-InputFiles {
-    src/main.cpp
-}
-Modules {
-    src/math.cppm
-    src/graphics.ixx
-}
-```
-
-HelpMake knows the difference between compilers:
-- **GCC** - one `-c` step produces both `.o` and `gcm.cache/<name>.gcm`
-- **Clang** - `--precompile` produces `.pcm`, then `-c` produces `.o`
-
-Modules compile before regular sources, so consumers always find the precompiled interface. Non-standard extensions like `.module` work: HelpMake adds `-xc++-module` for Clang and `-xc++` for GCC automatically.
-
-## Requirements
-
-- C++20 compiler
-- GCC 11+ or Clang 11+ for module support
-- `ar` (usually installed alongside GCC/Clang) for static libraries
-
-## VS Code Extension
-
-Syntax highlighting is available on the VS Code Marketplace. Search for "HelpMake".
-
-## License
-
-MIT - see LICENSE for details.
-
-## Contributing
-
-Feel free to open issues or PRs. Bugs, feature requests, docs improvements all welcome.
-
-## Contact
-
-- **Discord:** xxavi640
+| Toolchain | PCH extension | Notes |
+| :--- | :--- | :--- |
+| GCC | .gch | Auto-included via -include |
+| Clang | .pch | Auto-included via -include-pch |
+| MSVC | .pch | Source-file-based (/Yc + /Yu) |
+| Zig C++ / Zig CC | .pch | Same as Clang |
+| Zig | - | Not applicable (one-shot builds) |
