@@ -1,4 +1,5 @@
 #include "hm/toolchain/compiler.hpp"
+#include <filesystem>
 
 namespace hm {
 
@@ -17,10 +18,28 @@ namespace hm {
             return ".obj";
         }
 
+        std::string pchExtension() const override {
+            return ".pch";
+        }
+
         std::string includeFlag(const std::string &p) const override {
             return "/I" + p;
         }
 
+        std::string pchSourceFileContent(const std::string &content) const override {
+            std::string name = std::filesystem::path(content).filename().string();
+            return "#include \"" + name + "\"\n";
+        }
+
+        std::vector<std::string> pchCreateArgs(const std::string &headerPath, const std::string &outputPath) const override {
+            std::string bareName = std::filesystem::path(headerPath).filename().string();
+            return {"/c", "/Yc" + bareName, "/Fp" + outputPath};
+        }
+
+        std::vector<std::string> pchUseArgs(const std::string &headerPath, const std::string &binaryPath) const override {
+            std::string bareName = std::filesystem::path(headerPath).filename().string();
+            return {"/Yu" + bareName, "/Fp" + binaryPath};
+        }
         std::vector<std::string> compileArgs(const std::string &src) const override {
             return {"/nologo", "/c", src, "/showIncludes"};
         }
@@ -35,6 +54,10 @@ namespace hm {
 
         std::vector<std::string> depArgs() const override {
             return {};
+        }
+
+        bool pchNeedsSourceFile() const override {
+            return true;
         }
 
         bool writesDepFile() const override {

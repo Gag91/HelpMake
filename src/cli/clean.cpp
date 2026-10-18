@@ -11,18 +11,18 @@ namespace hm::cli {
         if (all) {
             std::filesystem::remove_all("build/HelpMake");
             std::filesystem::remove_all("gcm.cache");
-            hp::printlnCl("[HelpMake] Cleaned build/HelpMake and gcm.cache", hp::Color::GREEN);
+            hp::printlnCl("[HelpMake] Cleaned build/HelpMake and gcm.cache", hp::GREEN);
             return;
         }
 
         if (gcm) {
             std::filesystem::remove_all("gcm.cache");
-            hp::printlnCl("[HelpMake] Cleaned gcm.cache", hp::Color::GREEN);
+            hp::printlnCl("[HelpMake] Cleaned gcm.cache", hp::GREEN);
             return;
         }
 
         std::filesystem::remove_all("build/HelpMake");
-        hp::printlnCl("[HelpMake] Cleaned build/HelpMake", hp::Color::GREEN);
+        hp::printlnCl("[HelpMake] Cleaned build/HelpMake", hp::GREEN);
     }
 
 } // namespace hm::cli

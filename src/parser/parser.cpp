@@ -40,9 +40,9 @@ void Parser::parse() {
 
     std::fstream file(filename);
     if (!file.is_open()) {
-        hp::printlnCl(std::format("Error: Could not open file: {}\n", filename.string()), hp::Color::RED);
-        hp::printlnCl("Make sure the file exists in the current directory.", hp::Color::YELLOW);
-        hp::printlnCl("Or provide all required arguments on the command line", hp::Color::YELLOW);
+        hp::printlnCl(std::format("Error: Could not open file: {}\n", filename.string()), hp::RED);
+        hp::printlnCl("Make sure the file exists in the current directory.", hp::YELLOW);
+        hp::printlnCl("Or provide all required arguments on the command line", hp::YELLOW);
         exit(EXIT_FAILURE);
     }
 
@@ -285,7 +285,7 @@ void Parser::parse() {
             value = cfg.var.parseVar(trim(line), cfg.v_Errors);
             if (!value.empty()) {
                 if (cfg.debug)
-                    hp::printlnCl(std::format("Found Argument: {}", value), hp::Color::YELLOW);
+                    hp::printlnCl(std::format("Found Argument: {}", value), hp::YELLOW);
                 parseArgument(cfg, value);
             }
         } else if (line.find("Compiler:") != std::string::npos) {
@@ -294,7 +294,7 @@ void Parser::parse() {
                 cfg.compiler = value;
 
             if (cfg.compiler.empty()) {
-                hp::printlnCl("Error: Compiler not specified in the file.", hp::Color::RED);
+                hp::printlnCl("Error: Compiler not specified in the file.", hp::RED);
                 exit(EXIT_FAILURE);
             }
 
@@ -303,7 +303,7 @@ void Parser::parse() {
         } else if (line.find("Version:") != std::string::npos) {
             cfg.version = cfg.var.parseVar(extractValue(line, "Version:"), cfg.v_Errors);
             if (cfg.version.empty()) {
-                hp::printlnCl("Error: Version not specified in the file.", hp::Color::RED);
+                hp::printlnCl("Error: Version not specified in the file.", hp::RED);
                 exit(EXIT_FAILURE);
             }
             if (cfg.debug)
@@ -318,7 +318,7 @@ void Parser::parse() {
 #else
                 cfg.output = "a.out";
 #endif
-                hp::printlnCl(std::format("Warning: No output file specified. Using default: {}", cfg.output), hp::Color::YELLOW);
+                hp::printlnCl(std::format("Warning: No output file specified. Using default: {}", cfg.output), hp::YELLOW);
             }
             if (cfg.debug)
                 std::cout << std::format("Found Output: '{}'\n", cfg.output);
@@ -493,13 +493,16 @@ void Parser::parse() {
             auto it = cfg.v_Vars.find(key);
             if (it != cfg.v_Vars.end()) {
                 if (cfg.debug)
-                    hp::printlnCl(std::format("[Debug] --var override: '{}' = '{}'", key, it->second), hp::Color::CYAN);
+                    hp::printlnCl(std::format("[Debug] --var override: '{}' = '{}'", key, it->second), hp::CYAN);
                 cfg.var.defineVar(key, it->second);
                 continue;
             }
 
             std::string value = cfg.var.parseVar(trim(line.substr(pos + 1)), cfg.v_Errors);
             cfg.var.defineVar(key, value);
+        } else if (line.find("PCH:") != std::string::npos) {
+            value = cfg.var.parseVar(extractValue(line, "PCH:"), cfg.v_Errors);
+            cfg.pch = value;
         } else if (line.find("Config:") != std::string::npos) {
             std::string rest = line.substr(line.find("Config:") + 7);
             std::size_t brace = rest.find('{');
@@ -536,10 +539,10 @@ void Parser::parse() {
 #else
         cfg.output = "a.out";
 #endif
-        hp::printlnCl(std::format("Output not specified in the file. Using default: {}", cfg.output), hp::Color::YELLOW);
+        hp::printlnCl(std::format("Output not specified in the file. Using default: {}", cfg.output), hp::YELLOW);
     }
     if (cfg.inputFile.empty()) {
-        hp::printlnCl("Error: InputFile not found in the file.", hp::Color::RED);
+        hp::printlnCl("Error: InputFile not found in the file.", hp::RED);
         exit(EXIT_FAILURE);
     }
 

@@ -87,6 +87,8 @@ class Parser {
 
     Config inheritConfig(const Config &child);
 
+    std::vector<std::string> v_DepFiles;
+
     std::vector<std::string> getInputFile();
     std::vector<std::string> getInclude();
     std::vector<std::string> getFlags();
@@ -112,4 +114,5 @@ class Parser {
     std::string logPath = logDir + "/" + baseName + ".txt";
 
     bool needsRebuild(const std::string &src, const std::string &obj, bool rebuild);
+    bool PchneedsRebuild(const std::string &src, const std::string &obj, bool rebuild);
 };

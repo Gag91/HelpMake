@@ -4,7 +4,7 @@ void Parser::generateCompileCommands(const Config &c) {
     std::ofstream json("compile_commands.json");
     if (!json.is_open()) {
         if (!cfg.quiet)
-            hp::printlnCl("Warning: Could not write compile_commands.json", hp::Color::YELLOW);
+            hp::printlnCl("Warning: Could not write compile_commands.json", hp::YELLOW);
         return;
     }
 
@@ -60,5 +60,5 @@ void Parser::generateCompileCommands(const Config &c) {
     json.close();
 
     if (c.verbose)
-        hp::printlnCl("[HelpMake] Generated compile_commands.json", hp::Color::GREEN);
+        hp::printlnCl("[HelpMake] Generated compile_commands.json", hp::GREEN);
 }

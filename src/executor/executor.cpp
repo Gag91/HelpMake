@@ -1,6 +1,8 @@
 #include "hm/parser/parser.hpp"
 #include "hm/process/process.hpp"
 #include "hm/toolchain/compiler.hpp"
+#include "hp/colors/color.hpp"
+#include "hp/other/other.hpp"
 
 void Parser::execute() {
     executeConfig(cfg, "");
@@ -8,16 +10,16 @@ void Parser::execute() {
 
 void Parser::buildCommand() {
     if (cfg.compiler.empty()) {
-        hp::printlnCl("Error: No compiler specified.", hp::Color::RED);
+        hp::printlnCl("Error: No compiler specified.", hp::RED);
         exit(EXIT_FAILURE);
     }
     if (cfg.inputFile.empty()) {
-        hp::printlnCl("Error: No input files specified.", hp::Color::RED);
+        hp::printlnCl("Error: No input files specified.", hp::RED);
         exit(EXIT_FAILURE);
     }
     if (cfg.output.empty()) {
         if (!cfg.quiet)
-            hp::printlnCl("Warning: No output specified. Using a.exe", hp::Color::YELLOW);
+            hp::printlnCl("Warning: No output specified. Using a.exe", hp::YELLOW);
         cfg.output = "a.exe";
     }
 
@@ -45,7 +47,7 @@ void Parser::buildCommand() {
 void Parser::executeConfig(const Config &c, const std::string &name) {
     auto comp = hm::makeCompiler(c.compiler);
     if (!comp) {
-        hp::printlnCl(std::format("Error: Unknown compiler '{}'.", c.compiler), hp::Color::RED);
+        hp::printlnCl(std::format("Error: Unknown compiler '{}'.", c.compiler), hp::RED);
         exit(EXIT_FAILURE);
     }
 
@@ -61,20 +63,20 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 
     if (!c.Precmd.empty()) {
         if (showOutput)
-            hp::printlnCl(std::format("{} Running pre-build command: {}", tag, c.Precmd), hp::Color::CYAN);
+            hp::printlnCl(std::format("{} Running pre-build command: {}", tag, c.Precmd), hp::CYAN);
 
         auto pre = hm::Process::run(c.Precmd);
 
         if (pre.exitCode == -1) {
-            hp::printlnCl("Error: Could not launch pre-build command.", hp::Color::RED);
+            hp::printlnCl("Error: Could not launch pre-build command.", hp::RED);
             exit(EXIT_FAILURE);
         }
         if (pre.exitCode != 0) {
-            hp::printlnCl(std::format("Error: Pre-build command failed (exit code {}).", pre.exitCode), hp::Color::RED);
+            hp::printlnCl(std::format("Error: Pre-build command failed (exit code {}).", pre.exitCode), hp::RED);
             exit(EXIT_FAILURE);
         }
         if (showOutput)
-            hp::printlnCl("Pre-build command executed successfully.", hp::Color::GREEN);
+            hp::printlnCl("Pre-build command executed successfully.", hp::GREEN);
     }
 
     std::string version = c.version;
@@ -110,7 +112,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
     }
 
     if (isConfig) {
-        hp::printlnCl(std::format("\nBuilding config: {}", name), hp::Color::CYAN);
+        hp::printlnCl(std::format("\nBuilding config: {}", name), hp::CYAN);
         if (showOutput) {
             std::string displayCommand = std::format("{} {} {} -o {}", comp->binary(), CommandFlags, c.inputFile, c.output);
             std::cout << std::format("Config '{}': Command: {}\n", name, displayCommand);
@@ -119,6 +121,55 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 
     int exitCode = 0;
     auto timer = hp::startTimer();
+
+    std::string pchBinaryPath;
+
+    if (!c.pch.empty()) {
+        std::string pchHeader = c.pch;
+        std::string pchBinary = "build/HelpMake/headers/" + comp->name() + "/" + std::filesystem::path(pchHeader).filename().string() + comp->pchExtension();
+        std::string pchDir = "build/HelpMake/headers/" + comp->name();
+        std::filesystem::create_directories(pchDir);
+        if (PchneedsRebuild(pchHeader, pchBinary, c.rebuild)) {
+            std::filesystem::create_directories(std::filesystem::path(pchBinary).parent_path());
+
+            std::vector<std::string> args = comp->pchCreateArgs(pchHeader, pchBinary);
+            std::vector<std::string> full = {comp->binary()};
+            for (const auto &f : splitArgs(compileFlags))
+                full.push_back(f);
+            for (const auto &a : args)
+                full.push_back(a);
+
+            if (comp->pchNeedsSourceFile()) {
+                std::string pchSrc = pchDir + "/pch.cpp";
+                std::string pchObj = pchDir + "/pch.obj";
+                std::ofstream(pchSrc) << comp->pchSourceFileContent(pchHeader);
+                full.push_back(pchSrc);
+                full.push_back("/Fo:" + pchObj);
+            }
+
+            if (showOutput)
+                hp::printlnCl(
+                    std::format("{} PCH Command: {}", tag, hm::Process::join(full)), hp::YELLOW);
+
+            auto result = hm::Process::run(hm::Process::join(full));
+
+            if (result.exitCode != 0) {
+                hp::printlnCl(
+                    std::format("{} PCH creation failed (exit code {}).", tag, result.exitCode),
+                    hp::RED);
+                hp::printlnCl(result.output, hp::RED);
+                exit(EXIT_FAILURE);
+            }
+            pchBinaryPath = pchBinary;
+        } else {
+            pchBinaryPath = pchBinary;
+        }
+    }
+
+    if (!pchBinaryPath.empty() && !isClang) {
+        std::string pchIncludeDir = std::filesystem::path(pchBinaryPath).parent_path().string();
+        compileFlags = "-I" + pchIncludeDir + " " + compileFlags;
+    }
 
     if (c.seperate) {
 
@@ -149,14 +200,14 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         });
 
         if (showOutput) {
-            hp::printlnCl(std::format("\n{} {} files to check:", tag, expandedFiles.size()), hp::Color::YELLOW);
+            hp::printlnCl(std::format("\n{} {} files to check:", tag, expandedFiles.size()), hp::YELLOW);
             for (const auto &file : expandedFiles) {
                 std::string mtag = isModule(file) ? "[Module] " : "";
-                hp::printlnCl(std::format("- {}{}", mtag, file), hp::Color::YELLOW);
+                hp::printlnCl(std::format("- {}{}", mtag, file), hp::YELLOW);
             }
             std::cout << '\n';
             if (c.rebuild)
-                hp::printlnCl(std::format("{} Rebuilding forced, ignoring timestamps.", tag), hp::Color::YELLOW);
+                hp::printlnCl(std::format("{} Rebuilding forced, ignoring timestamps.", tag), hp::YELLOW);
         }
 
         std::vector<std::string> objects;
@@ -185,6 +236,11 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
             for (auto &a : comp->depArgs())
                 args.push_back(a);
 
+            if (!pchBinaryPath.empty()) {
+                for (auto &a : comp->pchUseArgs(c.pch, pchBinaryPath))
+                    args.push_back(a);
+            }
+
             if (isClang && !clangModules.empty()) {
                 for (const auto &[modName, modPath] : clangModules) {
                     args.push_back("-fmodule-file=" + modName + "=" + modPath);
@@ -200,7 +256,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
             }
 
             if (showOutput)
-                hp::printlnCl(std::format("\n{} Object Command: {}", tag, objCmd), hp::Color::YELLOW);
+                hp::printlnCl(std::format("\n{} Object Command: {}", tag, objCmd), hp::YELLOW);
 
             std::string perFileLog = std::format("build/HelpMake/logs/raw/{}.raw", baseName);
             jobs.push_back({file, objCmd, perFileLog});
@@ -215,6 +271,14 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
             int rc = runJobs(jobs, c.jobs);
             if (rc != 0)
                 exitCode = rc;
+        }
+
+        std::vector<std::string> linkObjects;
+        if (!pchBinaryPath.empty() && comp->pchNeedsSourceFile()) {
+            std::string pchObj = std::filesystem::path(pchBinaryPath).parent_path().string() + "/pch.obj";
+            if (std::filesystem::exists(pchObj)) {
+                linkObjects.push_back(pchObj);
+            }
         }
 
         if (exitCode == 0) {
@@ -249,6 +313,9 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 
                 for (auto &a : comp->executableOutputArgs(c.output))
                     args.push_back(a);
+
+                for (const auto &obj : linkObjects)
+                    args.push_back(obj);
             }
 
             std::string linkCmd = binary + " " + hm::Process::join(args);
@@ -256,7 +323,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
                 linkCmd += " && " + c.output;
 
             if (showOutput)
-                hp::printlnCl(std::format("\n{} Link Command: {}", tag, linkCmd), hp::Color::YELLOW);
+                hp::printlnCl(std::format("\n{} Link Command: {}", tag, linkCmd), hp::YELLOW);
 
             auto linkResult = hm::Process::run(linkCmd);
             exitCode = linkResult.exitCode;
@@ -269,7 +336,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 
     } else {
         if (c.kind == "static") {
-            hp::printlnCl("Error: 'Kind: static' requires separate compilation. Remove --no-sep.", hp::Color::RED);
+            hp::printlnCl("Error: 'Kind: static' requires separate compilation. Remove --no-sep.", hp::RED);
             exit(EXIT_FAILURE);
         }
 
@@ -295,7 +362,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
             command += " && " + c.output;
 
         if (showOutput)
-            hp::printlnCl(std::format("{} Real Command: {}", tag, command), hp::Color::YELLOW);
+            hp::printlnCl(std::format("{} Real Command: {}", tag, command), hp::YELLOW);
 
         auto buildResult = hm::Process::run(command);
         exitCode = buildResult.exitCode;
@@ -375,12 +442,12 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
                         std::filesystem::copy_file(src, std::filesystem::path(dest) / std::filesystem::path(src).filename(),
                                                    std::filesystem::copy_options::overwrite_existing);
                     } else {
-                        hp::printlnCl(std::format("{} Error: Copy source '{}' does not exist", tag, src), hp::Color::RED);
+                        hp::printlnCl(std::format("{} Error: Copy source '{}' does not exist", tag, src), hp::RED);
                         hp::printlnCl(std::format("{} Build Failed.", tag), hp::RED);
                         exit(EXIT_FAILURE);
                     }
                 } catch (const std::filesystem::filesystem_error &e) {
-                    hp::printlnCl(std::format("{} Copy failed: {}", tag, e.what()), hp::Color::RED);
+                    hp::printlnCl(std::format("{} Copy failed: {}", tag, e.what()), hp::RED);
                     hp::printlnCl(std::format("{} Build Failed.", tag), hp::RED);
                     exit(EXIT_FAILURE);
                 }
@@ -388,25 +455,25 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         }
 
         if (isConfig)
-            hp::printlnCl(std::format("\nConfig '{}' compiled successfully. Output: {}", name, c.output), hp::Color::GREEN);
+            hp::printlnCl(std::format("\nConfig '{}' compiled successfully. Output: {}", name, c.output), hp::GREEN);
         else
-            hp::printlnCl(std::format("\nCompilation successful. Output file: {}", c.output), hp::Color::GREEN);
+            hp::printlnCl(std::format("\nCompilation successful. Output file: {}", c.output), hp::GREEN);
 
         if (!result.empty() && showOutput)
             std::cout << result << "\n";
 
         if (!c.Postcmd.empty()) {
             if (showOutput)
-                hp::printlnCl(std::format("{} Running post-build command: {}", tag, c.Postcmd), hp::Color::CYAN);
+                hp::printlnCl(std::format("{} Running post-build command: {}", tag, c.Postcmd), hp::CYAN);
 
             auto post = hm::Process::run(c.Postcmd);
 
             if (post.exitCode == -1 && !c.quiet)
-                hp::printlnCl("Warning: Could not launch post-build command.", hp::Color::YELLOW);
+                hp::printlnCl("Warning: Could not launch post-build command.", hp::YELLOW);
             else if (post.exitCode != 0 && !c.quiet)
-                hp::printlnCl(std::format("Warning: Post-build command failed (exit code {}).", post.exitCode), hp::Color::YELLOW);
+                hp::printlnCl(std::format("Warning: Post-build command failed (exit code {}).", post.exitCode), hp::YELLOW);
             else if (showOutput)
-                hp::printlnCl("Post-build command executed successfully.", hp::Color::GREEN);
+                hp::printlnCl("Post-build command executed successfully.", hp::GREEN);
         }
     } else {
         if (c.notify)
@@ -421,15 +488,15 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 #endif
 
         if (missing) {
-            hp::printlnCl(std::format("Error: {} compiler not found. Please install it and add it to PATH.", c.compiler), hp::Color::RED);
+            hp::printlnCl(std::format("Error: {} compiler not found. Please install it and add it to PATH.", c.compiler), hp::RED);
         } else {
             if (!cleanLog.empty())
                 std::cout << result << "\n";
             if (isConfig)
-                hp::printlnCl(std::format("Config '{}' compilation failed.", name), hp::Color::RED);
+                hp::printlnCl(std::format("Config '{}' compilation failed.", name), hp::RED);
             else
-                hp::printlnCl("\nCompilation Failed", hp::Color::RED);
-            hp::printlnCl(std::format("See Logs: {}", logPath), hp::Color::YELLOW);
+                hp::printlnCl("\nCompilation Failed", hp::RED);
+            hp::printlnCl(std::format("See Logs: {}", logPath), hp::YELLOW);
         }
         exit(EXIT_FAILURE);
     }
@@ -493,9 +560,9 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
         auto it = configs.find(name);
         if (it == configs.end()) {
             if (cfg.debug)
-                hp::printlnCl(std::format("[Debug] Config name is: '{}'", name), hp::Color::YELLOW);
-            hp::printlnCl(std::format("Error: Config '{}' was either not found or is invalid.", name), hp::Color::RED);
-            hp::printlnCl("Available configs:", hp::Color::YELLOW);
+                hp::printlnCl(std::format("[Debug] Config name is: '{}'", name), hp::YELLOW);
+            hp::printlnCl(std::format("Error: Config '{}' was either not found or is invalid.", name), hp::RED);
+            hp::printlnCl("Available configs:", hp::YELLOW);
             for (const auto &[n, _] : configs)
                 std::cout << std::format("- {}\n", n);
             continue;

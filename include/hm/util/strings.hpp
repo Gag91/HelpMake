@@ -81,7 +81,7 @@ inline std::string extractValue(const std::string &line, const std::string &key)
 inline std::string extractModule(const std::filesystem::path &filename) {
     std::ifstream file(filename);
     if (!file) {
-        hp::printlnCl(std::format("[HelpMake] Error: Could not open file '{}'", filename.string()), hp::Color::RED);
+        hp::printlnCl(std::format("[HelpMake] Error: Could not open file '{}'", filename.string()), hp::RED);
         std::exit(EXIT_FAILURE);
     }
 
@@ -96,7 +96,7 @@ inline std::string extractModule(const std::filesystem::path &filename) {
         return trim(value);
     }
 
-    hp::printlnCl(std::format("[HelpMake] Error: File '{}' is not a module", filename.string()), hp::Color::RED);
+    hp::printlnCl(std::format("[HelpMake] Error: File '{}' is not a module", filename.string()), hp::RED);
     std::exit(EXIT_FAILURE);
 }
 

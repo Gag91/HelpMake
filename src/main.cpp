@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     } else if (argument == "--build" || argument == "-b") {
         hm::cli::build(argc, argv, config, filename);
     } else {
-        hp::printlnCl("[HelpMake] Error: Invalid command. Use \"--help\" for available commands.", hp::Color::RED);
+        hp::printlnCl("[HelpMake] Error: Invalid command. Use \"--help\" for available commands.", hp::RED);
     }
 
     return 0;

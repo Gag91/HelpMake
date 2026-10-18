@@ -39,20 +39,20 @@ namespace hm::cli {
                     if (i + 1 < argc && argv[i + 1][0] != '-')
                         value = argv[++i];
                     else {
-                        hp::printlnCl("[HelpMake] Error: Compiler not specified after '-C='.", hp::Color::RED);
+                        hp::printlnCl("[HelpMake] Error: Compiler not specified after '-C='.", hp::RED);
                         std::exit(EXIT_FAILURE);
                     }
                 }
                 config.compiler = value;
                 if (config.debug)
-                    hp::printlnCl(std::format("[Debug] Special compiler: {}", config.compiler), hp::Color::YELLOW);
+                    hp::printlnCl(std::format("[Debug] Special compiler: {}", config.compiler), hp::YELLOW);
             } else if (arg.rfind("-V=", 0) == 0) {
                 std::string value = std::string(arg).substr(3);
                 if (value.empty()) {
                     if (i + 1 < argc && argv[i + 1][0] != '-')
                         value = argv[++i];
                     else {
-                        hp::printlnCl("[HelpMake] Error: Version not specified after '-V='.", hp::Color::RED);
+                        hp::printlnCl("[HelpMake] Error: Version not specified after '-V='.", hp::RED);
                         std::exit(EXIT_FAILURE);
                     }
                 }
@@ -60,12 +60,12 @@ namespace hm::cli {
                     value.insert(value.begin(), '-');
                 config.version = value;
                 if (config.debug)
-                    hp::printlnCl(std::format("[Debug] Special version: {}", config.version), hp::Color::YELLOW);
+                    hp::printlnCl(std::format("[Debug] Special version: {}", config.version), hp::YELLOW);
             } else if (arg == "-o" || arg == "--output") {
                 if (i + 1 < argc && argv[i + 1][0] != '-')
                     config.output = argv[++i];
                 else {
-                    hp::printlnCl("[HelpMake] Error: Output file not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Output file not specified after '" + std::string(arg) + "'.", hp::RED);
                     std::exit(EXIT_FAILURE);
                 }
             } else if (arg.rfind("-o", 0) == 0 && arg.size() > 2) {
@@ -76,7 +76,7 @@ namespace hm::cli {
                         config.v_Flags.push_back(" ");
                     config.v_Flags.push_back(argv[++i]);
                 } else {
-                    hp::printlnCl("[HelpMake] Error: Additional flags not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Additional flags not specified after '" + std::string(arg) + "'.", hp::RED);
                     std::exit(EXIT_FAILURE);
                 }
             } else if (arg.rfind("-F", 0) == 0 && arg.size() > 2) {
@@ -90,7 +90,7 @@ namespace hm::cli {
                         config.flags += " ";
                     config.flags += "-I" + std::string(argv[++i]);
                 } else {
-                    hp::printlnCl("[HelpMake] Error: Include path not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Include path not specified after '" + std::string(arg) + "'.", hp::RED);
                     std::exit(EXIT_FAILURE);
                 }
             } else if (arg.rfind("-I", 0) == 0 && arg.size() > 2) {
@@ -104,7 +104,7 @@ namespace hm::cli {
                         config.flags += " ";
                     config.flags += "-L" + std::string(argv[++i]);
                 } else {
-                    hp::printlnCl("[HelpMake] Error: Library path not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Library path not specified after '" + std::string(arg) + "'.", hp::RED);
                     std::exit(EXIT_FAILURE);
                 }
             } else if (arg.rfind("-L", 0) == 0 && arg.size() > 2) {
@@ -116,7 +116,7 @@ namespace hm::cli {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     const_cast<std::filesystem::path &>(filename) = std::string(argv[++i]);
                 } else {
-                    hp::printlnCl("[HelpMake] Error: filename not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: filename not specified after '" + std::string(arg) + "'.", hp::RED);
                     std::exit(EXIT_FAILURE);
                 }
             } else if (arg == "-j" || arg == "--jobs") {
@@ -124,7 +124,7 @@ namespace hm::cli {
                     try {
                         config.jobs = std::stoul(argv[++i]);
                     } catch (...) {
-                        hp::printlnCl(std::format("Error: Invalid value for '{}'", arg), hp::Color::RED);
+                        hp::printlnCl(std::format("Error: Invalid value for '{}'", arg), hp::RED);
                         std::exit(EXIT_FAILURE);
                     }
                 } else {
@@ -136,14 +136,14 @@ namespace hm::cli {
                 try {
                     config.jobs = std::stoul(std::string(arg).substr(2));
                 } catch (...) {
-                    hp::printlnCl(std::format("Error: Invalid value for '-j{}'", std::string(arg).substr(2)), hp::Color::RED);
+                    hp::printlnCl(std::format("Error: Invalid value for '-j{}'", std::string(arg).substr(2)), hp::RED);
                     std::exit(EXIT_FAILURE);
                 }
             } else if (arg == "--config") {
                 if (i + 1 < argc && argv[i + 1][0] != '-')
                     selectedConfigs.push_back(std::string(argv[++i]));
                 else {
-                    hp::printlnCl("[HelpMake] Error: Config name not specified after '" + std::string(arg) + "'.", hp::Color::RED);
+                    hp::printlnCl("[HelpMake] Error: Config name not specified after '" + std::string(arg) + "'.", hp::RED);
                     std::exit(EXIT_FAILURE);
                 }
             } else if (arg.rfind("--config=", 0) == 0 && arg.size() > 9) {
@@ -152,7 +152,7 @@ namespace hm::cli {
                 if (i + 1 < argc && argv[i + 1][0] != '-')
                     config.kind = to_lower(argv[++i]);
                 else {
-                    hp::printlnCl(std::format("[HelpMake] Error: Kind not specified after '{}'.", arg), hp::Color::RED);
+                    hp::printlnCl(std::format("[HelpMake] Error: Kind not specified after '{}'.", arg), hp::RED);
                     std::exit(EXIT_FAILURE);
                 }
             } else if (arg.rfind("--Kind=", 0) == 0 && arg.size() > 9) {
@@ -233,7 +233,7 @@ namespace hm::cli {
 
         if (!std::filesystem::exists(filename) && !config.n_file && !config.create) {
             if (filename != "HelpMake.txt" && std::filesystem::exists("HelpMake.txt")) {
-                hp::printlnCl("Build file not found. Using default HelpMake.txt", hp::Color::YELLOW);
+                hp::printlnCl("Build file not found. Using default HelpMake.txt", hp::YELLOW);
                 const_cast<std::filesystem::path &>(filename) = "HelpMake.txt";
             }
         }
@@ -244,22 +244,22 @@ namespace hm::cli {
             if (!config.create) {
                 parser.executeConfigs(selectedConfigs);
                 if (!selectedConfigs.empty() && config.allCfgs && !config.quiet)
-                    hp::printlnCl("Warning: Both --config and --config-all specified. Ignoring --config.", hp::Color::YELLOW);
+                    hp::printlnCl("Warning: Both --config and --config-all specified. Ignoring --config.", hp::YELLOW);
                 if (selectedConfigs.empty())
                     parser.execute();
             }
         } else {
             if (!config.n_file && !config.create)
-                hp::printlnCl("Build file not found: " + filename.string(), hp::Color::YELLOW);
+                hp::printlnCl("Build file not found: " + filename.string(), hp::YELLOW);
             if (config.verbose)
-                hp::printlnCl("Building from command-line arguments only\n", hp::Color::CYAN);
+                hp::printlnCl("Building from command-line arguments only\n", hp::CYAN);
 
             if (config.compiler.empty()) {
-                hp::printlnCl("[HelpMake] Error: No compiler specified. Use -Gcc, -Clang, -MSVC, -Zig, -Sere or -C=<compiler>", hp::Color::RED);
+                hp::printlnCl("[HelpMake] Error: No compiler specified. Use -Gcc, -Clang, -MSVC, -Zig, -Sere or -C=<compiler>", hp::RED);
                 std::exit(EXIT_FAILURE);
             }
             if (config.inputFile.empty()) {
-                hp::printlnCl("[HelpMake] Error: No input files specified.", hp::Color::RED);
+                hp::printlnCl("[HelpMake] Error: No input files specified.", hp::RED);
                 std::exit(EXIT_FAILURE);
             }
             if (config.output.empty()) {
@@ -269,7 +269,7 @@ namespace hm::cli {
                 config.output = "a.out";
 #endif
                 if (!config.quiet)
-                    hp::printlnCl("Warning: No output file specified. Using default: " + config.output, hp::Color::YELLOW);
+                    hp::printlnCl("Warning: No output file specified. Using default: " + config.output, hp::YELLOW);
             }
 
             Parser parser(filename, config);

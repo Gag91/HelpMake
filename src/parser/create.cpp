@@ -19,10 +19,10 @@ void Parser::createConfig(Config &c) {
     c.v_Modules = splitArgs(cfg.modules);
 
     if (file.exists(filename.string()) && !cfg.quiet) {
-        hp::printlnCl(std::format("Warning: {} already exists. Overwrite? (y/n)", filename.string()), hp::Color::YELLOW);
+        hp::printlnCl(std::format("Warning: {} already exists. Overwrite? (y/n)", filename.string()), hp::YELLOW);
         char verif = hp::get<char>("", "Invalid choice");
         if (verif != 'y') {
-            hp::printlnCl("File was not overwritten.", hp::Color::GREEN);
+            hp::printlnCl("File was not overwritten.", hp::GREEN);
             return;
         }
     }
@@ -41,6 +41,6 @@ void Parser::createConfig(Config &c) {
             make << key << stringifyArgs(value) << "\n}\n";
     }
     make.close();
-    hp::printlnCl(std::format("{} was created successfully.", filename.string()), hp::Color::GREEN);
+    hp::printlnCl(std::format("{} was created successfully.", filename.string()), hp::GREEN);
     return;
 }

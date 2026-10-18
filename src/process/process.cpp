@@ -80,7 +80,7 @@ std::string Parser::processGithubEntry(const std::string &value) {
     std::string folder = trim(value.substr(arrow + 2));
 
     if (!gitAvailable()) {
-        hp::printlnCl("Error: Git system not found. Please install it and add it to PATH.", hp::Color::RED);
+        hp::printlnCl("Error: Git system not found. Please install it and add it to PATH.", hp::RED);
         exit(EXIT_FAILURE);
     }
 
@@ -89,7 +89,7 @@ std::string Parser::processGithubEntry(const std::string &value) {
         f.create("build/HelpMake/dep");
 
     if (cfg.verbose)
-        hp::printlnCl(std::format("\n[Help_Make] Downloading dependency '{}' ...\n", url), hp::Color::CYAN);
+        hp::printlnCl(std::format("\n[Help_Make] Downloading dependency '{}' ...\n", url), hp::CYAN);
 
     std::size_t slash = url.find_last_of("/");
     std::string include = url.substr(slash + 1);
@@ -103,8 +103,8 @@ std::string Parser::processGithubEntry(const std::string &value) {
         fullPath += "/" + folder;
 
     if (cfg.debug) {
-        hp::printlnCl(std::format("[Debug] Fetch Include Folder: '{}'", folder), hp::Color::YELLOW);
-        hp::printlnCl(std::format("[Debug] Fetch Clone Folder: '{}'", include), hp::Color::YELLOW);
+        hp::printlnCl(std::format("[Debug] Fetch Include Folder: '{}'", folder), hp::YELLOW);
+        hp::printlnCl(std::format("[Debug] Fetch Clone Folder: '{}'", include), hp::YELLOW);
     }
 
     return fullPath;

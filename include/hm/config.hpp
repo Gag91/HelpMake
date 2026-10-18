@@ -18,6 +18,7 @@ struct Config {
     std::string Precmd;
     std::string Postcmd;
     std::string kind;
+    std::string pch;
 
     std::vector<std::string> preBuild;
     std::vector<std::string> postBuild;

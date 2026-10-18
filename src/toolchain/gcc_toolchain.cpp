@@ -20,9 +20,23 @@ namespace hm {
         std::string objectExt() const override {
             return ".o";
         }
+        std::string pchExtension() const override {
+            return isClang ? ".pch" : ".gch";
+        }
 
         std::string includeFlag(const std::string &p) const override {
             return "-I" + p;
+        }
+
+        std::vector<std::string> pchCreateArgs(const std::string &headerPath, const std::string &outputPath) const override {
+            return {"-x", "c++-header", headerPath, "-o", outputPath};
+        }
+
+        std::vector<std::string> pchUseArgs(const std::string &headerPath, const std::string &binaryPath) const override {
+            if (isClang)
+                return {"-include-pch", binaryPath};
+
+            return {"-include", headerPath};
         }
 
         std::vector<std::string> compileArgs(const std::string &src) const override {
@@ -45,6 +59,10 @@ namespace hm {
 
         bool writesDepFile() const override {
             return true;
+        }
+
+        bool pchNeedsSourceFile() const override {
+            return false;
         }
     };
 

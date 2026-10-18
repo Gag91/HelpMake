@@ -25,6 +25,10 @@ namespace hm {
             return "-I" + p;
         }
 
+        std::string pchExtension() const override {
+            return "";
+        }
+
         std::vector<std::string> compileArgs(const std::string &src) const override {
             return {"-c", src};
         }
@@ -38,6 +42,14 @@ namespace hm {
         }
 
         std::vector<std::string> depArgs() const override {
+            return {};
+        }
+
+        std::vector<std::string> pchCreateArgs(const std::string &, const std::string &) const override {
+            return {};
+        }
+
+        std::vector<std::string> pchUseArgs(const std::string &, const std::string &) const override {
             return {};
         }
 

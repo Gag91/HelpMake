@@ -2,7 +2,7 @@
 
 bool Parser::needsRebuild(const std::string &src, const std::string &obj, bool rebuild) {
     if (!std::filesystem::exists(src)) {
-        hp::printlnCl(std::format("[HelpMake] Error: source file not found: {}", src), hp::Color::RED);
+        hp::printlnCl(std::format("[HelpMake] Error: source file not found: {}", src), hp::RED);
         exit(EXIT_FAILURE);
     }
 
@@ -17,14 +17,14 @@ bool Parser::needsRebuild(const std::string &src, const std::string &obj, bool r
 
     if (srcTime > objTime) {
         if (cfg.debug)
-            hp::printlnCl(std::format("\n[Debug] Source file '{}' is newer than object '{}'. Rebuilding.", src, obj), hp::Color::YELLOW);
+            hp::printlnCl(std::format("\n[Debug] Source file '{}' is newer than object '{}'. Rebuilding.", src, obj), hp::YELLOW);
         return true;
     }
 
     std::ifstream depFile(std::filesystem::path(obj).replace_filename(std::filesystem::path(obj).stem().string() + ".d").generic_string());
     if (!depFile.is_open()) {
         if (!cfg.quiet)
-            hp::printlnCl(std::format("\nWarning: Could not open dependency file for '{}'. Rebuilding.\n", obj), hp::Color::YELLOW);
+            hp::printlnCl(std::format("\nWarning: Could not open dependency file for '{}'. Rebuilding.\n", obj), hp::YELLOW);
         return true;
     }
     std::string line;
@@ -45,16 +45,17 @@ bool Parser::needsRebuild(const std::string &src, const std::string &obj, bool r
 
             if (!std::filesystem::exists(depFilePath)) {
                 if (!cfg.quiet)
-                    hp::printlnCl(std::format("Warning: Dependency file '{}' does not exist. Rebuilding.", depFilePath), hp::Color::YELLOW);
+                    hp::printlnCl(std::format("Warning: Dependency file '{}' does not exist. Rebuilding.", depFilePath), hp::YELLOW);
                 return true;
             }
 
             depTime = std::filesystem::last_write_time(depFilePath);
             if (depTime > objTime) {
                 if (cfg.debug)
-                    hp::printlnCl(std::format("[Debug] Dependency '{}' is newer than object '{}'. Rebuilding.", depFilePath, obj), hp::Color::YELLOW);
+                    hp::printlnCl(std::format("[Debug] Dependency '{}' is newer than object '{}'. Rebuilding.", depFilePath, obj), hp::YELLOW);
                 return true;
             }
+            v_DepFiles.push_back(depFilePath);
         }
     }
 
