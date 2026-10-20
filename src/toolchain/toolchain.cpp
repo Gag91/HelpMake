@@ -1,4 +1,5 @@
 #include "hm/toolchain/compiler.hpp"
+#include <string_view>
 
 namespace hm {
 
@@ -6,7 +7,7 @@ namespace hm {
         std::string name_;
 
       public:
-        explicit GenericCompiler(std::string name) : name_(std::move(name)) {}
+        explicit GenericCompiler(std::string_view name) : name_(std::move(name)) {}
 
         std::string name() const override {
             return name_;
@@ -62,11 +63,11 @@ namespace hm {
         }
     };
 
-    std::unique_ptr<Compiler> makeCompiler(const std::string &name) {
+    std::unique_ptr<Compiler> makeCompiler(std::string_view name) {
         if (name == "gcc" || name == "g++")
-            return makeGccCompiler();
+            return makeGccCompiler(name);
         if (name == "clang" || name == "clang++")
-            return makeClangCompiler();
+            return makeClangCompiler(name);
         if (name == "msvc" || name == "cl")
             return makeMsvcCompiler();
         if (name == "zig")

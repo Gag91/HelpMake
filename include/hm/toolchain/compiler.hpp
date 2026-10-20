@@ -70,10 +70,10 @@ namespace hm {
         virtual bool writesDepFile() const = 0;
     };
 
-    std::unique_ptr<Compiler> makeCompiler(const std::string &name);
+    std::unique_ptr<Compiler> makeCompiler(std::string_view name);
 
-    std::unique_ptr<Compiler> makeGccCompiler();
-    std::unique_ptr<Compiler> makeClangCompiler();
+    std::unique_ptr<Compiler> makeGccCompiler(std::string_view name);
+    std::unique_ptr<Compiler> makeClangCompiler(std::string_view name);
     std::unique_ptr<Compiler> makeMsvcCompiler();
     std::unique_ptr<Compiler> makeZigCompiler();
     std::unique_ptr<Compiler> makeZigCCompiler();

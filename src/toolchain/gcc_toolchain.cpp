@@ -1,17 +1,23 @@
 #include "hm/toolchain/compiler.hpp"
+#include <string_view>
 
 namespace hm {
 
     class GccCompiler : public Compiler {
         bool isClang;
+        bool isC;
 
       public:
-        explicit GccCompiler(bool clang) : isClang(clang) {}
+        explicit GccCompiler(bool clang, bool isC = false) : isClang(clang), isC(isC) {}
 
         std::string name() const override {
             return isClang ? "clang" : "gcc";
         }
         std::string binary() const override {
+            if (isC && isClang)
+                return "clang";
+            if (isC)
+                return "gcc";
             return isClang ? "clang++" : "g++";
         }
         std::string archiveBinary() const override {
@@ -29,7 +35,9 @@ namespace hm {
         }
 
         std::vector<std::string> pchCreateArgs(const std::string &headerPath, const std::string &outputPath) const override {
-            return {"-x", "c++-header", headerPath, "-o", outputPath};
+            if (!isC)
+                return {"-x", "c++-header", headerPath, "-o", outputPath};
+            return {"-x", "c-header", headerPath, "-o", outputPath};
         }
 
         std::vector<std::string> pchUseArgs(const std::string &headerPath, const std::string &binaryPath) const override {
@@ -40,6 +48,8 @@ namespace hm {
         }
 
         std::vector<std::string> compileArgs(const std::string &src) const override {
+            if (src.ends_with(".c"))
+                return {"-fdiagnostics-color=always", "-xc", "-c", src};
             if (isClang)
                 return {"-fdiagnostics-color=always", "-c", src};
             return {"-fdiagnostics-color=always", "-xc++", "-c", src};
@@ -73,11 +83,15 @@ namespace hm {
         }
     };
 
-    std::unique_ptr<Compiler> makeGccCompiler() {
+    std::unique_ptr<Compiler> makeGccCompiler(std::string_view name) {
+        if (name == "gcc")
+            return std::make_unique<GccCompiler>(false, true);
         return std::make_unique<GccCompiler>(false);
     }
 
-    std::unique_ptr<Compiler> makeClangCompiler() {
+    std::unique_ptr<Compiler> makeClangCompiler(std::string_view name) {
+        if (name == "clang")
+            return std::make_unique<GccCompiler>(true, true);
         return std::make_unique<GccCompiler>(true);
     }
 

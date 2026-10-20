@@ -48,6 +48,26 @@ class Parser {
     int configBraceDepth = 1;
     static std::vector<std::string> splitArgs(const std::string &args);
 
+    std::optional<std::string> fieldValue(const std::string &line, std::string_view key);
+    void appendInputFiles(Config &c, const std::string &value);
+    void appendIncludes(Config &c, const std::string &value);
+    void appendFlags(Config &c, const std::string &value);
+    void appendModules(Config &c, const std::string &value);
+    void appendPreBuild(Config &c, const std::string &value);
+    void appendPostBuild(Config &c, const std::string &value);
+    void setKind(Config &c, const std::string &rawValue, std::size_t lineNo);
+    void setJobs(Config &c, const std::string &rawValue, std::size_t lineNo);
+
+    template <typename T>
+    void debugField(std::string_view label, const T &value, std::string_view cfgName = "") const {
+        if (!cfg.debug)
+            return;
+        if (cfgName.empty())
+            std::cout << std::format("Found {}: '{}'\n", label, value);
+        else
+            std::cout << std::format("{} found in config '{}': '{}'\n", label, cfgName, value);
+    }
+
   public:
     Parser(std::filesystem::path file, Config &config)
         : filename(file), cfg(config) {}
