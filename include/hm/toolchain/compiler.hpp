@@ -63,6 +63,10 @@ namespace hm {
             return false;
         }
 
+        virtual bool isGo() const {
+            return false;
+        }
+
         virtual bool writesDepFile() const = 0;
     };
 
@@ -74,5 +78,6 @@ namespace hm {
     std::unique_ptr<Compiler> makeZigCompiler();
     std::unique_ptr<Compiler> makeZigCCompiler();
     std::unique_ptr<Compiler> makeZigCppCompiler();
+    std::unique_ptr<Compiler> makeGoCompiler();
 
 } // namespace hm

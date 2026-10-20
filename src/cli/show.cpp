@@ -18,7 +18,7 @@ namespace hm::cli {
         std::cout << "\n";
     }
 
-    void show(const std::filesystem::path &filename, const Config &config) {
+    void show(const std::filesystem::path &filename, Config &config) {
         Parser parser(filename, config);
         parser.parse();
 

@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-void Parser::parse() {
+int Parser::parse() {
 
     if (cfg.kind.empty())
         cfg.kind = "executable";
@@ -26,8 +26,7 @@ void Parser::parse() {
     }
 
     if (cfg.buildSere || cfg.compiler == "sere") {
-        execute();
-        return;
+        return execute();
     }
 
     if (!cfg.n_file && cfg.verbose)
@@ -35,7 +34,6 @@ void Parser::parse() {
 
     if (cfg.n_file) {
         buildCommand();
-        return;
     }
 
     std::fstream file(filename);
@@ -43,7 +41,7 @@ void Parser::parse() {
         hp::printlnCl(std::format("Error: Could not open file: {}\n", filename.string()), hp::RED);
         hp::printlnCl("Make sure the file exists in the current directory.", hp::YELLOW);
         hp::printlnCl("Or provide all required arguments on the command line", hp::YELLOW);
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     std::string line;
@@ -295,7 +293,7 @@ void Parser::parse() {
 
             if (cfg.compiler.empty()) {
                 hp::printlnCl("Error: Compiler not specified in the file.", hp::RED);
-                exit(EXIT_FAILURE);
+                return 1;
             }
 
             if (cfg.debug)
@@ -304,7 +302,7 @@ void Parser::parse() {
             cfg.version = cfg.var.parseVar(extractValue(line, "Version:"), cfg.v_Errors);
             if (cfg.version.empty()) {
                 hp::printlnCl("Error: Version not specified in the file.", hp::RED);
-                exit(EXIT_FAILURE);
+                return 1;
             }
             if (cfg.debug)
                 std::cout << std::format("Found Version: '{}'\n", cfg.version);
@@ -529,7 +527,7 @@ void Parser::parse() {
             hp::printCl(e, hp::RED);
         }
         hp::printlnCl(std::format("\n[HelpMake] {} Errors generated.\n[HelpMake] Build Failed.", cfg.v_Errors.size()), hp::RED);
-        exit(EXIT_FAILURE);
+        return 1;
     }
     file.close();
 
@@ -543,13 +541,15 @@ void Parser::parse() {
     }
     if (cfg.inputFile.empty()) {
         hp::printlnCl("Error: InputFile not found in the file.", hp::RED);
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     dotPos = cfg.output.find_last_of('.');
     baseName = (dotPos != std::string::npos) ? cfg.output.substr(0, dotPos) : cfg.output;
     r_logPath = r_logDir + "/" + baseName + ".txt";
     logPath = logDir + "/" + baseName + ".txt";
+
+    return 0;
 }
 
 std::vector<std::string> Parser::splitArgs(const std::string &args) {

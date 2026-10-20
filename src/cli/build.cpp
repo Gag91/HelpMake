@@ -195,6 +195,8 @@ namespace hm::cli {
                 config.compiler = "zig c++";
             } else if (arg == "-ZigCC" || arg == "-zigcc" || arg == "-zig-cc" || arg == "-Zigcc") {
                 config.compiler = "zig-cc";
+            } else if (arg == "-Go" || arg == "-go" || arg == "-golang") {
+                config.compiler = "go";
             } else if (arg == "--debug") {
                 config.debug = true;
             } else if (arg == "--nofile") {

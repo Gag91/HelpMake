@@ -4,18 +4,18 @@
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
 
-void Parser::execute() {
-    executeConfig(cfg, "");
+int Parser::execute() {
+    return executeConfig(cfg, "");
 }
 
-void Parser::buildCommand() {
+int Parser::buildCommand() {
     if (cfg.compiler.empty()) {
         hp::printlnCl("Error: No compiler specified.", hp::RED);
-        exit(EXIT_FAILURE);
+        return 1;
     }
     if (cfg.inputFile.empty()) {
         hp::printlnCl("Error: No input files specified.", hp::RED);
-        exit(EXIT_FAILURE);
+        return 1;
     }
     if (cfg.output.empty()) {
         if (!cfg.quiet)
@@ -40,15 +40,14 @@ void Parser::buildCommand() {
         std::cout << std::format("Flags:       {}{}\n", hp::getColorCode(hp::YELLOW), cfg.flags)
                   << hp::getColorCode(hp::RESET);
     }
-    execute();
-    hp::exit(0);
+    return execute();
 }
 
-void Parser::executeConfig(const Config &c, const std::string &name) {
+int Parser::executeConfig(const Config &c, const std::string &name) {
     auto comp = hm::makeCompiler(c.compiler);
     if (!comp) {
         hp::printlnCl(std::format("Error: Unknown compiler '{}'.", c.compiler), hp::RED);
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     const std::string compilerDir = "build/HelpMake/" + comp->name();
@@ -105,11 +104,11 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
 
         if (pre.exitCode == -1) {
             hp::printlnCl("Error: Could not launch pre-build command.", hp::RED);
-            exit(EXIT_FAILURE);
+            return 1;
         }
         if (pre.exitCode != 0) {
             hp::printlnCl(std::format("Error: Pre-build command failed (exit code {}).", pre.exitCode), hp::RED);
-            exit(EXIT_FAILURE);
+            return 1;
         }
         if (showOutput)
             hp::printlnCl("Pre-build command executed successfully.", hp::GREEN);
@@ -198,7 +197,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
                     std::format("{} PCH creation failed (exit code {}).", tag, result.exitCode),
                     hp::RED);
                 hp::printlnCl(result.output, hp::RED);
-                exit(EXIT_FAILURE);
+                return 1;
             }
             pchBinaryPath = pchBinary;
         } else {
@@ -385,7 +384,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
     } else {
         if (c.kind == "static") {
             hp::printlnCl("Error: 'Kind: static' requires separate compilation. Remove --no-sep.", hp::RED);
-            exit(EXIT_FAILURE);
+            return 1;
         }
 
         std::vector<std::string> args;
@@ -498,12 +497,12 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
                     } else {
                         hp::printlnCl(std::format("{} Error: Copy source '{}' does not exist", tag, src), hp::RED);
                         hp::printlnCl(std::format("{} Build Failed.", tag), hp::RED);
-                        exit(EXIT_FAILURE);
+                        return 1;
                     }
                 } catch (const std::filesystem::filesystem_error &e) {
                     hp::printlnCl(std::format("{} Copy failed: {}", tag, e.what()), hp::RED);
                     hp::printlnCl(std::format("{} Build Failed.", tag), hp::RED);
-                    exit(EXIT_FAILURE);
+                    return 1;
                 }
             }
         }
@@ -552,7 +551,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
                 hp::printlnCl("\nCompilation Failed", hp::RED);
             hp::printlnCl(std::format("See Logs: {}", logPath), hp::YELLOW);
         }
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     if (showOutput || c.time) {
@@ -561,6 +560,7 @@ void Parser::executeConfig(const Config &c, const std::string &name) {
         else
             std::cout << std::format("[HelpMake] Build Time: {}s\n", elapsed);
     }
+    return 0;
 }
 
 Config Parser::inheritConfig(const Config &child) {

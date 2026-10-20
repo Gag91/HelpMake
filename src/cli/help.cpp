@@ -19,6 +19,7 @@ Options:
       --dump     Print raw HelpMake.txt contents
       --create   Generate HelpMake.txt from build arguments
       --clean    Delete build artifacts
+  --gen ninja    Generates Ninja File: build.ninja
 
 Build Options (use with -b):
   -Gcc           Use GNU Compiler Collection
@@ -28,6 +29,7 @@ Build Options (use with -b):
   -ZigCC         Use Zig Compiler (C mode, 'zig cc')
   -ZigCpp        Use Zig Compiler (C++ mode, 'zig c++')
   -Sere          Use Sere Compiler
+  -Go            Use Go Compiler ('go build')
   -C=<compiler>  Use any compiler (e.g., -C=gcc, -C=python)
   -V=<version>   Use any version (e.g., -V=std=c99)
   --Kind=<kind>  Set target kind: executable (default), static

@@ -71,10 +71,10 @@ namespace hm {
             return makeMsvcCompiler();
         if (name == "zig")
             return makeZigCompiler();
-
+        if (name == "go" || name == "golang")
+            return makeGoCompiler();
         if (name == "zig c++" || name == "zig-c++" || name == "zigcpp" || name == "zig-cpp")
             return makeZigCppCompiler();
-
         if (name == "zig cc" || name == "zig-cc" || name == "zigcc" || name == "zig-c")
             return makeZigCCompiler();
 

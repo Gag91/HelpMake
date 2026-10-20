@@ -49,7 +49,7 @@ class Parser {
     static std::vector<std::string> splitArgs(const std::string &args);
 
   public:
-    Parser(std::filesystem::path file, Config config)
+    Parser(std::filesystem::path file, Config &config)
         : filename(file), cfg(config) {}
 
     class Init {
@@ -70,10 +70,11 @@ class Parser {
     };
 
     int runJobs(std::vector<Job> &jobs, std::size_t num);
+    int executeConfig(const Config &c, const std::string &name);
+    int execute();
+    int parse();
+    int buildCommand();
 
-    void parse();
-    void execute();
-    void buildCommand();
     void install();
     void compileLib();
 
@@ -83,7 +84,6 @@ class Parser {
     void Notify(const double &time, bool success = true);
     void parseArgument(Config &config, std::string_view value);
     void parseTypos(std::size_t num, std::filesystem::path filename, std::string_view line, std::string_view value);
-    void executeConfig(const Config &c, const std::string &name);
 
     Config inheritConfig(const Config &child);
 
@@ -98,6 +98,7 @@ class Parser {
 
     std::map<std::string, Config> &getConfigs();
 
+    Config &getConfig();
     std::string getKind();
     std::string processGithubEntry(const std::string &value);
     std::string getCompiler();
