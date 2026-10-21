@@ -19,6 +19,7 @@ Complete list of `hm` command-line flags.
 | `--clean` | Delete `build/HelpMake/` |
 | `--clean-gcm` | Delete `gcm.cache/` |
 | `--clean-all` | Delete both |
+| `--gen <name>` | Emit a build file for another tool. See [Generators](#generators). |
 
 ## Build options
 
@@ -32,6 +33,7 @@ Complete list of `hm` command-line flags.
 | `-Zig` | Zig (`zig build-exe`) |
 | `-ZigCpp` | Zig C++ mode (`zig c++`) |
 | `-ZigCC` | Zig C mode (`zig cc`) |
+| `-Go` | Go (`go build`) |
 | `-Sere` | Sere compiler |
 | `-C=<compiler>` | Any compiler on `PATH` |
 
@@ -114,6 +116,19 @@ build/HelpMake/gcc/logs/<output-name>.txt
 ```
 The log has ANSI color codes stripped, so `grep` and `less` work cleanly.
 
+## Generators
+
+`hm --gen <name>` emits a build file for another tool.
+
+| Generator | Emits |
+|---|---|
+| `ninja` | `build.ninja` |
+| *(no arg)* | List available generators |
+
+Regenerate after any `HelpMake.txt` change. Writes `build.ninja` to the project root, ninja state to `build/HelpMake/Ninja/`.
+
+**Not supported by the Ninja generator:** MSVC, one-shot toolchains (Zig, Go), PCH, PreBuild/PostBuild, Copy, Fetch — warned and skipped. Use `hm -b` for the full feature set.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -139,4 +154,5 @@ The `Compiler:` field (and `-C=`) accepts multiple spellings for the same toolch
 | Zig | `zig` |
 | Zig C++ | `zig c++`, `zig-c++`, `zigcpp`, `zig-cpp` |
 | Zig CC | `zig cc`, `zig-cc`, `zigcc`, `zig-c` |
+| Go | `go`, `golang` |
 | Unknown | passed through as-is to `makeCompiler` (falls back to `GenericCompiler`) |
