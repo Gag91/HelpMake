@@ -104,8 +104,8 @@ build/HelpMake/
 The directory is separate for each compiler (gcc/, clang/, msvc/, zig-c++/, etc.). Switching the compiler in your config file will never mix files between different tools.
 
 ## Next steps
-- Add more files - see [glob rules](02-helpmake-reference.md/#inputfiles)
-- Compile a second target - see [Config blocks](02-helpmake-reference.md/#Blocks)
+- Add more files - see [glob rules](02-helpmake-reference.md#inputfiles)
+- Compile a second target - see [Config blocks](02-helpmake-reference.md#config-blocks)
 - Speed up with precompiled headers - [see PCH guide](06-pch.md)
 - Try a different toolchain - [see Toolchains](04-toolchains.md)
 - Full flag list - [see CLI reference](03-cli-reference.md)
