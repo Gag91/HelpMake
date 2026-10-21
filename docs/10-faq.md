@@ -118,7 +118,7 @@ The two builds never interfere. Both binaries are produced from the same source.
 
 You're linking `libc++`-compiled objects with a `libstdc++` linker (or vice versa). Symptom: every error mentions `std::__1::` (that's `libc++`, used by Clang and Zig) or `std::` without `__1` (that's `libstdc++`, used by GCC).
 
-Cause: mixing objects from `g++` and `clang++` / `zig c++`. HelpMake prevents this by isolating object directories per compiler. If you - this error:
+Cause: mixing objects from `g++` and `clang++` / `zig c++`. HelpMake prevents this by isolating object directories per compiler. If you hit this error:
 
 1. Run `hm --clean` to remove all objects
 2. Run `hm -b` once and let it build with the selected compiler
@@ -126,7 +126,7 @@ Cause: mixing objects from `g++` and `clang++` / `zig c++`. HelpMake prevents th
 
 If the error persists after `--clean`, check your `HelpMake.txt` for multiple `Compiler:` directives that might be overriding each other.
 
-## How do I - the exact compiler command being run?
+## How do I see the exact compiler command being run?
 
 ```bash
 hm -b --verbose
@@ -159,7 +159,7 @@ int main() {
     return 0;
 }
 ```
-The API mirrors every `HelpMake.txt` field. - `include/HelpMake.hpp` for the full list of `setX` and `addX` methods.
+The API mirrors every `HelpMake.txt` field. see `include/HelpMake.hpp` for the full list of `setX` and `addX` methods.
 
 ## What's the difference between --clean, --clean-gcm, and --clean-all?
 
@@ -201,46 +201,57 @@ The `Version:` field accepts `std=c17`, `std=c23`, etc. HelpMake passes `-std=c1
 
 Open a PR - toolchain additions are welcome.
 
-## How do I report a bug?
+## How do I use a third-party dependency?
 
-Open an issue on GitHub with:
-
-- The exact `hm` command you ran
-- The contents of `HelpMake.txt` (redact anything private)
-- The `--verbose` output showing the failing command
-- The log from `build/HelpMake/<compiler>/logs/<output>.txt`
-- Your OS and compiler versions
-
-Reproducible cases get fixed fastest. If you can, minimize the project to the smallest failing example.
-Can HelpMake compile C?
-Yes. Two ways:
-
-**Option 1: GCC/Clang (C mode)**
+Use `Dependency: name { }` and opt in from the config with `Depends:`:
 
 ```txt
-Compiler: gcc
-Version: std=c17
-InputFiles { src/*.c }
+Dependency: stb {
+    Git: https://github.com/nothings/stb
+    Tag: master
+    Include: .
+}
+
+Config: app {
+    Depends: stb
+    InputFiles { src/main.c }
+}
 ```
 
-**Option 2: Zig CC**
+See [Dependency blocks](02-helpmake-reference.md#dependency-blocks) for all fields. For header-only libraries, `Fetch { }` is a shorter alternative.
+
+## Why does git clone fail on a .tar.gz URL?
+Because `git clone` requires a git repository. A `.tar.gz` on an HTTP server is not a git repo.
+Use `Url:` for tarball deps:
 
 ```txt
-Compiler: zig cc
-Version: std=c17
-InputFiles { src/*.c }
+Dependency: lua {
+    Url: https://www.lua.org/ftp/lua-5.4.6.tar.gz
+    Build: make -C src posix
+    Include: src
+    Link: src/liblua.a
+}
 ```
-The `Version:` field accepts `std=c17`, `std=c23`, etc. HelpMake passes `-std=c17` to the compiler.
 
-## How do I add a new toolchain?
-- the `hm::Compiler` interface in `include/hm/toolchain/compiler.hpp`. Contributing requires:
+`Url:` fetches with `curl` + extracts with `tar`/`unzip`. `Git:` fetches with `git clone`. They are not interchangeable.
 
-1. Subclass `hm::Compiler` with your toolchain's flag shapes
-2. Register it in `makeCompiler()` in `src/toolchain/toolchain.cpp`
-3. Add a `-YourName` flag in `src/cli/build.cpp` if it deserves a shortcut
-4. Document it in `docs/04-toolchains.md`
+## Why does my dependency fail with "file COPY cannot find"?
+The dep directory exists but its contents are incomplete — usually an interrupted clone or a corrupt shallow fetch. The cache check trusts whatever's on disk, so a broken clone gets silently used.
+Force a fresh fetch:
 
-Open a PR - toolchain additions are welcome.
+```bash
+rm -rf build/HelpMake/dep/<name>
+hm -b --config <your-config>
+```
+
+## How do I generate a build.ninja file?
+
+```bash
+hm --gen ninja
+ninja
+```
+
+See [Generators](03-cli-reference.md#generators). Not all features are supported by the Ninja generator — PCH, PreBuild/PostBuild, Copy and Fetch are warned and skipped. Use `hm -b` for the full feature set.
 
 ## How do I report a bug?
 Open an issue on GitHub with:
