@@ -62,6 +62,7 @@ HelpMake places all `-l` flags after the object files on the link command line, 
 g++ … build/HelpMake/gcc/obj/main.o -Lbuild -lmath -o build/app.exe
 ```
 No manual ordering required.
+If the library ships as a `Dependency:` block (or you're linking a dependency's archive), the same `-l` / `-L` rules apply. See [Dependency blocks](02-helpmake-reference.md#dependency-blocks).
 
 ## MSVC differences
 
