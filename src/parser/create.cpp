@@ -36,7 +36,7 @@ void Parser::createConfig(Config &c) {
         {"Flags {", c.v_Flags},
         {"Modules {", c.v_Modules}};
 
-    for (const auto [key, value] : arg) {
+    for (const auto &[key, value] : arg) {
         if (!value.empty())
             make << key << stringifyArgs(value) << "\n}\n";
     }

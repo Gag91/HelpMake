@@ -56,7 +56,18 @@ int main(int argc, char *argv[]) {
             return 0;
         }
 
-        std::string value = argv[2];
+        std::string genName = argv[2];
+        std::string configName;
+
+        for (int i = 3; i < argc; i++) {
+            std::string_view a = argv[i];
+            if (a == "--config" && i + 1 < argc)
+                configName = argv[++i];
+            else if (a.rfind("--config=", 0) == 0 && a.size() > 9)
+                configName = std::string(a).substr(9);
+            else
+                hp::printlnCl(std::format("[HelpMake] Warning: ignored '{}' for --gen", a), hp::YELLOW);
+        }
 
         Parser parser(filename, config);
         if (parser.parse() != 0) {
@@ -64,14 +75,53 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        auto gen = hm::gen::makeGenerators(value);
-        if (!gen) {
-            hp::printlnCl(std::format("[HelpMake] Unknown generator '{}'.", value), hp::RED);
+        if (genName == "json" || genName == "compile_commands") {
+            Config toGen;
+            if (!configName.empty()) {
+                auto &all = parser.getConfigs();
+                auto it = all.find(configName);
+                if (it == all.end()) {
+                    hp::printlnCl(std::format("[HelpMake] Unknown config '{}'. Available:", configName), hp::RED);
+                    for (const auto &[n, _] : all)
+                        std::cout << "  " << n << "\n";
+                    return 1;
+                }
+                toGen = parser.inheritConfig(it->second);
+            } else {
+                toGen = parser.getConfig();
+            }
+
+            if (parser.generateCompileCommands(toGen) == 0) {
+                hp::printlnCl("[HelpMake] Generated compile_commands.json", hp::GREEN);
+                return 0;
+            }
+            hp::printlnCl("[HelpMake] Error: Failed to generate compile_commands.json", hp::RED);
             return 1;
         }
 
-        if (gen->generate(parser.getConfig(), ".")) {
-            hp::printlnCl(std::format("[HelpMake] {} has been successfully generated.", gen->Filename()), hp::GREEN);
+        auto gen = hm::gen::makeGenerators(genName);
+        if (!gen) {
+            hp::printlnCl(std::format("[HelpMake] Unknown generator '{}'.", genName), hp::RED);
+            return 1;
+        }
+
+        Config toGen;
+        if (!configName.empty()) {
+            auto &all = parser.getConfigs();
+            auto it = all.find(configName);
+            if (it == all.end()) {
+                hp::printlnCl(std::format("[HelpMake] Unknown config '{}'. Available:", configName), hp::RED);
+                for (const auto &[n, _] : all)
+                    std::cout << "  " << n << "\n";
+                return 1;
+            }
+            toGen = parser.inheritConfig(it->second);
+        } else {
+            toGen = parser.getConfig();
+        }
+
+        if (gen->generate(toGen, ".")) {
+            hp::printlnCl(std::format("[HelpMake] {} generated.", gen->Filename()), hp::GREEN);
             return 0;
         }
 

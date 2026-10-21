@@ -10,7 +10,7 @@
 namespace hm::gen {
 
     std::vector<std::string> availableGenerators() {
-        return {"ninja"};
+        return {"ninja", "cmake", ".clangd", "compile_commands.json"};
     }
 
     bool isKnownGenerator(std::string_view name) {
@@ -22,6 +22,8 @@ namespace hm::gen {
     std::unique_ptr<Generator> makeGenerators(std::string_view name) {
         if (name == "ninja")
             return makeNinja();
+        if (name == "cmake")
+            return makeCMake();
         else {
             hp::printlnCl(std::format("[HelpMake] Invalid Generator '{}'.\nAvaibles generators:", name), hp::RED);
             hp::printlnAll(availableGenerators());

@@ -1,12 +1,12 @@
 #include "hm/parser/parser.hpp"
 #include "hm/toolchain/compiler.hpp"
 
-void Parser::generateCompileCommands(const Config &c) {
+int Parser::generateCompileCommands(const Config &c) {
     std::ofstream json("compile_commands.json");
     if (!json.is_open()) {
         if (!cfg.quiet)
             hp::printlnCl("Warning: Could not write compile_commands.json", hp::YELLOW);
-        return;
+        return 1;
     }
 
     std::string cwd = std::filesystem::current_path().generic_string();
@@ -64,4 +64,5 @@ void Parser::generateCompileCommands(const Config &c) {
 
     if (c.verbose)
         hp::printlnCl("[HelpMake] Generated compile_commands.json", hp::GREEN);
+    return 0;
 }
