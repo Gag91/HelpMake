@@ -2,6 +2,21 @@
 
 All notable changes to HelpMake.
 
+## [11.2.0] - 2026-10-21
+
+### Added
+- `hm --gen cmake` — emit `CMakeLists.txt` for the selected config
+- `hm --gen json` / `hm --gen compile_commands` — emit `compile_commands.json` (previously only via `--json`)
+- `--gen <name> --config <name>` — generate build files for a specific config, not just the root
+
+### Fixed
+- `--gen json` now respects `--config` (previously generated for the root config)
+
+### Known issues
+- `LinkFlags:` order relative to archive paths may need adjustment for static libraries with unresolved system symbol dependencies
+- `Dependency:` blocks must appear before any `Config:` block
+- `Depends:` between dependencies (transitive ordering) is parsed but not yet executed
+  
 ## [11.1.0] - 2026-10-21
 
 ### Added
