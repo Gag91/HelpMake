@@ -109,4 +109,5 @@ The directory is separate for each compiler (gcc/, clang/, msvc/, zig-c++/, etc.
 - Speed up with precompiled headers - [see PCH guide](06-pch.md)
 - Try a different toolchain - [see Toolchains](04-toolchains.md)
 - Full flag list - [see CLI reference](03-cli-reference.md)
+- Pull in a third-party library - [see Dependency blocks](02-helpmake-reference.md#dependency-blocks)
 
