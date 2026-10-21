@@ -1,0 +1,16 @@
+Compiler: g++
+Version: std=c++20
+Output: app
+PCH: include/pch.hpp
+
+InputFiles {
+    src/main.cpp
+}
+
+Includes {
+    include
+}
+
+Flags {
+    -Wall
+}

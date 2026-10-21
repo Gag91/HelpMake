@@ -1,0 +1,10 @@
+Compiler: zig
+Output: app.exe
+
+InputFiles {
+    src/main.zig
+}
+
+Flags {
+    -O ReleaseFast
+}
