@@ -14,6 +14,7 @@ A `HelpMake.txt` file contains, in any order:
 2. **Blocks** - `InputFiles { }`, `Flags { }`, etc.
 3. **Config blocks** - named subtargets that inherit from the root
 4. **`Set { }` blocks** - variable definitions
+5. **Dependency blocks** - external libraries to fetch and build (root-only)
 
 Anything outside a block is parsed as a root-level field. Anything inside a `Config: name { }` block overrides the root for that config only.
 
@@ -28,6 +29,7 @@ Anything outside a block is parsed as a root-level field. Anything inside a `Con
 | `Run:` | bool | `false` | If true, run the binary after a successful build. |
 | `PCH:` | string | *(empty)* | Path to a precompiled header. See [PCH](06-pch.md). |
 | `Jobs:` | integer | `0` (auto) | Number of parallel compile jobs. `0` uses `std::thread::hardware_concurrency()`. |
+| `Depends:` | list | *(empty)* | Comma-separated dependency names. Pulls in `Dependency: <name> { }` blocks. See [Dependencies](#dependency-blocks). |
 
 Boolean fields can be set with `true` / `false`.
 
@@ -125,6 +127,7 @@ Right side: the subdirectory inside the cloned repo that should be added to the 
 Repos clone into build/HelpMake/dep/<repo-name>/
 HelpMake adds -I<cloned-path>/<subdir> to the compile flags automatically
 Requires git on PATH. Failing to find git is a fatal error.
+**For dependencies that need to be built or linked, use [`Dependency: name { }`](#dependency-blocks) instead.**
 
 `PreBuild { }` / `PostBuild { }`
 Commands run before / after the build.
@@ -227,7 +230,10 @@ Kind: exectuable   # Error: Invalid Kind 'exectuable'. Did you mean executable ?
 The check runs at line granularity - one bad line never masks another.
 
 ### Common gotchas
-src/\*.cpp is not recursive. Use src/**/*.cpp for recursive.
-Empty blocks are fine. Flags { } on one line or empty on two lines does nothing.
-Comments inside blocks work. # not this file inside InputFiles { } skips that line.
-[[name]] is expanded in every field and block entry. See [Variables](05-variables.md).
+- src/\*.cpp is not recursive. Use src/**/*.cpp for recursive.
+- Empty blocks are fine. Flags { } on one line or empty on two lines does nothing.
+- Comments inside blocks work. # not this file inside InputFiles { } skips that line.
+- [[name]] is expanded in every field and block entry. See [Variables](05-variables.md).
+- **`Dependency:` blocks are root-only.** They cannot appear inside `Config: { }`. Use `Depends:` on the config.
+- **`Git:` and `Url:` are not interchangeable.** `git clone` fails on tarballs - use `Url:` for `.tar.gz` / `.zip`.
+- **Put `Dependency:` blocks before any `Config:` block.** The splitter doesn't recognize `Dependency:` after a config section.
