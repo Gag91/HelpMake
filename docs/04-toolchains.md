@@ -13,6 +13,7 @@ HelpMake has native support for five toolchain families plus a fallback for anyt
 | Zig C++ | `zig c++` | `.o` | ✅ `.pch` | ❌ | ✅ `ar` | ✅ |
 | Zig CC | `zig cc` | `.o` | ✅ `.pch` | ❌ | ✅ `ar` | ✅ |
 | Generic | any | `.o` | ❌ | ❌ | ✅ `ar` | ✅ |
+| Go | `go` | *(none)* | ❌ | ❌ | ❌ | ❌ |
 
 ## Per-toolchain notes
 
@@ -26,6 +27,7 @@ g++ -std=c++20 -Iinclude -Wall -fdiagnostics-color=always -xc++ -c src/main.cpp 
 ```
 
 `-xc++` forces C++ mode regardless of extension (useful for module files with non-standard extensions).
+GCC auto-detects C++ vs C from the extension. For .c files that need C mode forced, HelpMake adds -xc.
 
 ### Clang
 
@@ -86,6 +88,16 @@ zig cc -std=c17 -Iinclude -Wall -fdiagnostics-color=always -c src/main.c -o buil
 
 Same cold-start caveat as Zig C++.
 
+### Go
+
+Standalone Go toolchain. One-shot only — `go build` produces a binary directly, no intermediate object files.
+
+Command shape:
+
+```text
+go build ./cmd/app -o build/app
+```
+
 ### Generic
 
 Any compiler not listed above falls through to `GenericCompiler`:
@@ -107,6 +119,7 @@ This is your escape hatch for `nasm`, `ghc`, `dmd`, `rustc`, `swiftc`, and anyth
 | Zero-dependency single binary, want latest LLVM | **Zig C++** |
 | C project, want latest Clang without installing Clang | **Zig CC** |
 | Writing Zig | **Zig** |
+| Writing Go | **Go** |
 | Exotic language or custom compiler | `-C=<name>` (Generic) |
 
 ## Mixing toolchains
