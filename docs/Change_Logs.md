@@ -2,6 +2,35 @@
 
 All notable changes to HelpMake.
 
+## [11.1.0] - 2026-10-21
+
+### Added
+- `Dependency: name { }` blocks — fetch, build, and link external libraries
+  - `Git:`, `Url:`, `Path:` sources
+  - `Tag:`, `Commit:`, `Hash:` version pinning
+  - `Build:` shell command list (repeatable) with `.buildid` cache
+  - `Include:`, `Link:`, `LinkDir:`, `LinkFlags:` integration
+  - Cache lives at `build/HelpMake/dep/<name>/`
+- `Depends:` field on configs — pulls dependency blocks into a build
+- Go toolchain (`go build`) with `-Go` CLI flag
+- `hm --gen ninja` — emit a `build.ninja` file
+- `hm --gen` with no argument lists available generators
+
+### Changed
+- GCC/Clang now select `gcc`/`clang` for `.c` sources and add `-xc` (previously all sources were forced into C++ mode via `g++ -xc++`)
+- `executeConfig` treats `.a`, `.lib`, and `.so` path arguments as link inputs
+- `Parser::parse()` refactored into a section splitter plus a per-section parser
+
+### Fixed
+- CLI flags (`-o`, `-C=`, `-V=`, `--Kind=`, `--var`) now correctly override values in `HelpMake.txt` — previously the file value always won
+- Interrupted builds no longer leave stale objects that produce confusing "undefined reference" errors on the next build (still requires `hm --clean` after a hard interrupt, but the failure is now obvious)
+
+### Known issues
+- `LinkFlags:` order relative to archive paths may need adjustment for static libraries with unresolved system symbol dependencies (GNU `ld` processes left-to-right)
+- `Dependency:` blocks must appear before any `Config:` block in `HelpMake.txt`
+- `Depends:` between dependencies (transitive ordering) is parsed but not yet executed
+- Dependency cache assumes a clone succeeded; corrupt clones from interrupted `git clone` need a manual `rm -rf build/HelpMake/dep/<name>`
+
 ## [11.0.0] - 2026-18-10
 ### Added
 - MSVC, Zig, Zig C++, Zig CC toolchains
