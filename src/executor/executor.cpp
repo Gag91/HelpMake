@@ -5,7 +5,10 @@
 #include "hp/other/other.hpp"
 
 int Parser::execute() {
-    return executeConfig(cfg, "");
+    Config local = cfg;
+    if (resolveDependencies(local, "[HelpMake]") != 0)
+        return 1;
+    return executeConfig(local, "");
 }
 
 int Parser::buildCommand() {
@@ -41,6 +44,44 @@ int Parser::buildCommand() {
                   << hp::getColorCode(hp::RESET);
     }
     return execute();
+}
+
+int Parser::resolveDependencies(Config &c, const std::string &tag) {
+    for (const auto &depName : c.v_Depends) {
+        auto it = dependencies.find(depName);
+        if (it == dependencies.end()) {
+            hp::printlnCl(std::format("{} Error: Undefined dependency '{}' referenced by 'Depends:'", tag, depName), hp::RED);
+            return 1;
+        }
+
+        const auto &dep = it->second;
+        std::string depRoot = "build/HelpMake/dep/" + dep.name;
+
+        if (buildDependency(dep) != 0)
+            return 1;
+
+        for (const auto &inc : dep.includes) {
+            std::string fullPath = depRoot + "/" + inc;
+            c.includeFiles.push_back(fullPath);
+            c.flags += " -I" + fullPath;
+        }
+
+        for (const auto &ld : dep.linkDirs)
+            c.flags += " -L" + depRoot + "/" + ld;
+
+        for (const auto &lf : dep.linkFlags)
+            c.flags += " " + lf;
+
+        for (const auto &ln : dep.links)
+            c.flags += " " + depRoot + "/" + ln;
+
+        if (cfg.verbose)
+            hp::printlnCl(std::format(
+                              "{} Linked dependency '{}' from '{}'",
+                              tag, depName, depRoot),
+                          hp::GREEN);
+    }
+    return 0;
 }
 
 int Parser::executeConfig(const Config &c, const std::string &name) {
@@ -134,7 +175,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         std::istringstream iss(CommandFlags);
         std::string tok;
         while (iss >> tok) {
-            if (tok.rfind("-l", 0) == 0 || tok.rfind("/l", 0) == 0) {
+            bool isLinker = tok.rfind("-l", 0) == 0 || tok.rfind("/l", 0) == 0 || tok.ends_with(".a") || tok.ends_with(".lib") || tok.ends_with(".so");
+            if (isLinker) {
                 if (!linkFlags.empty())
                     linkFlags += " ";
                 linkFlags += tok;
@@ -596,6 +638,8 @@ Config Parser::inheritConfig(const Config &child) {
         local.kind = cfg.kind;
     if (local.v_Copy.empty())
         local.v_Copy = cfg.v_Copy;
+    if (local.v_Depends.empty())
+        local.v_Depends = cfg.v_Depends;
 
     local.verbose = local.verbose || cfg.verbose;
     local.debug = local.debug || cfg.debug;
@@ -610,6 +654,7 @@ Config Parser::inheritConfig(const Config &child) {
 }
 
 void Parser::executeConfigs(const std::vector<std::string> &names) {
+    int rc = 0;
     for (const auto &name : names) {
         auto it = configs.find(name);
         if (it == configs.end()) {
@@ -623,7 +668,15 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
         }
 
         Config local = inheritConfig(it->second);
-        executeConfig(local, name);
+        std::string tag = std::format("[HelpMake] Config '{}':", name);
+
+        if (resolveDependencies(local, tag) != 0) {
+            rc = 1;
+            continue;
+        }
+
+        if (executeConfig(local, name) != 0)
+            rc = 1;
     }
 }
 

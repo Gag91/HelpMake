@@ -69,6 +69,10 @@ namespace hm {
         bool writesDepFile() const override {
             return false;
         }
+
+        bool isMSVC() const override {
+            return true;
+        }
     };
 
     std::unique_ptr<Compiler> makeMsvcCompiler() {

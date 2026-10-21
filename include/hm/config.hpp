@@ -1,11 +1,13 @@
 #pragma once
 
+#include "hm/dependecy.hpp"
 #include "hm/parser/var.hpp"
 #include <string>
 #include <vector>
 
 struct Config {
     hm::Var var;
+    hm::Dependency dep;
 
     std::string name;
     std::string compiler;
@@ -32,6 +34,7 @@ struct Config {
     std::vector<std::string> v_Precmd;
     std::vector<std::string> v_Errors;
     std::vector<std::string> v_Copy;
+    std::vector<std::string> v_Depends;
 
     std::map<std::string, std::string> v_Vars;
 

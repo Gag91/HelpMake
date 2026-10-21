@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hm/config.hpp"
+#include "hm/dependecy.hpp"
 #include "hm/job.hpp"
 #include "hm/parser/var.hpp"
 #include "hm/util/utils.hpp"
@@ -26,6 +27,12 @@
 #include <thread>
 #include <vector>
 
+struct FileSection {
+    std::vector<std::string> lines;
+    std::string configName;
+    std::size_t startLine = 0;
+};
+
 class Parser {
   private:
     std::filesystem::path filename;
@@ -42,6 +49,7 @@ class Parser {
     bool isArgSet = false;
     bool isCopySet = false;
     bool isVarSet = false;
+    bool isDependencySet = false;
 
     Config currentConfig;
     std::map<std::string, Config> configs;
@@ -94,6 +102,9 @@ class Parser {
     int execute();
     int parse();
     int buildCommand();
+    int parseSection(const FileSection &section, Config &target, bool isRoot);
+    int buildDependency(const hm::Dependency &dep);
+    int resolveDependencies(Config &c, const std::string &tag);
 
     void install();
     void compileLib();
@@ -115,7 +126,9 @@ class Parser {
     std::vector<std::string> getModules();
     std::vector<std::string> getGithub();
     std::vector<std::string> getCopy();
+    std::vector<FileSection> splitIntoFileSections(std::istream &in);
 
+    std::map<std::string, hm::Dependency> dependencies;
     std::map<std::string, Config> &getConfigs();
 
     Config &getConfig();
