@@ -90,6 +90,28 @@ rm -rf build/HelpMake/dep/glfw
 hm -b
 ```
 
+## Dependency build cache
+
+`Dependency: name { }` blocks produce:
+
+```text
+build/HelpMake/dep/<name>/
+├── .buildid            ← fingerprint of Build: commands
+├── <cloned source>
+├── <Build: output>
+└── <Link: target>
+```
+Cache logic: first build clones and builds. Subsequent builds compare .buildid to current Build: commands — match skips, mismatch rebuilds.
+
+Force rebuild: rm -rf build/HelpMake/dep/<name> or hm --clean.
+
+## Ninja generator output
+
+`hm --gen ninja` writes `build.ninja` to the **project root** (next to `HelpMake.txt`). Ninja's own state (`.ninja_log`, `.ninja_deps`) goes under `build/HelpMake/Ninja/`.
+
+Regenerate after any `HelpMake.txt` change — the file is a snapshot, not a live view.
+
+
 ## Recommended .gitignore
 
 Add to your project's `.gitignore`:
@@ -99,6 +121,7 @@ Add to your project's `.gitignore`:
 build/
 gcm.cache/
 compile_commands.json
+build.ninja
 
 # C++20 module caches
 *.pcm
