@@ -2,6 +2,7 @@
 
 #include "hm/dependecy.hpp"
 #include "hm/parser/var.hpp"
+#include "hp/colors/color.hpp"
 #include <string>
 #include <vector>
 
@@ -35,7 +36,9 @@ struct Config {
     std::vector<std::string> v_Errors;
     std::vector<std::string> v_Copy;
     std::vector<std::string> v_Depends;
+    std::vector<std::string> v_Gens;
 
+    std::map<std::string, hp::Color> v_Info;
     std::map<std::string, std::string> v_Vars;
 
     bool verbose = false;
@@ -51,6 +54,7 @@ struct Config {
     bool quiet = false;
     bool notify = false;
     bool time = false;
+    bool check = false;
 
     int jobs = 0;
 };

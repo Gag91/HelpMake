@@ -25,8 +25,11 @@ namespace hm::gen {
         if (name == "cmake")
             return makeCMake();
         else {
-            hp::printlnCl(std::format("[HelpMake] Invalid Generator '{}'.\nAvaibles generators:", name), hp::RED);
-            hp::printlnAll(availableGenerators());
+            hp::printlnCl(std::format("[HelpMake] Invalid Generator '{}'.", name), hp::RED);
+            std::cout << "\nAvaibles generators:\n";
+            for (const auto &g : availableGenerators()) {
+                std::cout << "- " << g << '\n';
+            }
             exit(EXIT_FAILURE);
         }
     }

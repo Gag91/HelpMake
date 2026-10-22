@@ -484,6 +484,14 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             cleanFile << cleanLog;
     }
 
+    if (!cfg.v_Info.empty()) {
+        std::cout << "\nInfo:\n";
+        for (const auto &[msg, color] : cfg.v_Info) {
+            hp::printlnCl("  " + msg, color);
+        }
+        std::cout << '\n';
+    }
+
     if (exitCode == 0) {
         if (c.notify)
             Parser::Notify(elapsed);

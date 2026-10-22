@@ -4,6 +4,12 @@ Output: hmm.exe
 Jobs: 8
 # PCH: include/hm/pch.hpp
 
+Gen {
+    ninja
+    cmake
+    json
+}
+
 Set {
     CPP_SOURCE: src/**/*.cpp
     INCLUDE_DIR: include/

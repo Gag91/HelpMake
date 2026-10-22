@@ -1,4 +1,5 @@
 #include "hm/parser/parser.hpp"
+#include "hm/generator/generator.hpp"
 #include "hm/util/strings.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
@@ -59,9 +60,7 @@ int Parser::parse() {
     if (!cfg.v_Errors.empty()) {
         for (const auto &e : cfg.v_Errors)
             hp::printCl(e, hp::RED);
-        hp::printlnCl(std::format("\n[HelpMake] {} Errors generated.\n[HelpMake] Build Failed.",
-                                  cfg.v_Errors.size()),
-                      hp::RED);
+        hp::printlnCl(std::format("\n[HelpMake] {} Errors generated.\n[HelpMake] {}", cfg.v_Errors.size(), cfg.check ? "" : "Build Failed"), hp::RED);
         return 1;
     }
 
@@ -72,6 +71,21 @@ int Parser::parse() {
         cfg.output = "a.out";
 #endif
         hp::printlnCl(std::format("Output not specified. Using default: {}", cfg.output), hp::YELLOW);
+    }
+
+    if (!cfg.v_Gens.empty() && !cfg.check) {
+        for (const auto &g : cfg.v_Gens) {
+            if (g == "json" || g == "compile_commands") {
+                if (generateCompileCommands(cfg) == 0) {
+                    cfg.v_Info["[HelpMake] Generated compile_commands.json"] = hp::GREEN;
+                }
+            } else {
+                auto gen = hm::gen::makeGenerators(g);
+                if (gen->generate(cfg)) {
+                    cfg.v_Info[std::format("[HelpMake] Generated {}", gen->Filename())] = hp::GREEN;
+                }
+            }
+        }
     }
 
     dotPos = cfg.output.find_last_of('.');
@@ -157,14 +171,14 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     std::size_t lineNo = section.startLine - 1;
     hm::Dependency currentDep;
 
-    static constexpr std::array<std::string_view, 24> knownKeys = {
+    static constexpr std::array<std::string_view, 26> knownKeys = {
         "Compiler:", "Version:", "Output:", "InputFiles:", "Includes:",
         "Flags:", "Modules:", "Run:", "Arguments:", "Kind:", "Jobs:", "PCH:",
-        "Copy {", "InputFiles {", "Includes {", "Flags {", "Fetch {",
+        "Gen:", "Copy {", "InputFiles {", "Includes {", "Flags {", "Fetch {",
         "Modules {", "PreBuild {", "PostBuild {", "Arguments {", "Set {",
-        "Dependency:", "Depends:"};
+        "Dependency:", "Depends:", "Gen {"};
 
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 9> blockStarts = {{
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 10> blockStarts = {{
         {"InputFiles {", "InputFiles"},
         {"Includes {", "Includes"},
         {"Flags {", "Flags"},
@@ -174,6 +188,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         {"PostBuild {", "PostBuild"},
         {"Arguments {", "Argument"},
         {"Copy {", "Copy"},
+        {"Gen {", "Gen"},
     }};
 
     for (const auto &line : section.lines) {
@@ -211,8 +226,11 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 appendPostBuild(target, value);
             else if (currentBlock == "Copy")
                 target.v_Copy.push_back(value);
+            else if (currentBlock == "Gen")
+                target.v_Gens.push_back(value);
             else if (currentBlock == "Argument")
                 parseArgument(target, value);
+
             continue;
         }
 
@@ -348,6 +366,9 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             if (target.pch.empty())
                 target.pch = *v;
             debugField("PCH", target.pch, section.configName);
+        } else if (auto v = fieldValue(line, "Gen:"); v) {
+            target.v_Gens.push_back(*v);
+            debugField("Generator", *v);
         } else if (auto v = fieldValue(line, "Depends:"); v) {
             std::string cleaned;
             for (char c : *v)
