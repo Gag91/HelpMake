@@ -252,6 +252,27 @@ ninja
 ```
 
 See [Generators](03-cli-reference.md#generators). Not all features are supported by the Ninja generator — PCH, PreBuild/PostBuild, Copy and Fetch are warned and skipped. Use `hm -b` for the full feature set.
+## How do I write a cross-platform HelpMake.txt?
+
+Use platform conditionals. Prefix any line with `win:`, `linux:`, `mac:`,
+`unix:`, `x64:`, `arm64:`:
+
+```txt
+Compiler: g++
+Output: build/app
+
+win: Output: build/app.exe
+linux: Output: build/app
+
+Flags {
+    -Wall
+    win: /W4
+    linux: -Wextra -fPIC
+    x64: -march=native
+}
+```
+One file, works on Windows, Linux, and macOS. See
+[Platform conditionals](02-helpmake-reference.md#platform-conditionals).
 
 ## How do I report a bug?
 Open an issue on GitHub with:
