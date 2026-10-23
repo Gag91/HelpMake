@@ -54,6 +54,47 @@ Includes {
 ```
 Use the block form when you have more than two items, or when you want to add a comment next to each item.
 
+### Platform Conditionals
+
+Any line in a scalar field, block, or `Set { }` can be prefixed with a platform tag. If the tag matches the current platform at build time, the tag is stripped and the line is processed normally. Otherwise, the line is skipped entirely.
+
+```txt
+Flags {
+    -Wall
+    win: /W4
+    linux: -Wextra -fPIC
+    mac: -Wextra
+    x64: -march=native
+    !unix: -DWINDOWS_ONLY
+}
+```
+
+#### Recognized Tags
+
+| Tag | Matches |
+| :--- | :--- |
+| `win`, `windows` | Windows |
+| `linux` | Linux |
+| `mac`, `darwin`, `macos`, `osx` | macOS |
+| `unix` | Any non-Windows platform |
+| `x64`, `x86_64`, `amd64` | 64-bit x86 |
+| `arm64`, `aarch64` | ARM64 |
+| `x86`, `i386`, `i686` | 32-bit x86 |
+| `!<tag>` | Negation (e.g., `!win:` means "anything but Windows") |
+
+#### Supported Features
+
+Platform tags work on:
+* **Scalar fields:** `win: Output: build/app.exe`  `linux: Output: build/app`
+* **Block entries:** `win: /W4` inside `Flags { }`
+* **Set { } variables:** `win: PATH_SEP: `  `unix: PATH_SEP: `
+* **Config: name { } blocks:** Any line inside them
+
+#### Limitations & Details
+
+* **Not supported:** Nested tags (e.g., `win: x64: ...`) and compound conditions (e.g., `win & x64:`).
+* **Cross-compilation:** Tags check the platform executing `hm`, not the target triple. `hm --target=...` does not exist yet.
+
 ### Blocks
 `InputFiles { }`
 List of source files or glob patterns to compile.
