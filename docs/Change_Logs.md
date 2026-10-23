@@ -2,12 +2,50 @@
 
 All notable changes to HelpMake.
 
+## [12.0.0] - 2026-10-23
+
+### Added
+- `--watch` - rebuild automatically when any source, header, or `HelpMake.txt` changes
+  - Polls mtimes every 300ms; rebuilds on any detected difference
+  - Watches `InputFiles` (globs expanded), all `Includes { }` directories recursively, and `HelpMake.txt` itself
+  - Works with `--config` and `--config-all`
+  - Top-level alias: `hm --watch` is equivalent to `hm -b --watch`
+
+### Changed
+- **Exit codes now propagate correctly.** `hm -b` returns non-zero on any failure (parse, compile, link, copy). Previously every path returned 0 - scripts using `if hm -b; then …; fi` silently passed on failed builds. This is the intended behavior per the CLI docs, but if you relied on the old always-zero behavior (e.g. ignoring compile failures in CI), adjust your scripts.
+- **`-f<file>` (joined, no space) is now rejected.** Use `-f <file>` or `-f=<file>`. This fixes a collision where `-fsanitize=address`, `-fno-omit-frame-pointer`, and every other `-f*` compiler flag was silently treated as a build-file path.
+
+### Fixed
+- **`compile_commands.json` was corrupted** - every file began with the literal string `compile_commands.json` because the generator passed that string as the initial content of a `std::ostringstream`. Now valid JSON.
+- **Parallel builds wrote to a single log file** - every job shared `<baseName>.raw`, so under `-j N` the compiler failed with "The process cannot access the file because it is being used by another process." Each job now writes to its own log.
+- **Nested source directories failed to compile** - object subdirectories (e.g. `obj/src/toolchain/`) were not created before invoking the compiler, so `-MMD` failed with "opening dependency file: No such file or directory." Fixed.
+- **`Copy { }` with a glob pattern** always failed because the code inspected the parent path of the whole `src -> dest` string. Fixed to use the source side only.
+- **`-I<path>` and `-L<path>` concatenated with the previous flag** when `flags` was non-empty but `v_Flags` was empty (`-Wall` + `-Iinclude` → `-Wall-Iinclude`). Fixed.
+- **MSVC `Version:` got a `-` prefix** - `/std:c++20` became `-/std:c++20`. Fixed to preserve `/`.
+- **CLI prefix matches were too loose** - `--var` matched `--variant=`, `--config-all` matched `--config-all-xyz`, and `--Kind=` rejected single-character kinds. All tightened.
+- **`--config-all` executed each config mid-parse**, inheriting a root config that wasn't finished yet. Now runs after all sections are parsed.
+- **`--run` with spaces in the output path** produced `./my app.exe` unquoted and failed. Fixed.
+- **`GenericCompiler::directBuildArgs` returned an empty vector**, so `hm --nofile -C=<unknown>` emitted commands with no inputs and no output. Fixed.
+- **`init.cpp` always printed `true`** for the `compile_commands.json` prompt due to `<<` binding tighter than `?:`. Fixed.
+- **`logs/` directory was not created for root builds**, so `See Logs: build/HelpMake/gcc/logs/<name>.txt` pointed at a nonexistent file.
+- **PCH was not invalidated when flags changed** - `.buildid` trashed `obj/` but left `headers/<compiler>/` intact, producing stale precompiled headers after `-DDEBUG` toggles.
+- **`v_DepFiles` accumulated across configs**, so a header touched by one config forced the PCH to rebuild in every subsequent config.
+- **Ninja generator collided on identical stems** - `src/foo.cpp` and `foo.cpp` both produced `foo.o`. Now uses full relative paths.
+- **`Parser::executeConfig` read `cfg.debug` and `cfg.v_Info`** instead of the per-config `c.debug` / `c.v_Info`, so `Arguments: debug` inside a `Config: { }` block was silently ignored, and `Gen { }` info lines for configs never printed.
+- **`Arguments: verbose debug` was passed as one token** to `parseArgument`, so multi-word `Arguments:` lines were dropped. Now split.
+- **MSVC got GCC flags in `compile_commands.json`** - `-fdiagnostics-color=always`, `-c`, `-o`, `-MMD`. Now emits `/nologo /c /Fo:`.
+- **`-C` and `-V` bare forms** (`-C gcc`, `-V std=c++20`) were rejected; only `-C=` / `-V=` worked. Both accepted now.
+- **`Fetch { }` shelled out to `git clone` even during `--check` and `--show`**, doing network I/O when the user only wanted to validate the file. Now skipped in `--check`.
+- **`extractModule` called `std::exit(1)` on files without `export module`**, terminating the build instead of reporting an error. Now returns an empty string.
+- **`parseVar` broke out of the parsing loop on the first undefined variable**, leaving the rest of the line unparsed. Now continues and still reports all errors.
+- **`Set { }` variables leaked across configs** - a `[[x]]` in config B could resolve to a value set in config A depending on section order. Now scoped per config.
+- 
 ## [11.2.0] - 2026-10-21
 
 ### Added
-- `hm --gen cmake` — emit `CMakeLists.txt` for the selected config
-- `hm --gen json` / `hm --gen compile_commands` — emit `compile_commands.json` (previously only via `--json`)
-- `--gen <name> --config <name>` — generate build files for a specific config, not just the root
+- `hm --gen cmake` - emit `CMakeLists.txt` for the selected config
+- `hm --gen json` / `hm --gen compile_commands` - emit `compile_commands.json` (previously only via `--json`)
+- `--gen <name> --config <name>` - generate build files for a specific config, not just the root
 
 ### Fixed
 - `--gen json` now respects `--config` (previously generated for the root config)
@@ -20,15 +58,15 @@ All notable changes to HelpMake.
 ## [11.1.0] - 2026-10-21
 
 ### Added
-- `Dependency: name { }` blocks — fetch, build, and link external libraries
+- `Dependency: name { }` blocks - fetch, build, and link external libraries
   - `Git:`, `Url:`, `Path:` sources
   - `Tag:`, `Commit:`, `Hash:` version pinning
   - `Build:` shell command list (repeatable) with `.buildid` cache
   - `Include:`, `Link:`, `LinkDir:`, `LinkFlags:` integration
   - Cache lives at `build/HelpMake/dep/<name>/`
-- `Depends:` field on configs — pulls dependency blocks into a build
+- `Depends:` field on configs - pulls dependency blocks into a build
 - Go toolchain (`go build`) with `-Go` CLI flag
-- `hm --gen ninja` — emit a `build.ninja` file
+- `hm --gen ninja` - emit a `build.ninja` file
 - `hm --gen` with no argument lists available generators
 
 ### Changed
@@ -37,7 +75,7 @@ All notable changes to HelpMake.
 - `Parser::parse()` refactored into a section splitter plus a per-section parser
 
 ### Fixed
-- CLI flags (`-o`, `-C=`, `-V=`, `--Kind=`, `--var`) now correctly override values in `HelpMake.txt` — previously the file value always won
+- CLI flags (`-o`, `-C=`, `-V=`, `--Kind=`, `--var`) now correctly override values in `HelpMake.txt` - previously the file value always won
 - Interrupted builds no longer leave stale objects that produce confusing "undefined reference" errors on the next build (still requires `hm --clean` after a hard interrupt, but the failure is now obvious)
 
 ### Known issues
