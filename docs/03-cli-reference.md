@@ -74,7 +74,7 @@ hm -b -C="zig cc"
 | `--notify` | Desktop notification on build completion (Windows Toast / notify-send on Linux). |
 | `--quiet` | Suppress warnings. Errors still print. |
 | `--time` | Print the total build time even without `--verbose`. |
-| `--watch` | Rebuild automatically when sources, headers, or `HelpMake.txt` change. Ctrl+C to exit. |
+| `--watch` | Rebuild automatically when any source, header, or `HelpMake.txt` changes. Ctrl+C to exit. Combine with `--run` for the full dev loop. |
 
 ## Common patterns
 
@@ -124,16 +124,45 @@ The log has ANSI color codes stripped, so `grep` and `less` work cleanly.
 
 ## Generators
 
-`hm --gen <name>` emits a build file for another tool.
+`hm --gen <name>` emits a build file for another tool. `hm --gen` (no
+argument) lists available generators.
 
-| Generator | Emits |
+| Generator | Emits | Requires |
+|---|---|---|
+| `ninja` | `build.ninja` | ninja ≥ 1.10 |
+| `cmake` | `CMakeLists.txt` | CMake ≥ 4.0 (3.28+ for modules) |
+| `json` / `compile_commands` | `compile_commands.json` | any clangd-compatible tool |
+
+### CMake generator support
+
+| Feature | Status |
 |---|---|
-| `ninja` | `build.ninja` |
-| *(no arg)* | List available generators |
+| Separate compilation | ✅ |
+| Includes / Flags / Link flags / Static libs | ✅ |
+| PCH | ✅ `target_precompile_headers` |
+| Modules | ✅ `FILE_SET CXX_MODULES` (CMake ≥ 3.28) |
+| PreBuild | ✅ `add_custom_target` + `add_dependencies` |
+| PostBuild | ✅ `add_custom_command(POST_BUILD)` |
+| Copy | ✅ glob / file / directory, expanded at generation time |
+| Fetch | ✅ `FetchContent_Declare` + `FetchContent_MakeAvailable` |
+| Depends | ⚠️ warned and skipped (use `FetchContent` manually) |
+| MSVC | ⚠️ missing flag translation; use `hm -b` on Windows |
 
-Regenerate after any `HelpMake.txt` change. Writes `build.ninja` to the project root, ninja state to `build/HelpMake/Ninja/`.
+### Ninja generator support
 
-**Not supported by the Ninja generator:** MSVC, one-shot toolchains (Zig, Go), PCH, PreBuild/PostBuild, Copy, Fetch — warned and skipped. Use `hm -b` for the full feature set.
+| Feature | Status |
+|---|---|
+| Separate compilation | ✅ |
+| Includes / Flags / Link flags / Static libs | ✅ |
+| Copy | ⚠️ skipped |
+| PCH | ⚠️ skipped |
+| PreBuild / PostBuild | ⚠️ skipped |
+| Modules | ⚠️ compiled as regular sources |
+| Fetch | ⚠️ skipped |
+| MSVC | ⚠️ skipped |
+
+Regenerate after any `HelpMake.txt` change — the file is a snapshot, not
+a live view.
 
 ## Exit codes
 
