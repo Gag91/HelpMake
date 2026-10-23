@@ -1,13 +1,10 @@
+#include "hm/generator/util.hpp"
 #include "hm/parser/parser.hpp"
 #include "hm/toolchain/compiler.hpp"
+#include <sstream>
 
 int Parser::generateCompileCommands(const Config &c) {
-    std::ofstream json("compile_commands.json");
-    if (!json.is_open()) {
-        if (!cfg.quiet)
-            hp::printlnCl("Warning: Could not write compile_commands.json", hp::YELLOW);
-        return 1;
-    }
+    std::ostringstream json;
 
     std::string cwd = std::filesystem::current_path().generic_string();
     std::string comp = compilerCommand(c.compiler);
@@ -45,7 +42,10 @@ int Parser::generateCompileCommands(const Config &c) {
             command = std::format("{} -fdiagnostics-color=always {}{} -c {} -o {} -MMD -fmodule-file={}={}", comp, langFlag, CommandFlags, file, objPath, moduleName, pcmPath);
         } else {
             std::string langFlag = (comp == "g++") ? "-xc++ " : "";
-            command = std::format("{} -fdiagnostics-color=always {}{} -c {} -o {} -MMD", comp, langFlag, CommandFlags, file, objPath);
+            if (compilerObj && compilerObj->isMSVC())
+                command = std::format("{} /nologo {} /c {} /Fo:{}", comp, CommandFlags, file, objPath);
+            else
+                command = std::format("{} -fdiagnostics-color=always {}{} -c {} -o {} -MMD", comp, langFlag, CommandFlags, file, objPath);
         }
 
         if (!firstEntry)
@@ -58,11 +58,9 @@ int Parser::generateCompileCommands(const Config &c) {
         json << "    \"file\": \"" << escapeJson(toUnixPath(file)) << "\"\n";
         json << "  }";
     }
-
-    json << "\n]\n";
-    json.close();
-
+    json << "]\n";
+    std::string content = json.str();
     if (c.verbose)
         hp::printlnCl("[HelpMake] Generated compile_commands.json", hp::GREEN);
-    return 0;
+    return hm::gen::writeIfChanged("compile_commands.json", content) ? 0 : 1;
 }

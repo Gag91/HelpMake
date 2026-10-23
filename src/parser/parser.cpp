@@ -52,9 +52,13 @@ int Parser::parse() {
             c.name = sec.configName;
             parseSection(sec, c, false);
             configs[sec.configName] = c;
-            if (cfg.allCfgs)
-                executeConfigs({sec.configName});
         }
+    }
+    if (cfg.allCfgs) {
+        std::vector<std::string> names;
+        for (const auto &[n, _] : configs)
+            names.push_back(n);
+        executeConfigs(names);
     }
 
     if (!cfg.v_Errors.empty()) {
@@ -213,6 +217,8 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             else if (currentBlock == "Flags")
                 appendFlags(target, value);
             else if (currentBlock == "Fetch") {
+                if (cfg.check)
+                    continue;
                 std::string path = processGithubEntry(value);
                 if (!path.empty()) {
                     target.flags += std::format(" -I{}", path);

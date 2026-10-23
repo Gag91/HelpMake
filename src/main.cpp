@@ -12,6 +12,7 @@
 #include <iostream>
 #include <string_view>
 #include <windows.h>
+#include <winscard.h>
 
 int main(int argc, char *argv[]) {
     hp::enableUTF8();
@@ -51,6 +52,9 @@ int main(int argc, char *argv[]) {
         init.run();
     } else if (argument == "--show") {
         hm::cli::show(filename, config);
+    } else if (argument == "--watch") {
+        config.watch = true;
+        return hm::cli::build(argc, argv, config, filename);
     } else if (argument == "--gen" || argument == "--generate") {
         if (argc < 3) {
             hp::printlnCl("[HelpMake] Available generators:", hp::CYAN);
@@ -190,7 +194,7 @@ int main(int argc, char *argv[]) {
         hp::printlnCl("[HelpMake] ✓ HelpMake.txt is valid", hp::GREEN);
         return 0;
     } else if (argument == "--build" || argument == "-b") {
-        hm::cli::build(argc, argv, config, filename);
+        return hm::cli::build(argc, argv, config, filename);
     } else {
         hp::printlnCl("[HelpMake] Error: Invalid command. Use \"--help\" for available commands.", hp::RED);
     }

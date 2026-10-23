@@ -1,4 +1,6 @@
 #include "hm/generator/generator.hpp"
+
+#include "hm/generator/util.hpp"
 #include "hm/toolchain/compiler.hpp"
 #include "hm/util/containers.hpp"
 #include "hm/util/strings.hpp"
@@ -6,7 +8,6 @@
 #include "hp/other/other.hpp"
 
 #include <filesystem>
-#include <fstream>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -31,11 +32,11 @@ namespace hm::gen {
 
         static std::string extractStandard(const std::string &version) {
             std::string v = version;
-            if (!v.empty() && v.front() == '-')
+            if (!v.empty() && (v.front() == '-' || v.front() == '/'))
                 v.erase(v.begin());
-            if (v.rfind("std=c++", 0) == 0)
+            if (v.rfind("std=c++", 0) == 0 || v.rfind("std:c++", 0) == 0)
                 return v.substr(7);
-            if (v.rfind("std=c", 0) == 0)
+            if (v.rfind("std=c", 0) == 0 || v.rfind("std:c", 0) == 0)
                 return v.substr(5);
             return "";
         }
@@ -200,14 +201,8 @@ namespace hm::gen {
                 n << ")\n\n";
             }
 
-            std::filesystem::path dst = projectRoot / std::string(Filename());
-            std::ofstream out(dst);
-            if (!out) {
-                hp::printlnCl(std::format("[CMake] Could not write {}", dst.string()), hp::RED);
-                return false;
-            }
-            out << n.str();
-            return static_cast<bool>(out);
+            std::filesystem::path OutPath = projectRoot / std::string(Filename());
+            return writeIfChanged(OutPath, n.str());
         }
     };
 

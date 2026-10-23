@@ -85,6 +85,7 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
 }
 
 int Parser::executeConfig(const Config &c, const std::string &name) {
+    v_DepFiles.clear();
     auto comp = hm::makeCompiler(c.compiler);
     if (!comp) {
         hp::printlnCl(std::format("Error: Unknown compiler '{}'.", c.compiler), hp::RED);
@@ -117,6 +118,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 hp::printlnCl("[HelpMake] Build flags changed, invalidating objects.", hp::YELLOW);
             std::error_code ec;
             std::filesystem::remove_all(compilerDir + "/obj", ec);
+            std::filesystem::remove_all("build/HelpMake/headers/" + comp->name(), ec);
             std::filesystem::create_directories(compilerDir);
             std::ofstream(marker) << current;
         }
@@ -155,13 +157,10 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             hp::printlnCl("Pre-build command executed successfully.", hp::GREEN);
     }
 
-    std::string version = c.version;
-    if (!version.empty() && version.front() != '-')
-        version.insert(version.begin(), '-');
+    std::string version = normalizeVersion(c.version, c.compiler);
 
     std::filesystem::create_directories(r_logDir);
-    if (isConfig)
-        std::filesystem::create_directories(logDir);
+    std::filesystem::create_directories(logDir);
 
     std::string CommandFlags;
     if (!version.empty())
@@ -203,7 +202,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
     if (!c.pch.empty()) {
         std::string pchHeader = c.pch;
-        std::string pchBinary = "build/HelpMake/headers/" + comp->name() + "/" + std::filesystem::path(pchHeader).filename().string() + comp->pchExtension();
+        std::string pchBinary = "build/HelpMake/headers/" + comp->name() + "/" + (isConfig ? name + "/" : std::string{}) +
+                                std::filesystem::path(pchHeader).filename().string() + comp->pchExtension();
         std::string pchDir = "build/HelpMake/headers/" + comp->name();
         std::filesystem::create_directories(pchDir);
         if (PchneedsRebuild(pchHeader, pchBinary, c.rebuild)) {
@@ -264,6 +264,10 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 if (!std::filesystem::exists(m))
                     continue;
                 std::string moduleName = extractModule(m);
+                if (moduleName.empty()) {
+                    hp::printlnCl(std::format("{} Error: File '{}' is not a module", tag, m), hp::RED);
+                    return 1;
+                }
                 std::string moduleBase = std::filesystem::path(m).stem().string();
                 clangModules[moduleName] = compilerDir + "/modules/" + moduleBase + ".pcm";
             }
@@ -296,9 +300,10 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         std::vector<Job> jobs;
 
         for (const auto &file : expandedFiles) {
-            std::string baseName = std::filesystem::path(file).stem().string();
-
-            std::string objPath = compilerDir + "/obj/" + baseName + comp->objectExt();
+            std::filesystem::path srcPath(file);
+            std::filesystem::path relPath = srcPath.is_absolute() ? srcPath.filename() : srcPath;
+            std::string objPath = compilerDir + "/obj/" + relPath.generic_string() + comp->objectExt();
+            std::filesystem::create_directories(std::filesystem::path(objPath).parent_path());
 
             std::vector<std::string> args;
             args.push_back(comp->binary());
@@ -334,7 +339,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             std::string objCmd = hm::Process::join(args);
 
             if (!needsRebuild(file, objPath, c.rebuild)) {
-                upToDate.push_back(std::format("{} Skip (up to date): {}", tag, file));
+                if (!c.quiet)
+                    upToDate.push_back(std::format("{} Skip (up to date): {}", tag, file));
                 objects.push_back(objPath);
                 continue;
             }
@@ -342,15 +348,20 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             if (showOutput)
                 hp::printlnCl(std::format("\n{} Object Command: {}", tag, objCmd), hp::YELLOW);
 
-            std::string perFileLog = std::format("{}/{}.raw", r_logDir, baseName);
+            std::string safeStem = relPath.generic_string();
+            std::replace(safeStem.begin(), safeStem.end(), '/', '_');
+            std::replace(safeStem.begin(), safeStem.end(), '\\', '_');
+            std::string perFileLog = std::format("{}/{}_{}.raw", r_logDir, baseName, safeStem);
             jobs.push_back({file, objCmd, perFileLog});
             objects.push_back(objPath);
         }
 
         if (exitCode == 0) {
-            std::cout << '\n';
-            for (const auto &up : upToDate)
-                hp::printlnCl(up, hp::YELLOW);
+            if (!c.quiet) {
+                std::cout << '\n';
+                for (const auto &up : upToDate)
+                    hp::printlnCl(up, hp::YELLOW);
+            }
 
             int rc = runJobs(jobs, c.jobs);
             if (rc != 0)
@@ -409,7 +420,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             std::string linkCmd = binary + " " + hm::Process::join(args);
             if (c.run)
-                linkCmd += " && " + c.output;
+                linkCmd += " && \"" + c.output + "\"";
 
             if (showOutput)
                 hp::printlnCl(std::format("\n{} Link Command: {}", tag, linkCmd), hp::YELLOW);
@@ -454,7 +465,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
         std::string command = hm::Process::join(args);
         if (c.run)
-            command += " && " + c.output;
+            command += " && \"" + c.output + "\"";
 
         if (showOutput)
             hp::printlnCl(std::format("{} Real Command: {}", tag, command), hp::YELLOW);
@@ -484,9 +495,9 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             cleanFile << cleanLog;
     }
 
-    if (!cfg.v_Info.empty()) {
+    if (!c.v_Info.empty()) {
         std::cout << "\nInfo:\n";
-        for (const auto &[msg, color] : cfg.v_Info) {
+        for (const auto &[msg, color] : c.v_Info) {
             hp::printlnCl("  " + msg, color);
         }
         std::cout << '\n';
@@ -520,7 +531,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 try {
                     if (src.find('*') != std::string::npos) {
 
-                        std::filesystem::path p(copy);
+                        std::filesystem::path p(src);
                         std::string dir = p.parent_path().string();
                         if (dir.empty())
                             dir = ".";
@@ -661,7 +672,7 @@ Config Parser::inheritConfig(const Config &child) {
     return local;
 }
 
-void Parser::executeConfigs(const std::vector<std::string> &names) {
+int Parser::executeConfigs(const std::vector<std::string> &names) {
     int rc = 0;
     for (const auto &name : names) {
         auto it = configs.find(name);
@@ -686,6 +697,7 @@ void Parser::executeConfigs(const std::vector<std::string> &names) {
         if (executeConfig(local, name) != 0)
             rc = 1;
     }
+    return rc;
 }
 
 void Parser::Notify(const double &time, bool success) {

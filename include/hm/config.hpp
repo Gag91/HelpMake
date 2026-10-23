@@ -55,6 +55,7 @@ struct Config {
     bool notify = false;
     bool time = false;
     bool check = false;
+    bool watch = false;
 
     int jobs = 0;
 };

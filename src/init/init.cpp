@@ -3,10 +3,8 @@
 #include "hp/other/other.hpp"
 #include "hp/time/time.hpp"
 
-
 #include <array>
 #include <filesystem>
-#include <format>
 #include <iostream>
 #include <string_view>
 
@@ -170,9 +168,7 @@ void Parser::Init::showPreview() {
                   << hp::getColorCode(hp::RESET) << InitCfg.flags << "\n";
     }
     std::cout << " " << hp::getColorCode(hp::BRIGHT_BLACK) << "  Generate compile_commands.json: "
-              << hp::getColorCode(hp::RESET) << InitCfg.json
-        ? "true\n"
-        : "false\n";
+              << hp::getColorCode(hp::RESET) << (InitCfg.json ? "true\n" : "false\n");
 
     std::cout << "  " << std::string(45, '-') << "\n\n";
 }

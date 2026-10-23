@@ -1,5 +1,6 @@
 #include "hm/generator/generator.hpp"
 
+#include "hm/generator/util.hpp"
 #include "hm/toolchain/compiler.hpp"
 #include "hm/util/containers.hpp"
 #include "hm/util/strings.hpp"
@@ -7,7 +8,6 @@
 #include "hp/other/other.hpp"
 
 #include <filesystem>
-#include <fstream>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -182,8 +182,8 @@ namespace hm::gen {
             }
 
             for (const auto &src : files) {
-                std::string stem = std::filesystem::path(src).stem().string();
-                std::string obj = objDir + stem + comp->objectExt();
+                std::string rel = std::filesystem::path(src).generic_string();
+                std::string obj = objDir + rel + comp->objectExt();
                 objects.push_back(obj);
                 n << "build " << escapePath(obj) << ": cxx_compile " << escapePath(src) << "\n";
             }
@@ -195,13 +195,7 @@ namespace hm::gen {
             n << "default " << escapePath(cfg.output) << "\n";
 
             std::filesystem::path outPath = projectRoot / std::string(Filename());
-            std::ofstream out(outPath);
-            if (!out) {
-                hp::printlnCl(std::format("[Ninja] Could not write {}", outPath.string()), hp::RED);
-                return false;
-            }
-            out << n.str();
-            return static_cast<bool>(out);
+            return writeIfChanged(outPath, n.str());
         }
     };
 

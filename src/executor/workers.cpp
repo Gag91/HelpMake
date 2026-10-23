@@ -1,4 +1,5 @@
 #include "hm/parser/parser.hpp"
+#include "hm/process/process.hpp"
 
 int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
     if (jobs.empty())
@@ -23,9 +24,9 @@ int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
         pool.emplace_back([&, t, begin, end]() {
             for (std::size_t i = begin; i < end; ++i) {
                 auto &j = jobs[i];
-                std::string redirect = std::format("{} > \"{}\" 2>&1", j.cmd, j.logPath);
+                std::string redirect = std::format("{} > \"{}\"", j.cmd, j.logPath);
                 auto timer = hp::startTimer();
-                int rc = std::system(redirect.c_str());
+                int rc = hm::Process::run(redirect).exitCode;
                 double elapsed = hp::stopTimer(timer);
 
                 times[i] = elapsed;

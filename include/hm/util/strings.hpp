@@ -96,8 +96,7 @@ inline std::string extractModule(const std::filesystem::path &filename) {
         return trim(value);
     }
 
-    hp::printlnCl(std::format("[HelpMake] Error: File '{}' is not a module", filename.string()), hp::RED);
-    std::exit(EXIT_FAILURE);
+    return "";
 }
 
 inline std::string compilerCommand(const std::string &compiler) {
@@ -117,4 +116,16 @@ inline std::string replaceSlash(std::string_view s) {
 inline std::string replaceSlash(std::string &s) {
     std::replace(s.begin(), s.end(), '\\', '/');
     return s;
+}
+
+inline bool isMsvcLike(std::string_view compiler) {
+    std::string n = to_lower(compiler);
+    return n == "msvc" || n == "cl" || n == "clang-cl";
+}
+
+inline std::string normalizeVersion(const std::string &version,
+                                    std::string_view compiler) {
+    if (version.empty() || version.front() == '-' || version.front() == '/')
+        return version;
+    return std::string(isMsvcLike(compiler) ? "/" : "-") + version;
 }

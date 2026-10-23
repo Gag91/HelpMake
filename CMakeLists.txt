@@ -18,6 +18,7 @@ add_executable(hmm
     src/cli/show.cpp
     src/cli/version.cpp
     src/executor/executor.cpp
+    src/executor/watch.cpp
     src/executor/workers.cpp
     src/fs/depfile.cpp
     src/fs/pch.cpp

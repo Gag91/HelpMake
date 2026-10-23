@@ -49,7 +49,7 @@ namespace hm {
                     out += it->second;
                 } else {
                     errors.push_back(std::format("[HelpMake] Error: Undefined variable \"[[{}]]\"", name));
-                    break;
+                    out += "[[" + name + "]]";
                 }
 
                 i = end + 2;

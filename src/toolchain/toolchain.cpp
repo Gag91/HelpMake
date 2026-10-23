@@ -54,8 +54,11 @@ namespace hm {
             return {};
         }
 
-        std::vector<std::string> directBuildArgs(const std::vector<std::string> &inputs, const std::string &output) const override {
-            return {};
+        std::vector<std::string> directBuildArgs(const std::vector<std::string> &in, const std::string &out) const override {
+            auto args = in;
+            args.push_back("-o");
+            args.push_back(out);
+            return args;
         }
 
         bool writesDepFile() const override {

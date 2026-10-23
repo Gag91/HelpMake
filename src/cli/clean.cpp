@@ -9,9 +9,9 @@ namespace hm::cli {
 
     void clean(bool gcm, bool all) {
         if (all) {
-            std::filesystem::remove_all("build/HelpMake");
+            std::filesystem::remove_all("build/");
             std::filesystem::remove_all("gcm.cache");
-            hp::printlnCl("[HelpMake] Cleaned build/HelpMake and gcm.cache", hp::GREEN);
+            hp::printlnCl("[HelpMake] Cleaned build/ and gcm.cache", hp::GREEN);
             return;
         }
 
