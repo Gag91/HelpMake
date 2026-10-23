@@ -83,7 +83,7 @@ namespace hm::gen {
             return out;
         }
 
-        bool generate(const Config &cfg, const std::filesystem::path &projectRoot) override {
+        bool generate(Config &cfg, const std::filesystem::path &projectRoot) override {
 
             std::filesystem::create_directories("build/HelpMake/Ninja");
             auto comp = hm::makeCompiler(cfg.compiler);
@@ -103,19 +103,23 @@ namespace hm::gen {
             }
 
             if (!cfg.pch.empty())
-                hp::printlnCl("[Ninja] Warning: PCH is not emitted. Use `hm -b` if you need it.", hp::YELLOW);
+                cfg.v_Info["[Ninja] Warning: PCH is not emitted. Use `hm -b` if you need it."] = hp::YELLOW;
+
             if (!cfg.Precmd.empty() || !cfg.v_Precmd.empty())
-                hp::printlnCl("[Ninja] Warning: PreBuild is not emitted.", hp::YELLOW);
+                cfg.v_Info["[Ninja] Warning: PreBuild is not emitted."] = hp::YELLOW;
+
             if (!cfg.Postcmd.empty() || !cfg.v_Postcmd.empty())
-                hp::printlnCl("[Ninja] Warning: PostBuild is not emitted.", hp::YELLOW);
+                cfg.v_Info["[Ninja] Warning: PostBuild is not emitted."] = hp::YELLOW;
+
             if (!cfg.v_Copy.empty())
-                hp::printlnCl("[Ninja] Warning: Copy is not emitted.", hp::YELLOW);
+                cfg.v_Info["[Ninja] Warning: Copy is not emitted."] = hp::YELLOW;
+
             if (!cfg.v_Github.empty())
-                hp::printlnCl("[Ninja] Warning: Fetch is not emitted.", hp::YELLOW);
+                cfg.v_Info["[Ninja] Warning: Fetch is not emitted."] = hp::YELLOW;
+
             if (!cfg.v_Modules.empty())
-                hp::printlnCl("[Ninja] Warning: Modules have no special handling; "
-                              "they'll be compiled like normal sources (may fail on Clang).",
-                              hp::YELLOW);
+                cfg.v_Info["[Ninja] Warning: Modules have no special handling; "
+                           "they'll be compiled like normal sources (may fail on Clang)."] = hp::YELLOW;
 
             std::vector<std::string> files = expandInputs(cfg);
             if (files.empty()) {

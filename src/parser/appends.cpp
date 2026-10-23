@@ -1,17 +1,19 @@
 #include "hm/parser/parser.hpp"
+#include "hm/toolchain/compiler.hpp"
 #include "hm/util/strings.hpp"
 
 #include <cstdlib>
 #include <format>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
-std::optional<std::string> Parser::fieldValue(const std::string &line, std::string_view key) {
+std::optional<std::string> Parser::fieldValue(std::string_view line, std::string_view key) {
     auto pos = line.find(key);
     if (pos == std::string::npos)
         return std::nullopt;
-    return cfg.var.parseVar(trim(line.substr(pos + key.size())), cfg.v_Errors);
+    return cfg.var.parseVar(trim_view(line.substr(pos + key.size())), cfg.v_Errors);
 }
 
 void Parser::appendInputFiles(Config &c, const std::string &value) {
@@ -24,8 +26,9 @@ void Parser::appendInputFiles(Config &c, const std::string &value) {
 }
 
 void Parser::appendIncludes(Config &c, const std::string &value) {
+    auto comp = hm::makeCompiler(c.compiler);
     for (const auto &tok : splitArgs(value)) {
-        c.flags += " -I" + tok;
+        c.flags += " " + comp->includeFlag(tok);
         c.includeFiles.push_back(tok);
     }
 }

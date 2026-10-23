@@ -1,69 +1,123 @@
+# ============================================================
+# HelpMake self-build + test suite
+# ============================================================
+# Self-build (no config):   hm -b
+# Release build:            hm -b --config release
+# All tests:                hm -b --config-all
+# Watch mode:               hm -b --watch --run
+# ============================================================
+
 Compiler: g++
 Version: std=c++20
 Output: hmm.exe
 Jobs: 8
-# PCH: include/hm/pch.hpp
 
+# ---------- Dependencies ----------
+
+Fetch {
+    https://github.com/Gag91/Help_Library -> .
+}
+
+# ---------- Generators -------------
 Gen {
     ninja
     cmake
     json
 }
 
+# ---------- Variables ---------------
 Set {
     CPP_SOURCE: src/**/*.cpp
-    INCLUDE_DIR: include/
-    FLAGS: -Wall
+    INCLUDE_DIR: include
+    WARN: -Wall
 }
+# ---------- Input Files---------------
+
 InputFiles {
     [[CPP_SOURCE]]
 }
+
+# ---------- Includes ---------------
 
 Includes {
     [[INCLUDE_DIR]]
 }
 
+# ---------- Flags ---------------
+
 Flags {
-    [[FLAGS]]
+    [[WARN]]
+    linux: -pthread
+    mac: -pthread
 }
 
-# GCC modules config
-Config: gcc {
+# ---------- Build variants ----------
+
+Config: release {
+    Flags: -Wall -O2 -DNDEBUG
+    Output: build/hmm-release.exe
+}
+
+Config: debug {
+    Flags: -Wall -g -O0 -DDEBUG
+    Output: build/hmm-debug.exe
+}
+
+# ============================================================
+# Test configurations - hm -b --config <name>
+# ============================================================
+
+# ---------- C++20 modules, GCC ----------
+Config: test-gcc-modules {
     Compiler: g++
-    Version: -std=c++26
-    Output: test-gcc.exe
-    Modules {
-        test/math.module
-    }
+    Version: std=c++20
+    Output: build/test-gcc-modules.exe
     InputFiles {
         test/main.cpp
     }
+    Modules {
+        test/math.module
+    }
     Flags {
         -Wall
-        -fmodules
     }
 }
 
-# Clang modules config
-Config: clang {
+# ---------- C++20 modules, Clang ----------
+Config: test-clang-modules {
     Compiler: clang++
-    Version: -std=c++20
-    Output: test-clang.exe
-    Modules {
-        test/math.module
-    }
+    Version: std=c++20
+    Output: build/test-clang-modules.exe
     InputFiles {
         test/main.cpp
+    }
+    Modules {
+        test/math.module
     }
     Flags {
         -Wall
     }
 }
-# Static libraries support
-Config: lib {
-    Output: lib.exe
+
+# ---------- Static library ----------
+Config: test-math-lib {
+    Kind: static
+    Output: build/libmath.a
     InputFiles {
-        test/lib/main.cpp 
+        test/add.cpp
+        test/mul.cpp
+    }
+    Flags {
+        -Wall
+        -O2
+    }
+}
+
+# ---------- Static library consumer ----------
+Config: test-math-app {
+    Output: build/test-math-app.exe
+    InputFiles {
+        test/lib/main.cpp
     }
     Flags {
         -Wall
@@ -71,45 +125,83 @@ Config: lib {
         -lmath
     }
 }
-# Static library math
-Config: math {
-    Kind: static
-    Output: build/libmath.a
+
+# ---------- MSVC ----------
+Config: test-msvc {
+    Compiler: msvc
+    Version: /std:c++20
+    Output: build/hmm-msvc.exe
     InputFiles {
-        test/add.cpp 
-        test/mul.cpp  
-    }  
-         
+        src/**/*.cpp
+    }
+    Includes {
+        include
+    }
     Flags {
-        -Wall
-        -O2
+        /W4
+        /EHsc
     }
 }
-# MSVC test
-Config: msvc {
-    Compiler: msvc
-    Output: hmm-msvc.exe
-    Version: /std:c++20
-    InputFiles {
-      src/**/*.cpp
-      }
 
-    Flags {
-      /W4
-      /EHsc
-      Iinclude
-      }
-}
-# ZigCC test
-Config: zigcc {
+# ---------- Zig C ----------
+Config: test-zigcc {
     Compiler: zig cc
-    Output: zigcc-test.exe
-    Version: std=c23
+    Version: std=c17
+    Output: build/test-zigcc.exe
     InputFiles {
-      test/test.c
-      }
-
+        test/test.c
+    }
     Flags {
-      -Wall
-      }
+        -Wall
+    }
+}
+
+# ---------- Zig C++ ----------
+Config: test-zigcpp {
+    Compiler: zig c++
+    Version: std=c++20
+    Output: build/test-zigcpp.exe
+    InputFiles {
+        src/**/*.cpp
+    }
+    Includes {
+        include
+    }
+    Flags {
+        -Wall
+    }
+}
+
+# ---------- Precompiled headers ----------
+Config: test-pch {
+    Output: build/hmm-pch.exe
+    PCH: include/hm/pch.hpp
+    InputFiles {
+        src/**/*.cpp
+    }
+    Includes {
+        include
+    }
+    Flags {
+        -Wall
+    }
+}
+
+# ---------- Platform conditionals demo ----------
+Config: test-platform {
+    Compiler: gcc
+    Version: std=c17
+    Output: build/test-platform
+    win: Output: build/test-platform.exe
+    InputFiles {
+        test/test.c
+    }
+    Flags {
+        -Wall
+        linux: -pthread
+        mac: -pthread
+        unix: -fPIC
+        x64: -march=native
+        arm64: -march=native
+    }
 }

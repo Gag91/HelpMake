@@ -9,6 +9,19 @@ set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(FetchContent)
+
+FetchContent_Declare(
+    Help_Library
+    GIT_REPOSITORY https://github.com/Gag91/Help_Library
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
+)
+
+FetchContent_MakeAvailable(Help_Library)
+
+target_include_directories(hmm PRIVATE ${Help_Library_SOURCE_DIR})
+
 add_executable(hmm
     src/cli/build.cpp
     src/cli/clean.cpp
@@ -50,12 +63,13 @@ add_executable(hmm
 )
 
 target_include_directories(hmm PRIVATE
-    include/
+    include
 )
 
 target_compile_options(hmm PRIVATE
     -std=c++20
-    -Iinclude/
+    -Ibuild/HelpMake/dep/Help_Library
+    -Iinclude
     -Wall
 )
 

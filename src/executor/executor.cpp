@@ -47,12 +47,15 @@ int Parser::buildCommand() {
 }
 
 int Parser::resolveDependencies(Config &c, const std::string &tag) {
+
     for (const auto &depName : c.v_Depends) {
         auto it = dependencies.find(depName);
         if (it == dependencies.end()) {
             hp::printlnCl(std::format("{} Error: Undefined dependency '{}' referenced by 'Depends:'", tag, depName), hp::RED);
             return 1;
         }
+
+        auto comp = hm::makeCompiler(c.compiler);
 
         const auto &dep = it->second;
         std::string depRoot = "build/HelpMake/dep/" + dep.name;
@@ -63,11 +66,15 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
         for (const auto &inc : dep.includes) {
             std::string fullPath = depRoot + "/" + inc;
             c.includeFiles.push_back(fullPath);
-            c.flags += " -I" + fullPath;
+            c.flags += " " + comp->includeFlag(fullPath);
         }
 
-        for (const auto &ld : dep.linkDirs)
-            c.flags += " -L" + depRoot + "/" + ld;
+        for (const auto &ld : dep.linkDirs) {
+            if (comp->isMSVC())
+                c.flags += " /LIBPATH:" + depRoot + "/" + ld;
+            else
+                c.flags += " -L" + depRoot + "/" + ld;
+        }
 
         for (const auto &lf : dep.linkFlags)
             c.flags += " " + lf;
@@ -75,11 +82,7 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
         for (const auto &ln : dep.links)
             c.flags += " " + depRoot + "/" + ln;
 
-        if (cfg.verbose)
-            hp::printlnCl(std::format(
-                              "{} Linked dependency '{}' from '{}'",
-                              tag, depName, depRoot),
-                          hp::GREEN);
+        c.v_Info[std::format("{} Linked dependency '{}' from '{}'", tag, depName, depRoot)] = hp::GREEN;
     }
     return 0;
 }

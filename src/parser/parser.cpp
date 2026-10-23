@@ -1,6 +1,7 @@
 #include "hm/parser/parser.hpp"
 #include "hm/generator/generator.hpp"
 #include "hm/util/strings.hpp"
+#include "hm/util/system.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
 
@@ -78,17 +79,19 @@ int Parser::parse() {
     }
 
     if (!cfg.v_Gens.empty() && !cfg.check) {
+        Config genCfg = cfg;
+        resolveDependencies(genCfg, "[HelpMake]");
         for (const auto &g : cfg.v_Gens) {
             if (g == "json" || g == "compile_commands") {
-                if (generateCompileCommands(cfg) == 0) {
+                if (generateCompileCommands(genCfg) == 0)
                     cfg.v_Info["[HelpMake] Generated compile_commands.json"] = hp::GREEN;
-                }
             } else {
                 auto gen = hm::gen::makeGenerators(g);
-                if (gen->generate(cfg)) {
+                if (gen->generate(genCfg))
                     cfg.v_Info[std::format("[HelpMake] Generated {}", gen->Filename())] = hp::GREEN;
-                }
             }
+            for (const auto &[key, value] : genCfg.v_Info)
+                cfg.v_Info[key] = value;
         }
     }
 
@@ -175,6 +178,9 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     std::size_t lineNo = section.startLine - 1;
     hm::Dependency currentDep;
 
+    if (!isRoot && cfg.debug)
+        hp::printlnCl(std::format("\nFound Config {}:", section.configName), hp::CYAN);
+
     static constexpr std::array<std::string_view, 26> knownKeys = {
         "Compiler:", "Version:", "Output:", "InputFiles:", "Includes:",
         "Flags:", "Modules:", "Run:", "Arguments:", "Kind:", "Jobs:", "PCH:",
@@ -195,18 +201,23 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         {"Gen {", "Gen"},
     }};
 
-    for (const auto &line : section.lines) {
+    for (const auto &e_line : section.lines) {
         ++lineNo;
+
+        auto pl = hm::stripPlatformPrefix(e_line);
+        if (pl.conditional && !pl.matches)
+            continue;
+        std::string_view line = pl.conditional ? pl.body : std::string_view(e_line);
 
         for (auto key : knownKeys)
             parseTypos(lineNo, filename, line, key);
 
         if (!currentBlock.empty()) {
-            if (line.find("}") != std::string::npos) {
+            if (line.find("}") != std::string_view::npos) {
                 currentBlock.clear();
                 continue;
             }
-            std::string value = cfg.var.parseVar(trim(line), cfg.v_Errors);
+            std::string value = cfg.var.parseVar(std::string(trim_view(line)), cfg.v_Errors);
             if (value.empty())
                 continue;
 
@@ -242,7 +253,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
 
         bool blockMatched = false;
         for (const auto &[pat, name] : blockStarts) {
-            if (line.find(pat) != std::string::npos) {
+            if (line.find(pat) != std::string_view::npos) {
                 currentBlock = std::string(name);
                 blockMatched = true;
                 break;
@@ -252,7 +263,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             continue;
 
         if (isDependencySet) {
-            if (line.find("}") != std::string::npos) {
+            if (line.find("}") != std::string_view::npos) {
                 dependencies[currentDep.name] = currentDep;
                 debugField("Dependency saved", currentDep.name);
                 currentDep = hm::Dependency{};
@@ -306,7 +317,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             continue;
         }
 
-        if (line.find("Dependency:") != std::string::npos) {
+        if (line.find("Dependency:") != std::string_view::npos) {
             if (!isRoot) {
                 cfg.v_Errors.push_back(std::format(
                     "[HelpMake] Error: {}:{}: Dependency blocks are only valid at the root level",
@@ -315,13 +326,13 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             }
             std::size_t colon = line.find(":");
             std::size_t brace = line.find("{");
-            if (colon == std::string::npos || brace == std::string::npos || brace < colon) {
+            if (colon == std::string_view::npos || brace == std::string_view::npos || brace < colon) {
                 cfg.v_Errors.push_back(std::format(
                     "[HelpMake] Error: {}:{}: Malformed Dependency line: '{}'",
                     filename.string(), lineNo, line));
                 continue;
             }
-            std::string name = trim(line.substr(colon + 1, brace - colon - 1));
+            std::string_view name = trim_view(line.substr(colon + 1, brace - colon - 1));
             if (name.empty()) {
                 cfg.v_Errors.push_back(std::format(
                     "[HelpMake] Error: {}:{}: Dependency name is empty",
@@ -338,15 +349,15 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         if (auto v = fieldValue(line, "Arguments:"); v) {
             parseArgument(target, *v);
         } else if (auto v = fieldValue(line, "Compiler:"); v) {
-            if (target.compiler.empty())
+            if (target.compiler.empty() || pl.conditional)
                 target.compiler = *v;
             debugField("Compiler", target.compiler, section.configName);
         } else if (auto v = fieldValue(line, "Version:"); v) {
-            if (target.version.empty())
+            if (target.version.empty() || pl.conditional)
                 target.version = *v;
             debugField("Version", target.version, section.configName);
         } else if (auto v = fieldValue(line, "Output:"); v) {
-            if (target.output.empty())
+            if (target.output.empty() || pl.conditional)
                 target.output = *v;
             debugField("Output", target.output, section.configName);
         } else if (auto v = fieldValue(line, "Flags:"); v) {
@@ -357,7 +368,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         } else if (auto v = fieldValue(line, "Includes:"); v) {
             target.includes += (target.includes.empty() ? "" : " ") + *v;
             appendIncludes(target, *v);
-        } else if (line.find("Run:") != std::string::npos) {
+        } else if (line.find("Run:") != std::string_view::npos) {
             target.run = true;
             debugField("Run", "true", section.configName);
         } else if (auto v = fieldValue(line, "Kind:"); v) {
@@ -369,7 +380,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         } else if (auto v = fieldValue(line, "Modules:"); v) {
             appendModules(target, *v);
         } else if (auto v = fieldValue(line, "PCH:"); v) {
-            if (target.pch.empty())
+            if (target.pch.empty() || pl.conditional)
                 target.pch = *v;
             debugField("PCH", target.pch, section.configName);
         } else if (auto v = fieldValue(line, "Gen:"); v) {
@@ -383,25 +394,25 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 if (!name.empty())
                     target.v_Depends.push_back(name);
             debugField("Depends", cleaned, section.configName);
-        } else if (line.find("Set {") != std::string::npos) {
+        } else if (line.find("Set {") != std::string_view::npos) {
             isVarSet = true;
-        } else if (line.find("}") != std::string::npos && isVarSet) {
+        } else if (line.find("}") != std::string_view::npos && isVarSet) {
             isVarSet = false;
         } else if (isVarSet) {
             std::size_t pos = line.find(':');
-            if (pos == std::string::npos) {
+            if (pos == std::string_view::npos) {
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Missing ':' in '{}'", filename.string(), lineNo, line));
                 continue;
             }
-            std::string key = trim(line.substr(0, pos));
+            std::string key = std::string(trim_view(line.substr(0, pos)));
             if (key.empty())
                 continue;
             if (auto it = cfg.v_Vars.find(key); it != cfg.v_Vars.end()) {
-                cfg.var.defineVar(key, it->second);
+                target.var.defineVar(key, it->second);
                 continue;
             }
-            std::string value = cfg.var.parseVar(trim(line.substr(pos + 1)), cfg.v_Errors);
-            cfg.var.defineVar(key, value);
+            std::string value = target.var.parseVar(std::string(trim_view(line.substr(pos + 1))), cfg.v_Errors);
+            target.var.defineVar(key, value);
         }
     }
     return 0;

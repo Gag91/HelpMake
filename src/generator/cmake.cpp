@@ -2,11 +2,13 @@
 
 #include "hm/generator/util.hpp"
 #include "hm/toolchain/compiler.hpp"
+#include "hm/util/bools.hpp"
 #include "hm/util/containers.hpp"
 #include "hm/util/strings.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
 
+#include <cstddef>
 #include <filesystem>
 #include <sstream>
 #include <string>
@@ -65,7 +67,7 @@ namespace hm::gen {
             return "CMake build system: generates CMakeLists.txt";
         }
 
-        bool generate(const Config &cfg, const std::filesystem::path &projectRoot) override {
+        bool generate(Config &cfg, const std::filesystem::path &projectRoot) override {
             auto comp = hm::makeCompiler(cfg.compiler);
             if (!comp) {
                 hp::printlnCl("[CMake] Unknown compiler '" + cfg.compiler + "'", hp::RED);
@@ -76,18 +78,8 @@ namespace hm::gen {
                 return false;
             }
 
-            if (!cfg.Precmd.empty() || !cfg.v_Precmd.empty())
-                hp::printlnCl("[CMake] Warning: PreBuild not emitted.", hp::YELLOW);
-            if (!cfg.Postcmd.empty() || !cfg.v_Postcmd.empty())
-                hp::printlnCl("[CMake] Warning: PostBuild not emitted.", hp::YELLOW);
-            if (!cfg.v_Copy.empty())
-                hp::printlnCl("[CMake] Warning: Copy not emitted.", hp::YELLOW);
-            if (!cfg.v_Github.empty())
-                hp::printlnCl("[CMake] Warning: Fetch not emitted (use FetchContent).", hp::YELLOW);
             if (!cfg.v_Depends.empty())
-                hp::printlnCl("[CMake] Warning: Depends not emitted (use FetchContent).", hp::YELLOW);
-            if (!cfg.v_Modules.empty())
-                hp::printlnCl("[CMake] Warning: Modules not emitted (needs CMake 3.28+ FILE_SET CXX_MODULES).", hp::YELLOW);
+                cfg.v_Info["[CMake] Warning: Depends not emitted (use FetchContent)."] = hp::YELLOW;
 
             std::vector<std::string> files = expandInputs(cfg);
             if (files.empty()) {
@@ -95,9 +87,17 @@ namespace hm::gen {
                 return false;
             }
 
-            bool hasC = false;
-            bool hasCxx = false;
+            std::vector<std::string> regularFiles, moduleFiles;
             for (const auto &f : files) {
+                if (isModule(f) || isDeclaredModule(f, cfg.v_Modules))
+                    moduleFiles.push_back(f);
+                else
+                    regularFiles.push_back(f);
+            }
+
+            bool hasC = false;
+            bool hasCxx = !moduleFiles.empty();
+            for (const auto &f : regularFiles) {
                 if (f.ends_with(".c"))
                     hasC = true;
                 else
@@ -150,13 +150,109 @@ namespace hm::gen {
                 n << "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n\n";
             }
 
+            if (!cfg.v_Github.empty()) {
+                n << "include(FetchContent)\n\n";
+
+                std::vector<std::string> fetchNames;
+                std::vector<std::pair<std::string, std::string>> includeDirs;
+
+                for (const auto &g : cfg.v_Github) {
+                    std::string_view gv = g;
+                    auto arrow = gv.find("->");
+                    if (arrow == std::string_view::npos) {
+                        cfg.v_Info["[CMake] Warning: Github entry missing '->': " + g] = hp::YELLOW;
+                        continue;
+                    }
+
+                    std::string url = trim(std::string(gv.substr(0, arrow)));
+                    std::string dest = trim(std::string(gv.substr(arrow + 2)));
+                    if (url.empty() || dest.empty()) {
+                        cfg.v_Info["[CMake] Warning: Github entry empty url/dest: " + g] = hp::YELLOW;
+                        continue;
+                    }
+
+                    if (url.back() == '/')
+                        url.pop_back();
+
+                    auto slash = url.find_last_of('/');
+                    std::string name = (slash == std::string::npos) ? url : url.substr(slash + 1);
+                    if (name.size() > 4 && name.substr(name.size() - 4) == ".git")
+                        name.erase(name.size() - 4);
+
+                    for (char &c : name)
+                        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_')
+                            c = '_';
+
+                    if (name.empty() || !std::isalpha(static_cast<unsigned char>(name[0]))) {
+                        cfg.v_Info["[CMake] Warning: invalid Fetch name for " + g] = hp::YELLOW;
+                        continue;
+                    }
+
+                    std::string depRoot = "build/HelpMake/dep/" + name;
+                    std::string suffix;
+                    if (dest == depRoot) {
+                        suffix = "";
+                    } else if (dest.starts_with(depRoot + "/")) {
+                        suffix = dest.substr(depRoot.length() + 1);
+                    } else {
+                        suffix = dest;
+                    }
+
+                    n << "FetchContent_Declare(\n";
+                    n << "    " << name << "\n";
+                    n << "    GIT_REPOSITORY " << url << "\n";
+                    n << "    GIT_TAG        main\n";
+                    n << "    GIT_SHALLOW    TRUE\n";
+                    n << ")\n\n";
+
+                    fetchNames.push_back(name);
+                    includeDirs.emplace_back(name, suffix);
+                }
+
+                for (const auto &nm : fetchNames)
+                    n << "FetchContent_MakeAvailable(" << nm << ")\n";
+                if (!fetchNames.empty())
+                    n << "\n";
+
+                for (const auto &[name, suffix] : includeDirs) {
+                    if (suffix.empty())
+                        n << "target_include_directories(" << targetName
+                          << " PRIVATE ${" << name << "_SOURCE_DIR})\n";
+                    else
+                        n << "target_include_directories(" << targetName
+                          << " PRIVATE ${" << name << "_SOURCE_DIR}/" << suffix << ")\n";
+                }
+                if (!includeDirs.empty())
+                    n << "\n";
+            }
+
             if (isStatic)
                 n << "add_library(" << targetName << " STATIC\n";
             else
                 n << "add_executable(" << targetName << "\n";
-            for (const auto &f : files)
+            for (const auto &f : regularFiles)
                 n << "    " << f << "\n";
             n << ")\n\n";
+
+            if (!moduleFiles.empty()) {
+                n << "target_sources(" << targetName << "\n";
+                n << "    PUBLIC\n";
+                n << "    FILE_SET CXX_MODULES\n";
+                n << "    FILES\n";
+                for (const auto &m : moduleFiles)
+                    n << "        " << m << "\n";
+                n << ")\n\n";
+
+                if (std.empty()) {
+                    cfg.v_Info["[CMake] Warning: modules need C++20+; set Version: std=c++20."] = hp::YELLOW;
+                } else {
+                    try {
+                        if (std::stoi(std) < 20)
+                            cfg.v_Info["[CMake] Warning: modules need C++20+; current standard is " + std + "."] = hp::YELLOW;
+                    } catch (...) {
+                    }
+                }
+            }
 
             if (!cfg.includeFiles.empty()) {
                 n << "target_include_directories(" << targetName << " PRIVATE\n";
@@ -198,6 +294,81 @@ namespace hm::gen {
                 n << "set_target_properties(" << targetName << " PROPERTIES\n";
                 n << "    RUNTIME_OUTPUT_DIRECTORY \"" << escapeValue(outAbs.generic_string()) << "\"\n";
                 n << "    ARCHIVE_OUTPUT_DIRECTORY \"" << escapeValue(outAbs.generic_string()) << "\"\n";
+                n << ")\n\n";
+            }
+
+            if (!cfg.v_Precmd.empty() || !cfg.v_Postcmd.empty()) {
+                n << "if(WIN32)\n";
+                n << "    set(HM_SHELL cmd /c)\n";
+                n << "else()\n";
+                n << "    set(HM_SHELL sh -c)\n";
+                n << "endif()\n\n";
+            }
+
+            if (!cfg.v_Precmd.empty()) {
+                n << "add_custom_target(" << targetName << "_prebuild\n";
+                for (const auto &cmd : cfg.v_Precmd)
+                    n << "    COMMAND ${HM_SHELL} \"" << escapeValue(cmd) << "\"\n";
+                n << "    COMMENT \"Pre-build for " << targetName << "\"\n";
+                n << "    VERBATIM\n";
+                n << ")\n";
+                n << "add_dependencies(" << targetName << " " << targetName << "_prebuild)\n\n";
+            }
+
+            if (!cfg.v_Copy.empty()) {
+                int idx = 0;
+                for (const auto &entry : cfg.v_Copy) {
+                    idx++;
+
+                    std::size_t arrow = entry.find("->");
+                    if (arrow == std::string::npos) {
+                        cfg.v_Info["[CMake] Warning: Copy entry missing '->': " + entry] = hp::YELLOW;
+                        continue;
+                    }
+
+                    std::string src = trim(entry.substr(0, arrow));
+                    std::string dest = trim(entry.substr(arrow + 2));
+                    if (src.empty() || dest.empty()) {
+                        cfg.v_Info["[CMake] Warning: Copy entry empty src or dest: " + entry] = hp::YELLOW;
+                        continue;
+                    }
+
+                    std::string prefix = "HM_COPY_" + std::to_string(idx);
+                    bool hasGlob = src.find('*') != std::string::npos;
+
+                    if (hasGlob) {
+                        n << "file(GLOB " << prefix << "_FILES \"" << escapeValue(src) << "\")\n";
+                        n << "if(" << prefix << "_FILES)\n";
+                        n << "    add_custom_command(TARGET " << targetName << " POST_BUILD\n";
+                        n << "        COMMAND ${CMAKE_COMMAND} -E make_directory \"" << escapeValue(dest) << "\"\n";
+                        n << "        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${" << prefix << "_FILES} \"" << escapeValue(dest) << "\"\n";
+                        n << "        COMMENT \"Copy " << escapeValue(src) << " -> " << escapeValue(dest) << "\"\n";
+                        n << "        VERBATIM\n";
+                        n << "    )\n";
+                        n << "endif()\n\n";
+                    } else if (std::filesystem::is_directory(projectRoot / src)) {
+                        n << "add_custom_command(TARGET " << targetName << " POST_BUILD\n";
+                        n << "    COMMAND ${CMAKE_COMMAND} -E copy_directory \"" << escapeValue(src) << "\" \"" << escapeValue(dest) << "\"\n";
+                        n << "    COMMENT \"Copy dir " << escapeValue(src) << " -> " << escapeValue(dest) << "\"\n";
+                        n << "    VERBATIM\n";
+                        n << ")\n\n";
+                    } else {
+                        n << "add_custom_command(TARGET " << targetName << " POST_BUILD\n";
+                        n << "    COMMAND ${CMAKE_COMMAND} -E make_directory \"" << escapeValue(dest) << "\"\n";
+                        n << "    COMMAND ${CMAKE_COMMAND} -E copy_if_different \"" << escapeValue(src) << "\" \"" << escapeValue(dest) << "\"\n";
+                        n << "    COMMENT \"Copy " << escapeValue(src) << " -> " << escapeValue(dest) << "\"\n";
+                        n << "    VERBATIM\n";
+                        n << ")\n\n";
+                    }
+                }
+            }
+
+            if (!cfg.v_Postcmd.empty()) {
+                n << "add_custom_command(TARGET " << targetName << " POST_BUILD\n";
+                for (const auto &cmd : cfg.v_Postcmd)
+                    n << "    COMMAND ${HM_SHELL} \"" << escapeValue(cmd) << "\"\n";
+                n << "    COMMENT \"Post-build for " << targetName << "\"\n";
+                n << "    VERBATIM\n";
                 n << ")\n\n";
             }
 

@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <format>
+#include <string_view>
 
 namespace hm {
 
@@ -23,7 +24,7 @@ namespace hm {
         variables[key] = value;
     }
 
-    std::string Var::parseVar(const std::string &line, std::vector<std::string> &errors) {
+    std::string Var::parseVar(std::string_view line, std::vector<std::string> &errors) {
         std::string out;
         out.reserve(line.size());
 
@@ -42,7 +43,7 @@ namespace hm {
                     break;
                 }
 
-                std::string name = line.substr(i + 2, end - i - 2);
+                std::string name = std::string(line.substr(i + 2, end - i - 2));
 
                 auto it = variables.find(name);
                 if (it != variables.end()) {

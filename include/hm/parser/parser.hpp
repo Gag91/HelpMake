@@ -56,7 +56,7 @@ class Parser {
     int configBraceDepth = 1;
     static std::vector<std::string> splitArgs(const std::string &args);
 
-    std::optional<std::string> fieldValue(const std::string &line, std::string_view key);
+    std::optional<std::string> fieldValue(std::string_view line, std::string_view key);
     void appendInputFiles(Config &c, const std::string &value);
     void appendIncludes(Config &c, const std::string &value);
     void appendFlags(Config &c, const std::string &value);
@@ -71,9 +71,9 @@ class Parser {
         if (!cfg.debug)
             return;
         if (cfgName.empty())
-            std::cout << std::format("Found {}: '{}'\n", label, value);
+            hp::printlnCl(std::format("Found {}: '{}'", label, value), hp::YELLOW);
         else
-            std::cout << std::format("{} found in config '{}': '{}'\n", label, cfgName, value);
+            hp::printlnCl(std::format("  {}: '{}'", label, value), hp::YELLOW);
     }
 
   public:

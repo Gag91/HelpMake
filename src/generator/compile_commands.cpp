@@ -60,7 +60,5 @@ int Parser::generateCompileCommands(const Config &c) {
     }
     json << "]\n";
     std::string content = json.str();
-    if (c.verbose)
-        hp::printlnCl("[HelpMake] Generated compile_commands.json", hp::GREEN);
     return hm::gen::writeIfChanged("compile_commands.json", content) ? 0 : 1;
 }

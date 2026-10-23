@@ -69,3 +69,5 @@ Testing/
 .cache/
 gcm.cache/
 
+# help library
+include/hp/

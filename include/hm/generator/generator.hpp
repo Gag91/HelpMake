@@ -18,7 +18,7 @@ namespace hm::gen {
         virtual std::string_view Filename() const = 0;
         virtual std::string_view description() const = 0;
 
-        virtual bool generate(const Config &cfg, const std::filesystem::path &projectRoot = ".") = 0;
+        virtual bool generate(Config &cfg, const std::filesystem::path &projectRoot = ".") = 0;
     };
 
     std::vector<std::string> availableGenerators();

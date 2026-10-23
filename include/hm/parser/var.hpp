@@ -2,6 +2,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace hm {
@@ -15,7 +16,7 @@ namespace hm {
       public:
         Var() = default;
 
-        std::string parseVar(const std::string &line, std::vector<std::string> &errors);
+        std::string parseVar(std::string_view line, std::vector<std::string> &errors);
         bool isValidVar(std::string_view var) const;
 
         void defineVar(const std::string &key, const std::string &value);

@@ -6,7 +6,7 @@ ninja_required_version = 1.10
 builddir = build/HelpMake/Ninja
 
 cxx     = g++
-cflags  = -std=c++20 -Iinclude/ -Wall
+cflags  = -std=c++20 -Ibuild/HelpMake/dep/Help_Library -Iinclude -Wall
 ldflags = 
 
 rule cxx_compile
