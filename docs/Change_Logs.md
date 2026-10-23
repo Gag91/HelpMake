@@ -2,6 +2,38 @@
 
 All notable changes to HelpMake.
 
+## [12.1.0] - 2026-10-23
+
+### Added
+- **Platform conditionals** in `HelpMake.txt` - prefix any line with `win:`, `linux:`, `mac:`, `unix:`, `x64:`, `arm64:`, `x86:`, or `!<tag>` to include it only on matching platforms
+  - Works for scalar fields (`win: Output: build/app.exe`), block entries (`linux: -pthread`), and `Set { }` variables (`win: PATH_SEP: \`)
+  - Recognized tags: `win`/`windows`, `linux`, `mac`/`darwin`/`macos`/`osx`, `unix`, `x64`/`x86_64`/`amd64`, `arm64`/`aarch64`, `x86`/`i386`/`i686`; negation via `!tag`
+- **`--watch`** - rebuild automatically when any source, header, or `HelpMake.txt` changes
+  - Combine with `-r` for the full edit → rebuild → run dev loop
+  - Top-level alias: `hm --watch` ≡ `hm -b --watch`
+- **`FetchContent` support in CMake generator** - `Fetch { }` blocks now emit `FetchContent_Declare` / `FetchContent_MakeAvailable` with proper `target_include_directories`
+- **Modules in CMake generator** - `Modules { }` entries emit `target_sources(... FILE_SET CXX_MODULES FILES ...)`, letting CMake handle PCM generation and ordering automatically
+- **PreBuild / PostBuild / Copy in CMake generator** - emitted as `add_custom_target` (PreBuild) and `add_custom_command(POST_BUILD)` (Copy, PostBuild)
+- **`Set { }` scoping per config** - a `Set { }` inside `Config: { }` no longer leaks to other configs (previously wrote to the shared `Parser::cfg` object)
+- **`Fetch { }` warnings in Ninja/CMake generators** route through `v_Info` instead of printing immediately, so they surface in the consolidated `Info:` block
+
+### Fixed
+- **`-I` / `-L` concatenation bug** - `appendIncludes` produced `-Ibuild/...-Iinclude` (single string) instead of two separate flags, breaking any project with both `Fetch { }` and `Includes { }`
+- **`appendIncludes` dropped the include path on MSVC** - emitted `/I` with no trailing path
+- **`resolveDependencies` used hardcoded `-I` / `-L`** - now uses `comp->includeFlag()` and `/LIBPATH:` for MSVC
+- **`resolveDependencies` read `cfg.verbose`** instead of the config being resolved (`c.verbose`)
+- **`Generator::generate` signature** - changed `const Config &` → `Config &` so generators can populate `v_Info` with warnings
+- **`--gen ninja` / `--gen cmake` / `--gen json`** now run `resolveDependencies` before generation, so fetched and dependent library include paths are correctly emitted into the generated files
+- **`parseSection` uses `target.var` for `Set { }`** instead of the shared `cfg.var`
+- **`fieldValue` takes `string_view`** (was `const std::string &`) - avoids a heap allocation per field lookup
+- **Platform conditionals bypass the "first write wins" guard** - `win: Output: ...` after a fallback `Output: ...` now correctly overrides (previously the override was silently dropped)
+- **Duplicate `Output:` debug print** in `--debug` - the `Found Config X` block no longer repeats the same field value when a platform-conditional override is present
+
+### Changed
+- **`--verbose` output cleaned up** - the config field listing is now a compact block per config (`Found Config X:` header with aligned `  Field: 'value'` lines) instead of a flat stream of `X found in config 'Y': 'value'` lines
+- **`Info:` block ordering** - the `Info:` section (generated files, dependency links, generator warnings) now appears before the final "Compilation successful" line, and after the link step
+- **Generator warnings** (`[Ninja] PCH not emitted`, `[CMake] Depends not emitted`, etc.) are no longer printed inline during parse, only in the consolidated `Info:` block
+  
 ## [12.0.0] - 2026-10-23
 
 ### Added
@@ -39,7 +71,7 @@ All notable changes to HelpMake.
 - **`extractModule` called `std::exit(1)` on files without `export module`**, terminating the build instead of reporting an error. Now returns an empty string.
 - **`parseVar` broke out of the parsing loop on the first undefined variable**, leaving the rest of the line unparsed. Now continues and still reports all errors.
 - **`Set { }` variables leaked across configs** - a `[[x]]` in config B could resolve to a value set in config A depending on section order. Now scoped per config.
-- 
+  
 ## [11.2.0] - 2026-10-21
 
 ### Added
