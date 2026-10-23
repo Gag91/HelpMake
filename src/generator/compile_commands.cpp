@@ -56,7 +56,7 @@ int Parser::generateCompileCommands(const Config &c) {
         json << "    \"directory\": \"" << escapeJson(toUnixPath(cwd)) << "\",\n";
         json << "    \"command\": \"" << escapeJson(toUnixPath(command)) << "\",\n";
         json << "    \"file\": \"" << escapeJson(toUnixPath(file)) << "\"\n";
-        json << "  }";
+        json << "  }\n";
     }
     json << "]\n";
     std::string content = json.str();
