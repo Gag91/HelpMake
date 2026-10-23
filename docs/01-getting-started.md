@@ -83,6 +83,22 @@ Compilation successful. Output file: build/app.exe
 
 Nothing recompiled. If you edit src/main.cpp and run `hm -b` again, only main.cpp recompiles before the link step runs.
 
+## 5.5. Watch mode
+
+Instead of running `hm -b` after every edit:
+
+```bash
+hm -b --watch
+```
+HelpMake builds once, then watches every source, every directory listed in Includes { } (recursively), and HelpMake.txt itself. On save, it rebuilds within ~300ms and returns to watching. Ctrl+C exits.
+
+For the full dev loop:
+
+```bash
+hm -b --watch --run
+```
+Edit -> save -> rebuild -> run. No manual steps in between.
+
 ## 6. What just happened
 
 HelpMake created a build cache folder:

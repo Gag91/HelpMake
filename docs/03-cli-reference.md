@@ -10,7 +10,8 @@ Complete list of `hm` command-line flags.
 | `-v`, `--version` | Show version, author, license link |
 | `-l`, `--license` | Show the MIT license text |
 | `-b`, `--build` | Build using `HelpMake.txt` |
-| `-f <file>` | Use a custom config file instead of `HelpMake.txt` |
+| `--watch` | Watch mode - rebuild on file change. Equivalent to `hm -b --watch` |
+| `-f <file>` / `-f=<file>` | Use a custom config file instead of `HelpMake.txt`. `-f<file>` (no space, no `=`) is not accepted. |
 | `--init` | Interactive project wizard that generates `HelpMake.txt` |
 | `--install` | Clone + build + add `hm` to PATH automatically |
 | `--show` | Parse and print the current configuration |
@@ -73,9 +74,14 @@ hm -b -C="zig cc"
 | `--notify` | Desktop notification on build completion (Windows Toast / notify-send on Linux). |
 | `--quiet` | Suppress warnings. Errors still print. |
 | `--time` | Print the total build time even without `--verbose`. |
+| `--watch` | Rebuild automatically when sources, headers, or `HelpMake.txt` change. Ctrl+C to exit. |
 
 ## Common patterns
 
+### Dev loop
+```bash
+hm -b --watch         # rebuild on save
+hm -b --watch -r      # rebuild and rerun on save
 ### Build one config
 ```bash
 hm -b --config debug
