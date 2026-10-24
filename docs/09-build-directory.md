@@ -6,8 +6,10 @@ HelpMake writes everything under `build/HelpMake/`. Nothing in your project root
 
 ```text
 build/HelpMake/
-├── gcc/                ← objects and logs for the GCC toolchain
-│   ├── obj/
+├── gcc/
+│   ├── .buildid         ← fingerprint of effective compiler command
+│   ├── app.rsp          ← response file (only when command > 30K chars)               
+│   ├── obj/             ← objects and logs for the GCC toolchain
 │   │   ├── main.o
 │   │   ├── main.d
 │   │   ├── util.o
@@ -74,6 +76,33 @@ Compilation Failed
 See Logs: build/HelpMake/gcc/logs/app.txt
 ```
 
+## Response files
+
+For link commands longer than 30,000 characters (Windows caps `CreateProcessA` at 32,767), `hm` writes the argument list to `build/HelpMake/<comp>/<baseName>.rsp` and passes `@file.rsp` to the compiler.
+
+Example response file contents (`hmm.rsp`):
+
+```txt
+-std=c++20
+-Iinclude
+-Ibuild/HelpMake/dep/Help_Library
+-Wall
+build/HelpMake/gcc/obj/src/main.cpp.o
+build/HelpMake/gcc/obj/src/util.cpp.o
+...
+-o
+hmm.exe
+```
+
+One argument per line. Regenerated on every build that triggers the fallback (incremental builds where the command is short don't touch the file). Under `--verbose`, `hm` prints:
+
+```txt
+[HelpMake] Link command too long (32450 chars); using response file: build/HelpMake/gcc/hmm.rsp
+[HelpMake] Link Command: g++ @build/HelpMake/gcc/hmm.rsp
+```
+
+The `.rsp` file is not tracked by git (`build/` is already in `.gitignore`). On Linux/macOS the limit is high enough (ARG_MAX is 2MB) that this rarely triggers.
+
 ## Fetched dependencies
 
 `Fetch { }` clones repos into:
@@ -133,9 +162,15 @@ The `build/` entry covers everything in this doc - no need to enumerate `build/H
 
 | Command | Deletes |
 |---|---|
-| `hm --clean` | `build/HelpMake/` (all compilers, all configs, all PCHs, all deps) |
-| `hm --clean-gcm` | `gcm.cache/` (GCC module cache - lives outside `build/`) |
+| `hm --clean` | `build/HelpMake/` — all compilers, configs, PCHs, fetched deps |
+| `hm --clean-gcm` | `gcm.cache/` — GCC module cache (lives outside `build/` by GCC's design) |
 | `hm --clean-all` | Both of the above |
+
+Add `--verbose` to any clean command for per-path output:
+
+```bash
+hm --clean --verbose
+```
 
 `hm --clean` is safe to run at any time. It does not touch your source files, your `HelpMake.txt`, or your final output binary (which lives wherever `Output:` points - typically `build/app.exe`, outside `build/HelpMake/`).
 
