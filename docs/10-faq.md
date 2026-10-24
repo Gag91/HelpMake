@@ -274,6 +274,79 @@ Flags {
 One file, works on Windows, Linux, and macOS. See
 [Platform conditionals](02-helpmake-reference.md#platform-conditionals).
 
+## How do I run tests?
+
+Mark the configs you want to test with `Test: true`:
+
+```txt
+Config: test-math {
+    Test: true
+    Output: build/test-math.exe
+    InputFiles { test/math.cpp }
+}
+```
+
+Then:
+
+```bash
+hm test
+```
+
+`hm test` builds every config with `Test: true` and runs the resulting binary. Exit code 0 if all tests return 0, 1 if any returns non-zero or fails to build. Configs run alphabetically.
+
+See [Testing](03-cli-reference.md#testing) for output format, `--verbose` / `--quiet` behavior, and the failures block.
+
+## Why does my build report "command line too long" or truncate arguments?
+
+Windows caps `CreateProcessA` at 32,767 characters. `hm` handles this by writing arguments to `build/HelpMake/<comp>/<baseName>.rsp` and passing `@file.rsp` to the compiler — this kicks in automatically for any link command over 30,000 chars.
+
+If you see build failures on a project with 300+ files and the error message mentions an unrecognized flag or a missing source, check whether the response file is being used:
+
+```bash
+hm -b --verbose 2>&1 | grep "response file"
+```
+
+If nothing prints and the project has 500+ files, the threshold is being missed — file a bug.
+
+See [Response files](09-build-directory.md#response-files).
+
+## Why does Clang fail with "malloc.h: redefinition of '_MarkAllocaS'"?
+
+This happens when Clang is passed `-fmodules` on a project using C++20 modules. `-fmodules` is **Apple Clang's** module system (Xcode, `#import`), not C++20 modules. It forces every `#include` to be treated as a module unit, which breaks on MSYS2 headers that use `static inline` functions.
+
+`hm` gates `-fmodules` on `comp->name() == "gcc"`. If it's leaking through to Clang, check your `HelpMake.txt`:
+
+```txt
+Flags {
+    -fmodules       # ← remove this
+}
+```
+
+Or if your config manually sets it, remove it — Clang needs no extra flag for C++20 modules.
+
+## Why does --clean fail with "Access is denied"?
+
+`git clone` (used by `Fetch { }` and `Dependency { }`) marks `.git/objects/pack/*.idx` and `.pack` as read-only on Windows. A naive `remove_all` throws `filesystem_error: Access is denied` on read-only files.
+
+Since 12.2.0, `hm --clean` clears the read-only bit before deletion, so this should work. If it still fails:
+
+- **An editor or git GUI has the project open** — close VS Code, Fork, SourceTree, GitKraken, etc.
+- **Antivirus scan in progress** — Windows Defender scans new `.git` contents for a few seconds after clone
+- **A background `git` process** — `tasklist | findstr git` on Windows, `ps aux | grep git` on Unix
+
+Retry after closing them. `hm --clean --verbose` prints each path as it's removed, so you can see which file was stuck.
+
+## Why does every build say "Build flags changed, invalidating objects"?
+
+Fixed in 12.2.0. The `.buildid` file didn't capture `-fmodules`, so any config with `Modules { }` recomputed its effective flags on every build and trivially "detected a change." Now `.buildid` captures the full effective command (binary + subcommand + version + `-fmodules` + flags), and only invalidates when that actually changes.
+
+If you still see it on every build after 12.2.0, delete the stale marker once:
+
+```bash
+rm build/HelpMake/<comp>/.buildid
+hm -b
+```
+
 ## How do I report a bug?
 Open an issue on GitHub with:
 
