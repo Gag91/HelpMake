@@ -10,6 +10,7 @@ Complete list of `hm` command-line flags.
 | `-v`, `--version` | Show version, author, license link |
 | `-l`, `--license` | Show the MIT license text |
 | `-b`, `--build` | Build using `HelpMake.txt` |
+| `test` | Build and run every config marked with `Test: true`. Exit code 0 on all pass, 1 on any fail |
 | `--watch` | Watch mode - rebuild on file change. Equivalent to `hm -b --watch` |
 | `-f <file>` / `-f=<file>` | Use a custom config file instead of `HelpMake.txt`. `-f<file>` (no space, no `=`) is not accepted. |
 | `--init` | Interactive project wizard that generates `HelpMake.txt` |
@@ -21,6 +22,74 @@ Complete list of `hm` command-line flags.
 | `--clean-gcm` | Delete `gcm.cache/` |
 | `--clean-all` | Delete both |
 | `--gen <name>` | Emit a build file for another tool. See [Generators](#generators). |
+
+## Testing
+
+`hm test` builds and runs every config marked with `Test: true`:
+
+```bash
+hm test
+hm test --verbose
+```
+
+Configs are discovered via the `Test: true` field — a name match (`test-*`) is not how membership is decided. Add `Test: true` to any `Config: { }` block to include it:
+
+```txt
+Config: smoke {
+    Test: true
+    Compiler: g++
+    Output: build/smoke.exe
+    InputFiles { tests/smoke.cpp }
+    Flags { -Wall }
+}
+```
+
+Output format:
+
+```text
+[HelpMake] Test suite: 3 configs
+
+  test-clang-modules   PASS  0.42s
+  test-gcc-modules     PASS  0.31s
+  test-platform        PASS  0.15s
+
+  3 passed, 0 failed, 0.88s total
+```
+
+A failing test binary (non-zero exit) shows `FAIL exit code N`, and a compile failure shows `FAIL build failed`. The failure block after the summary lists which tests failed and where their logs live:
+
+```text
+Failures:
+  test-clang-modules   exit code 1
+
+  See logs under build/HelpMake/*/logs/
+```
+
+Configs are run alphabetically (`std::map` iteration order). Each test binary is executed with the working directory of `hm` itself. `--quiet` prints only the summary and failures block.
+
+## Clean commands
+
+`--clean`, `--clean-gcm`, and `--clean-all` are safe to run any time. They don't touch source files, `HelpMake.txt`, or the final output binary (which lives wherever `Output:` points, typically `build/app.exe` outside `build/HelpMake/`).
+
+All three clear the read-only bit on files before deletion. This matters for `Fetch { }` and `Dependency { }`: `git clone` marks `.git/objects/pack/*` as read-only on Windows, and `std::filesystem::remove_all` throws on read-only files.
+
+Add `--verbose` to print each removed path:
+
+```bash
+hm --clean --verbose
+```
+
+Exit code is `0` on success, `1` if any path couldn't be removed (locked file, permissions). Failure messages name the path and suggest closing editors/terminals/antivirus holding files open.
+
+## Response files
+
+When a link command exceeds 30,000 characters (Windows caps `CreateProcessA` at 32,767), `hm` writes arguments to `build/HelpMake/<comp>/<baseName>.rsp` and passes `@file.rsp` to the compiler. This is transparent — nothing in your `HelpMake.txt` needs to change. Under `--verbose`, `hm` prints:
+
+```text
+[HelpMake] Link command too long (32450 chars); using response file: build/HelpMake/gcc/app.rsp
+```
+
+Response files are compatible with GCC, Clang, MSVC, and GNU ar. On Linux/macOS the limit is high enough that this rarely triggers (`ARG_MAX` is 2MB).
 
 ## Build options
 
