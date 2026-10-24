@@ -141,8 +141,7 @@ class Parser {
     std::string r_logDir = "build/HelpMake/logs/raw";
     std::string logDir = "build/HelpMake/logs";
 
-    std::size_t dotPos = cfg.output.find_last_of('.');
-    std::string baseName = (dotPos != std::string::npos) ? cfg.output.substr(0, dotPos) : cfg.output;
+    std::string baseName = std::filesystem::path(cfg.output).stem().string();
 
     std::string r_logPath = r_logDir + "/" + baseName + ".txt";
     std::string logPath = logDir + "/" + baseName + ".txt";

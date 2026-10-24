@@ -69,42 +69,111 @@ namespace hm {
         return r;
     }
 
+    std::string Process::writeResponseFile(const std::vector<std::string> &args, const std::filesystem::path &rspPath) {
+        std::error_code ec;
+        std::filesystem::create_directories(rspPath.parent_path(), ec);
+
+        std::ofstream out(rspPath, std::ios::binary);
+        if (!out)
+            return "";
+
+        for (const auto &a : args) {
+            bool needsQuote = a.empty() || a.find_first_of(" \t\"") != std::string::npos;
+            if (needsQuote) {
+                out << '"';
+                for (char c : a) {
+                    if (c == '"')
+                        out << '\\';
+                    out << c;
+                }
+                out << '"';
+            } else {
+                out << a;
+            }
+            out << '\n';
+        }
+
+        if (!out)
+            return "";
+
+        return "@" + rspPath.generic_string();
+    }
+
 } // namespace hm
 
 std::string Parser::processGithubEntry(const std::string &value) {
     std::size_t arrow = value.find("->");
-    if (arrow == std::string::npos)
+    if (arrow == std::string::npos) {
+        cfg.v_Errors.push_back(std::format(
+            "[HelpMake] Error: Fetch entry missing '->': '{}'", value));
         return "";
+    }
 
     std::string url = trim(value.substr(0, arrow));
     std::string folder = trim(value.substr(arrow + 2));
 
-    if (!gitAvailable()) {
-        hp::printlnCl("Error: Git system not found. Please install it and add it to PATH.", hp::RED);
-        exit(EXIT_FAILURE);
+    if (url.empty()) {
+        cfg.v_Errors.push_back(std::format("[HelpMake] Error: Fetch entry has an empty URL: '{}'", value));
+        return "";
     }
 
-    hp::Folder f;
-    if (!f.exists("build/HelpMake/dep"))
-        f.create("build/HelpMake/dep");
+    if (!gitAvailable()) {
+        hp::printlnCl("[HelpMake] Error: Git not found on PATH. Install git to use Fetch { }.", hp::RED);
+        std::exit(EXIT_FAILURE);
+    }
 
-    if (cfg.verbose)
-        hp::printlnCl(std::format("\n[Help_Make] Downloading dependency '{}' ...\n", url), hp::CYAN);
+    std::error_code ec;
+    std::filesystem::create_directories("build/HelpMake/dep", ec);
+    if (ec) {
+        cfg.v_Errors.push_back(std::format("[HelpMake] Error: Cannot create build/HelpMake/dep: {}", ec.message()));
+        return "";
+    }
 
     std::size_t slash = url.find_last_of("/");
-    std::string include = url.substr(slash + 1);
-    if (include.size() > 4 && include.substr(include.size() - 4) == ".git")
-        include.erase(include.size() - 4);
+    std::string name = (slash == std::string::npos) ? url : url.substr(slash + 1);
+    if (name.size() > 4 && name.substr(name.size() - 4) == ".git")
+        name.erase(name.size() - 4);
 
-    hp::command(std::format("git clone {} build/HelpMake/dep/{}", url, include));
+    if (name.empty()) {
+        cfg.v_Errors.push_back(std::format("[HelpMake] Error: Cannot derive repo name from URL: '{}'", url));
+        return "";
+    }
 
-    std::string fullPath = std::format("build/HelpMake/dep/{}", include);
+    std::string depRoot = std::format("build/HelpMake/dep/{}", name);
+
+    if (!std::filesystem::exists(depRoot)) {
+        if (cfg.verbose)
+            hp::printlnCl(std::format("[HelpMake] Fetch '{}'...", url), hp::CYAN);
+
+        std::string cmd = std::format("git clone --depth=1 {} \"{}\"", url, depRoot);
+        auto r = hm::Process::run(cmd);
+
+        if (r.exitCode != 0) {
+            hp::printlnCl(std::format("[HelpMake] Error: git clone failed for '{}'", url), hp::RED);
+            if (!r.output.empty())
+                hp::printlnCl(r.output, hp::RED);
+
+            std::filesystem::remove_all(depRoot, ec);
+            return "";
+        }
+    } else if (cfg.debug) {
+        hp::printlnCl(std::format("[Debug] Fetch cache hit: '{}'", depRoot), hp::YELLOW);
+    }
+
+    std::string fullPath = depRoot;
     if (!folder.empty() && folder != ".")
         fullPath += "/" + folder;
 
+    if (!std::filesystem::exists(fullPath)) {
+        cfg.v_Errors.push_back(std::format(
+            "[HelpMake] Error: Fetch include path does not exist: '{}'", fullPath));
+        return "";
+    }
+
     if (cfg.debug) {
         hp::printlnCl(std::format("[Debug] Fetch Include Folder: '{}'", folder), hp::YELLOW);
-        hp::printlnCl(std::format("[Debug] Fetch Clone Folder: '{}'", include), hp::YELLOW);
+        hp::printlnCl(std::format("[Debug] Fetch Clone Folder: '{}'", name), hp::YELLOW);
+        hp::printlnCl(std::format("[Debug] Fetch Resolved Path: '{}'", fullPath), hp::YELLOW);
     }
 
     return fullPath;

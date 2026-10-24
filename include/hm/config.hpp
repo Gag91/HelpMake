@@ -56,6 +56,7 @@ struct Config {
     bool time = false;
     bool check = false;
     bool watch = false;
+    bool test = false;
 
     int jobs = 0;
 };

@@ -4,21 +4,21 @@
 namespace hm {
 
     class GccCompiler : public Compiler {
-        bool isClang;
+        bool is_clang;
         bool isC;
 
       public:
-        explicit GccCompiler(bool clang, bool isC = false) : isClang(clang), isC(isC) {}
+        explicit GccCompiler(bool clang, bool isC = false) : is_clang(clang), isC(isC) {}
 
         std::string name() const override {
-            return isClang ? "clang" : "gcc";
+            return is_clang ? "clang" : "gcc";
         }
         std::string binary() const override {
-            if (isC && isClang)
+            if (isC && is_clang)
                 return "clang";
             if (isC)
                 return "gcc";
-            return isClang ? "clang++" : "g++";
+            return is_clang ? "clang++" : "g++";
         }
         std::string archiveBinary() const override {
             return "ar";
@@ -27,7 +27,7 @@ namespace hm {
             return ".o";
         }
         std::string pchExtension() const override {
-            return isClang ? ".pch" : ".gch";
+            return is_clang ? ".pch" : ".gch";
         }
 
         std::string includeFlag(const std::string &p) const override {
@@ -41,7 +41,7 @@ namespace hm {
         }
 
         std::vector<std::string> pchUseArgs(const std::string &headerPath, const std::string &binaryPath) const override {
-            if (isClang)
+            if (is_clang)
                 return {"-include-pch", binaryPath};
 
             return {"-include", headerPath};
@@ -50,7 +50,7 @@ namespace hm {
         std::vector<std::string> compileArgs(const std::string &src) const override {
             if (src.ends_with(".c"))
                 return {"-fdiagnostics-color=always", "-xc", "-c", src};
-            if (isClang)
+            if (is_clang)
                 return {"-fdiagnostics-color=always", "-c", src};
             return {"-fdiagnostics-color=always", "-xc++", "-c", src};
         }
@@ -80,6 +80,14 @@ namespace hm {
 
         bool pchNeedsSourceFile() const override {
             return false;
+        }
+
+        bool isGcc() const override {
+            return is_clang ? false : true;
+        }
+
+        bool isClang() const override {
+            return is_clang ? true : false;
         }
     };
 

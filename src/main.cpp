@@ -25,6 +25,13 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+    bool verbose = false;
+    for (int i = 2; i < argc; i++) {
+        std::string_view a = argv[i];
+        if (a == "--verbose" || a == "--debug")
+            verbose = true;
+    }
+
     std::string_view argument = argv[1];
 
     if (argument == "--help" || argument == "-h") {
@@ -42,11 +49,11 @@ int main(int argc, char *argv[]) {
             std::cout << file.rdbuf() << "\n";
         }
     } else if (argument == "--clean") {
-        hm::cli::clean(false, false);
+        return hm::cli::clean(false, false, verbose);
     } else if (argument == "--clean-gcm") {
-        hm::cli::clean(true, false);
+        return hm::cli::clean(true, false, verbose);
     } else if (argument == "--clean-all") {
-        hm::cli::clean(true, true);
+        return hm::cli::clean(true, true, verbose);
     } else if (argument == "--init") {
         Parser::Init init;
         init.run();
@@ -193,6 +200,76 @@ int main(int argc, char *argv[]) {
 
         hp::printlnCl("[HelpMake] ✓ HelpMake.txt is valid", hp::GREEN);
         return 0;
+    } else if (argument == "test" || argument == "--test") {
+        Parser parser(filename, config);
+        if (parser.parse() != 0)
+            return 1;
+
+        std::vector<std::string> names;
+        for (const auto &[name, cfg] : parser.getConfigs())
+            if (cfg.test)
+                names.push_back(name);
+
+        if (names.empty()) {
+            hp::printlnCl("[HelpMake] Test suite: 0 configs\n", hp::CYAN);
+            hp::printlnCl("  No configs marked with Test: true.", hp::YELLOW);
+            hp::printlnCl("  Add 'Test: true' to a Config block to include it.", hp::BRIGHT_BLACK);
+            return 0;
+        }
+
+        if (!config.quiet)
+            hp::printlnCl(std::format("[HelpMake] Test suite: {} config{}\n", names.size(), names.size() == 1 ? "" : "s"), hp::CYAN);
+
+        int passed = 0;
+        int failed = 0;
+        double total = 0;
+        std::vector<std::pair<std::string, std::string>> failures;
+
+        for (const auto &name : names) {
+            Config local = parser.inheritConfig(parser.getConfigs()[name]);
+            local.quiet = true;
+            parser.getConfig().quiet = true;
+            auto t0 = hp::startTimer();
+            int rc = parser.executeConfig(local, name);
+            double dt = hp::stopTimer(t0);
+            total += dt;
+
+            bool ok = (rc == 0);
+            if (ok)
+                ++passed;
+            else
+                ++failed;
+
+            if (!config.quiet) {
+                std::string timeStr = std::format("{:.2f}s", dt);
+                if (ok) {
+                    hp::printlnCl(std::format("  {:<20} {}  {}", name, hp::getColorCode(hp::GREEN) + "PASS" + hp::getColorCode(hp::RESET), timeStr), hp::RESET);
+                } else {
+                    std::string reason = std::format("exit code {}", rc);
+                    hp::printlnCl(std::format("  {:<20} {}  {}  {}", name, hp::getColorCode(hp::RED) + "FAIL" + hp::getColorCode(hp::RESET), reason, timeStr), hp::RESET);
+                    failures.emplace_back(name, reason);
+                }
+            } else if (!ok) {
+                failures.emplace_back(name, std::format("exit code {}", rc));
+            }
+        }
+
+        hp::printlnCl("", hp::RESET);
+        if (!config.quiet)
+            hp::printlnCl("", hp::RESET);
+
+        hp::Color summaryColor = (failed == 0) ? hp::GREEN : hp::RED;
+        hp::printlnCl(std::format("  {} passed, {} failed, {:.2f}s total", passed, failed, total), summaryColor);
+
+        if (!failures.empty()) {
+            hp::printlnCl("\nFailures:", hp::RED);
+            for (const auto &[name, reason] : failures)
+                hp::printlnCl(std::format("  {:<20} {}", name, reason), hp::RED);
+
+            hp::printlnCl("\n  See logs under build/HelpMake/*/logs/", hp::YELLOW);
+        }
+
+        return (failed == 0) ? 0 : 1;
     } else if (argument == "--build" || argument == "-b") {
         return hm::cli::build(argc, argv, config, filename);
     } else {

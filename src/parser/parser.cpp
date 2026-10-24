@@ -95,8 +95,7 @@ int Parser::parse() {
         }
     }
 
-    dotPos = cfg.output.find_last_of('.');
-    baseName = (dotPos != std::string::npos) ? cfg.output.substr(0, dotPos) : cfg.output;
+    baseName = std::filesystem::path(cfg.output).stem().string();
     r_logPath = r_logDir + "/" + baseName + ".txt";
     logPath = logDir + "/" + baseName + ".txt";
 
@@ -181,10 +180,10 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     if (!isRoot && cfg.debug)
         hp::printlnCl(std::format("\nFound Config {}:", section.configName), hp::CYAN);
 
-    static constexpr std::array<std::string_view, 26> knownKeys = {
+    static constexpr std::array<std::string_view, 27> knownKeys = {
         "Compiler:", "Version:", "Output:", "InputFiles:", "Includes:",
         "Flags:", "Modules:", "Run:", "Arguments:", "Kind:", "Jobs:", "PCH:",
-        "Gen:", "Copy {", "InputFiles {", "Includes {", "Flags {", "Fetch {",
+        "Gen:", "Test:", "Copy {", "InputFiles {", "Includes {", "Flags {", "Fetch {",
         "Modules {", "PreBuild {", "PostBuild {", "Arguments {", "Set {",
         "Dependency:", "Depends:", "Gen {"};
 
@@ -386,6 +385,24 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         } else if (auto v = fieldValue(line, "Gen:"); v) {
             target.v_Gens.push_back(*v);
             debugField("Generator", *v);
+        } else if (auto v = fieldValue(line, "Test:"); v) {
+            if (isRoot) {
+                cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: 'Test:' is only valid inside a Config block", filename.string(), lineNo));
+                continue;
+            }
+
+            std::string val = to_lower(trim(*v));
+
+            if (val == "true" || val == "1")
+                target.test = true;
+            else if (val == "false" || val == "0")
+                target.test = false;
+            else {
+                cfg.v_Info[std::format("{} Warning: Unknown value '{}' for Test:, defaulting to false", filename.string(), val)] = hp::YELLOW;
+                target.test = false;
+            }
+
+            debugField("Test", target.test, section.configName);
         } else if (auto v = fieldValue(line, "Depends:"); v) {
             std::string cleaned;
             for (char c : *v)

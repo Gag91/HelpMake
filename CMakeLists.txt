@@ -2,7 +2,7 @@
 # Regenerate with: hm --gen cmake
 
 cmake_minimum_required(VERSION 4.0)
-project(hmm LANGUAGES CXX)
+project(hm LANGUAGES CXX)
 
 set(CMAKE_CXX_COMPILER "g++")
 
@@ -20,9 +20,9 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Help_Library)
 
-target_include_directories(hmm PRIVATE ${Help_Library_SOURCE_DIR})
+target_include_directories(hm PRIVATE ${Help_Library_SOURCE_DIR})
 
-add_executable(hmm
+add_executable(hm
     src/cli/build.cpp
     src/cli/clean.cpp
     src/cli/help.cpp
@@ -62,11 +62,11 @@ add_executable(hmm
     src/toolchain/zigcpp_toolchain.cpp
 )
 
-target_include_directories(hmm PRIVATE
+target_include_directories(hm PRIVATE
     include
 )
 
-target_compile_options(hmm PRIVATE
+target_compile_options(hm PRIVATE
     -std=c++20
     -Ibuild/HelpMake/dep/Help_Library
     -Iinclude

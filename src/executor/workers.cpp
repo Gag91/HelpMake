@@ -54,12 +54,14 @@ int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
     for (auto &th : pool)
         th.join();
 
-    hp::printlnCl(std::format("\n[HelpMake] Compile phase ({} job{}):", n, n == 0 ? "" : "s"), hp::YELLOW);
-    for (std::size_t i = 0; i < jobs.size(); ++i) {
-        if (jobs[i].failed)
-            hp::printlnCl(std::format("- {} failed to compile", jobs[i].file), hp::RED);
-        else
-            hp::printlnCl(std::format("- {} compiled in {}s", jobs[i].file, times[i]), hp::YELLOW);
+    if (!cfg.quiet) {
+        hp::printlnCl(std::format("\n[HelpMake] Compile phase ({} job{}):", n, n == 0 ? "" : "s"), hp::YELLOW);
+        for (std::size_t i = 0; i < jobs.size(); ++i) {
+            if (jobs[i].failed)
+                hp::printlnCl(std::format("- {} failed to compile", jobs[i].file), hp::RED);
+            else
+                hp::printlnCl(std::format("- {} compiled in {}s", jobs[i].file, times[i]), hp::YELLOW);
+        }
     }
 
     for (int rc : results)

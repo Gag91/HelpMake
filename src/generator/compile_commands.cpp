@@ -38,7 +38,7 @@ int Parser::generateCompileCommands(const Config &c) {
         if (isClang && isMod) {
             std::string moduleName = extractModule(file);
             std::string pcmPath = std::format("build/HelpMake/{}/modules/{}.pcm", compilerName, baseName);
-            std::string langFlag = isModExt ? "" : "-xc++-module ";
+            std::string langFlag = (isClang && isMod) ? "-xc++-module " : "";
             command = std::format("{} -fdiagnostics-color=always {}{} -c {} -o {} -MMD -fmodule-file={}={}", comp, langFlag, CommandFlags, file, objPath, moduleName, pcmPath);
         } else {
             std::string langFlag = (comp == "g++") ? "-xc++ " : "";

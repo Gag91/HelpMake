@@ -3,7 +3,8 @@
 # ============================================================
 # Self-build (no config):   hm -b
 # Release build:            hm -b --config release
-# All tests:                hm -b --config-all
+# All configs:              hm -b --config-all
+# Run tests:                hm test
 # Watch mode:               hm -b --watch --run
 # ============================================================
 
@@ -64,13 +65,14 @@ Config: debug {
 }
 
 # ============================================================
-# Test configurations - hm -b --config <name>
+# Test configurations - hm test
 # ============================================================
 
 # ---------- C++20 modules, GCC ----------
 Config: test-gcc-modules {
+    Test: true
     Compiler: g++
-    Version: std=c++20
+    Version: std=c++23
     Output: build/test-gcc-modules.exe
     InputFiles {
         test/main.cpp
@@ -85,6 +87,7 @@ Config: test-gcc-modules {
 
 # ---------- C++20 modules, Clang ----------
 Config: test-clang-modules {
+    Test: true
     Compiler: clang++
     Version: std=c++20
     Output: build/test-clang-modules.exe
@@ -99,7 +102,7 @@ Config: test-clang-modules {
     }
 }
 
-# ---------- Static library ----------
+# ---------- Static library (not a test - no binary to run) ----------
 Config: test-math-lib {
     Kind: static
     Output: build/libmath.a
@@ -114,6 +117,10 @@ Config: test-math-lib {
 }
 
 # ---------- Static library consumer ----------
+# Not marked Test: true because it depends on test-math-lib being built first.
+# Build both manually in order:
+#   hm -b --config test-math-lib
+#   hm -b --config test-math-app -r
 Config: test-math-app {
     Output: build/test-math-app.exe
     InputFiles {
@@ -126,7 +133,7 @@ Config: test-math-app {
     }
 }
 
-# ---------- MSVC ----------
+# ---------- MSVC (Windows only, not in default test suite) ----------
 Config: test-msvc {
     Compiler: msvc
     Version: /std:c++20
@@ -143,7 +150,7 @@ Config: test-msvc {
     }
 }
 
-# ---------- Zig C ----------
+# ---------- Zig C (requires zig on PATH) ----------
 Config: test-zigcc {
     Compiler: zig cc
     Version: std=c17
@@ -156,7 +163,7 @@ Config: test-zigcc {
     }
 }
 
-# ---------- Zig C++ ----------
+# ---------- Zig C++ (requires zig on PATH) ----------
 Config: test-zigcpp {
     Compiler: zig c++
     Version: std=c++20
@@ -172,7 +179,7 @@ Config: test-zigcpp {
     }
 }
 
-# ---------- Precompiled headers ----------
+# ---------- Precompiled headers (build test, no runtime assertion) ----------
 Config: test-pch {
     Output: build/hmm-pch.exe
     PCH: include/hm/pch.hpp
@@ -189,6 +196,7 @@ Config: test-pch {
 
 # ---------- Platform conditionals demo ----------
 Config: test-platform {
+    Test: true
     Compiler: gcc
     Version: std=c17
     Output: build/test-platform

@@ -97,35 +97,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
     const std::string compilerDir = "build/HelpMake/" + comp->name();
 
-    {
-        std::size_t d = c.output.find_last_of('.');
-        baseName = (d != std::string::npos) ? c.output.substr(0, d) : c.output;
-    }
-
-    {
-        const std::filesystem::path marker = compilerDir + "/.buildid";
-        std::string current = comp->binary();
-        for (auto &s : comp->subcommand())
-            current += " " + s;
-        if (!c.version.empty())
-            current += " " + c.version;
-        if (!c.flags.empty())
-            current += " " + c.flags;
-
-        std::string previous;
-        if (std::ifstream in(marker); in)
-            std::getline(in, previous);
-
-        if (previous != current) {
-            if (!c.quiet && !previous.empty())
-                hp::printlnCl("[HelpMake] Build flags changed, invalidating objects.", hp::YELLOW);
-            std::error_code ec;
-            std::filesystem::remove_all(compilerDir + "/obj", ec);
-            std::filesystem::remove_all("build/HelpMake/headers/" + comp->name(), ec);
-            std::filesystem::create_directories(compilerDir);
-            std::ofstream(marker) << current;
-        }
-    }
+    baseName = std::filesystem::path(c.output).stem().string();
 
     r_logDir = compilerDir + "/logs/raw";
     logDir = compilerDir + "/logs";
@@ -166,10 +138,43 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     std::filesystem::create_directories(logDir);
 
     std::string CommandFlags;
+
     if (!version.empty())
         CommandFlags = version;
-    if (!c.flags.empty())
-        CommandFlags += (CommandFlags.empty() ? "" : " ") + c.flags;
+    if (!c.v_Modules.empty() && comp->name() == "gcc" &&
+        std::ranges::find(c.v_Modules, "-fmodules") == std::ranges::end(c.v_Modules)) {
+        if (!CommandFlags.empty())
+            CommandFlags += ' ';
+        CommandFlags += "-fmodules";
+    }
+    if (!c.flags.empty()) {
+        if (!CommandFlags.empty())
+            CommandFlags += ' ';
+        CommandFlags += c.flags;
+    }
+
+    {
+        const std::filesystem::path marker = compilerDir + "/.buildid";
+        std::string current = comp->binary();
+        for (auto &s : comp->subcommand())
+            current += " " + s;
+        if (!CommandFlags.empty())
+            current += " " + CommandFlags;
+
+        std::string previous;
+        if (std::ifstream in(marker); in)
+            std::getline(in, previous);
+
+        if (previous != current) {
+            if (!c.quiet && !previous.empty())
+                hp::printlnCl("[HelpMake] Build flags changed, invalidating objects.", hp::YELLOW);
+            std::error_code ec;
+            std::filesystem::remove_all(compilerDir + "/obj", ec);
+            std::filesystem::remove_all("build/HelpMake/headers/" + comp->name(), ec);
+            std::filesystem::create_directories(compilerDir);
+            std::ofstream(marker) << current;
+        }
+    }
 
     std::string compileFlags, linkFlags;
 
@@ -190,7 +195,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         }
     }
 
-    if (isConfig) {
+    if (isConfig && !c.quiet) {
         hp::printlnCl(std::format("\nBuilding config: {}", name), hp::CYAN);
         if (showOutput) {
             std::string displayCommand = std::format("{} {} {} -o {}", comp->binary(), CommandFlags, c.inputFile, c.output);
@@ -319,6 +324,15 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             while (iss >> tok)
                 args.push_back(tok);
 
+            bool isModFile = isModule(file) || isDeclaredModule(file, c.v_Modules);
+            if (isClang && isModFile) {
+                args.push_back("-xc++-module");
+
+                std::string moduleBase = std::filesystem::path(file).stem().string();
+                std::string pcmPath = compilerDir + "/modules/" + moduleBase + ".pcm";
+                args.push_back("-fmodule-output=" + pcmPath);
+            }
+
             for (auto &a : comp->compileArgs(file))
                 args.push_back(a);
 
@@ -341,7 +355,15 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             std::string objCmd = hm::Process::join(args);
 
-            if (!needsRebuild(file, objPath, c.rebuild)) {
+            bool needsBuild = needsRebuild(file, objPath, c.rebuild);
+            if (!needsBuild && isClang && isModFile) {
+                std::string moduleBase = std::filesystem::path(file).stem().string();
+                std::string pcmPath = compilerDir + "/modules/" + moduleBase + ".pcm";
+                if (!std::filesystem::exists(pcmPath))
+                    needsBuild = true;
+            }
+
+            if (!needsBuild) {
                 if (!c.quiet)
                     upToDate.push_back(std::format("{} Skip (up to date): {}", tag, file));
                 objects.push_back(objPath);
@@ -366,7 +388,26 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                     hp::printlnCl(up, hp::YELLOW);
             }
 
-            int rc = runJobs(jobs, c.jobs);
+            std::vector<Job> moduleJobs, regularJobs;
+            for (auto &j : jobs) {
+                if (isModule(j.file) || isDeclaredModule(j.file, c.v_Modules))
+                    moduleJobs.push_back(j);
+                else
+                    regularJobs.push_back(j);
+            }
+
+            int rc = 0;
+            for (auto &j : moduleJobs) {
+                std::vector<Job> single = {j};
+                if (runJobs(single, 1) != 0) {
+                    rc = 1;
+                    break;
+                }
+            }
+
+            if (rc == 0 && !regularJobs.empty())
+                rc = runJobs(regularJobs, c.jobs);
+
             if (rc != 0)
                 exitCode = rc;
         }
@@ -422,6 +463,17 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             }
 
             std::string linkCmd = binary + " " + hm::Process::join(args);
+
+            if (linkCmd.size() > 30000) {
+                std::string rspPath = std::format("{}/{}.rsp", compilerDir, baseName);
+                std::string rspArg = hm::Process::writeResponseFile(args, rspPath);
+                if (!rspArg.empty()) {
+                    linkCmd = binary + " " + rspArg;
+                    if (showOutput)
+                        hp::printlnCl(std::format("\n{} Link command too long ({} chars); using response file: {}", tag, hm::Process::join(args).size(), rspPath), hp::YELLOW);
+                }
+            }
+
             if (c.run)
                 linkCmd += " && \"" + c.output + "\"";
 
@@ -467,6 +519,22 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             args.push_back(a);
 
         std::string command = hm::Process::join(args);
+
+        if (command.size() > 30000) {
+            std::string rspPath = std::format("{}/{}.rsp", compilerDir, baseName);
+            std::string rspArg = hm::Process::writeResponseFile(args, rspPath);
+            if (!rspArg.empty()) {
+                command = comp->binary();
+                for (auto &s : comp->subcommand()) {
+                    command += " ";
+                    command += s;
+                }
+                command += " " + rspArg;
+                if (showOutput)
+                    hp::printlnCl(std::format("\n{} Command too long; using response file: {}", tag, rspPath), hp::YELLOW);
+            }
+        }
+
         if (c.run)
             command += " && \"" + c.output + "\"";
 
@@ -613,7 +681,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 hp::printlnCl(std::format("Config '{}' compilation failed.", name), hp::RED);
             else
                 hp::printlnCl("\nCompilation Failed", hp::RED);
-            hp::printlnCl(std::format("See Logs: {}", logPath), hp::YELLOW);
+            if (!c.quiet)
+                hp::printlnCl(std::format("See Logs: {}", logPath), hp::YELLOW);
         }
         return 1;
     }
