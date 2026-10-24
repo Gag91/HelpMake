@@ -2,37 +2,58 @@
 
 All notable changes to HelpMake.
 
+## [12.2.0] - 2026-10-24
+
+### Added
+
+- **`hm test`** - build and run every config marked with `Test: true`
+  - Prints pass/fail per test with timing, aggregates the result, exit code 1 on any failure (CI-ready)
+  - `--verbose` / `--debug` show per-file compile output for each test; `--quiet` shows only the summary
+  - Test binaries are actually **executed** (a config that builds but returns non-zero reports FAIL)
+- **`Test: true`** field - marks a config as a test target. Valid only inside `Config: { }` blocks
+- **Response files** - link commands longer than 30,000 characters (Windows caps at 32,767) now write args to `build/HelpMake/<comp>/<baseName>.rsp` and pass `@file.rsp`. Fixes silent argument truncation on 300+ file projects
+- **`--verbose` on clean commands** - `hm --clean --verbose` prints each removed path
+
+### Changed
+
+- **`hm --clean-all` deletes `build/HelpMake/` and `gcm.cache/`**, not all of `build/`. User-placed files under `build/` (assets, configs) are preserved
+- **Clean commands return exit code** - a failed clean exits 1 with a per-path error, instead of printing "Cleaned X" and exiting 0
+- **`Fetch { }` is now idempotent** - clones only if the target directory doesn't exist. Failed clones clean up so retry works. Missing `-> subdir` paths abort at parse time
+- **`hm test` output** - aligned columns, green/red status, reason column (`build failed` vs `exit code N`), failure log paths at the bottom
+
+### Fixed
+
+- **Clang modules: extension-independent support** - `.ixx`, `.mpp`, `.module`, and any file in `Modules { }` now compile correctly (was failing on `.cppm`-only paths)
+- **Clang modules: `-fmodules` no longer applied** - that flag is Apple Clang's module system, not C++20 modules. Now GCC-only. Fixes MSVC-header compile errors on Clang
+- **Clang modules: `.pcm` handling** - emitted to `build/HelpMake/<comp>/modules/`, forces rebuild when missing, compiles sequentially before consumers to prevent parallel races
+- **`.buildid` now tracks effective compiler command** - fixes "Build flags changed" appearing on every build after adding `Modules { }`
+- **Per-config logs use the config's output name** - `hm -b --config foo` writes to `logs/foo.txt`, not `logs/hmm.txt`. `See Logs: X` now points at the right file
+- **`hm --clean` handles read-only files** - `git clone` marks `.git/objects/pack/*` read-only; Windows refuses to delete them. Clean commands clear the read-only bit, skip locked subdirectories, and report per-path failures instead of crashing
+- **`-I` / `-L` correct on MSVC** - include and library paths now use `/I` and `/LIBPATH:` instead of the GCC flags
+- **`--run` handles output paths with spaces** - output binary is quoted in the `&&` chain
+- **`compile_commands.json` correct for all Clang module extensions** - `-xc++-module` emitted for `.ixx` and `.mpp`, not just `.cpp`
+  
 ## [12.1.0] - 2026-10-23
 
 ### Added
-- **Platform conditionals** in `HelpMake.txt` - prefix any line with `win:`, `linux:`, `mac:`, `unix:`, `x64:`, `arm64:`, `x86:`, or `!<tag>` to include it only on matching platforms
-  - Works for scalar fields (`win: Output: build/app.exe`), block entries (`linux: -pthread`), and `Set { }` variables (`win: PATH_SEP: \`)
-  - Recognized tags: `win`/`windows`, `linux`, `mac`/`darwin`/`macos`/`osx`, `unix`, `x64`/`x86_64`/`amd64`, `arm64`/`aarch64`, `x86`/`i386`/`i686`; negation via `!tag`
-- **`--watch`** - rebuild automatically when any source, header, or `HelpMake.txt` changes
-  - Combine with `-r` for the full edit → rebuild → run dev loop
-  - Top-level alias: `hm --watch` ≡ `hm -b --watch`
-- **`FetchContent` support in CMake generator** - `Fetch { }` blocks now emit `FetchContent_Declare` / `FetchContent_MakeAvailable` with proper `target_include_directories`
-- **Modules in CMake generator** - `Modules { }` entries emit `target_sources(... FILE_SET CXX_MODULES FILES ...)`, letting CMake handle PCM generation and ordering automatically
-- **PreBuild / PostBuild / Copy in CMake generator** - emitted as `add_custom_target` (PreBuild) and `add_custom_command(POST_BUILD)` (Copy, PostBuild)
-- **`Set { }` scoping per config** - a `Set { }` inside `Config: { }` no longer leaks to other configs (previously wrote to the shared `Parser::cfg` object)
-- **`Fetch { }` warnings in Ninja/CMake generators** route through `v_Info` instead of printing immediately, so they surface in the consolidated `Info:` block
 
-### Fixed
-- **`-I` / `-L` concatenation bug** - `appendIncludes` produced `-Ibuild/...-Iinclude` (single string) instead of two separate flags, breaking any project with both `Fetch { }` and `Includes { }`
-- **`appendIncludes` dropped the include path on MSVC** - emitted `/I` with no trailing path
-- **`resolveDependencies` used hardcoded `-I` / `-L`** - now uses `comp->includeFlag()` and `/LIBPATH:` for MSVC
-- **`resolveDependencies` read `cfg.verbose`** instead of the config being resolved (`c.verbose`)
-- **`Generator::generate` signature** - changed `const Config &` → `Config &` so generators can populate `v_Info` with warnings
-- **`--gen ninja` / `--gen cmake` / `--gen json`** now run `resolveDependencies` before generation, so fetched and dependent library include paths are correctly emitted into the generated files
-- **`parseSection` uses `target.var` for `Set { }`** instead of the shared `cfg.var`
-- **`fieldValue` takes `string_view`** (was `const std::string &`) - avoids a heap allocation per field lookup
-- **Platform conditionals bypass the "first write wins" guard** - `win: Output: ...` after a fallback `Output: ...` now correctly overrides (previously the override was silently dropped)
-- **Duplicate `Output:` debug print** in `--debug` - the `Found Config X` block no longer repeats the same field value when a platform-conditional override is present
+- **Platform conditionals** — prefix any line with `win:`, `linux:`, `mac:`, `unix:`, `x64:`, `arm64:`, `x86:`, or `!<tag>` to include it only on matching platforms
+  - Works for scalar fields (`win: Output: build/app.exe`), block entries (`linux: -pthread`), and `Set { }` variables
+  - Recognized: `win`/`windows`, `linux`, `mac`/`darwin`/`macos`/`osx`, `unix`, `x64`/`x86_64`/`amd64`, `arm64`/`aarch64`, `x86`/`i386`/`i686`; negation via `!tag`
+- **`--watch`** — rebuild automatically on source, header, or `HelpMake.txt` change. Combine with `-r` for the full dev loop. Alias: `hm --watch` ≡ `hm -b --watch`
+- **CMake generator: Fetch / Modules / PreBuild / PostBuild / Copy** — the generator now emits `FetchContent_*`, `FILE_SET CXX_MODULES`, custom targets, and `POST_BUILD` copy commands. Closes the CMake-vs-Ninja feature gap
+- **`Set { }` scoping per config** — a `Set { }` inside a `Config: { }` no longer leaks to other configs
 
 ### Changed
-- **`--verbose` output cleaned up** - the config field listing is now a compact block per config (`Found Config X:` header with aligned `  Field: 'value'` lines) instead of a flat stream of `X found in config 'Y': 'value'` lines
-- **`Info:` block ordering** - the `Info:` section (generated files, dependency links, generator warnings) now appears before the final "Compilation successful" line, and after the link step
-- **Generator warnings** (`[Ninja] PCH not emitted`, `[CMake] Depends not emitted`, etc.) are no longer printed inline during parse, only in the consolidated `Info:` block
+
+- **`--verbose` output cleaned up** — config fields print as a compact aligned block per config, not a flat stream of `X found in config 'Y'` lines
+- **Generator warnings** route through the `Info:` block at the end of the build instead of printing mid-parse
+
+### Fixed
+
+- **`--gen` paths run `resolveDependencies` first** — fetched and dependency include paths are emitted correctly into generated CMake/Ninja/JSON files
+- **Platform conditional overrides work** — `win: Output: ...` after a fallback `Output: ...` now overrides; previously the first write won and the conditional was silently dropped
+- **`Set { }` uses the config's variable scope** — fixes values leaking across configs during parse
   
 ## [12.0.0] - 2026-10-23
 
