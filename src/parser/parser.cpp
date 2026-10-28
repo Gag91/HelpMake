@@ -1,10 +1,12 @@
 #include "hm/parser/parser.hpp"
 #include "hm/generator/generator.hpp"
+#include "hm/process/process.hpp"
 #include "hm/util/strings.hpp"
 #include "hm/util/system.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
 
+#include <cctype>
 #include <cstdlib>
 #include <format>
 #include <fstream>
@@ -26,6 +28,54 @@ std::vector<std::string> Parser::splitArgs(const std::string &args) {
 }
 
 int Parser::parse() {
+    if (cfg.frozen) {
+        std::filesystem::path lockPath = "build/HelpMake/dep/lock/HelpMake.lock";
+        std::ifstream lockFile(lockPath);
+        if (!lockFile) {
+            hp::printlnCl(std::format("[HelpMake] Error: Frozen build requires lockfile '{}'. Run 'hm --update-lock'.", lockPath.string()), hp::RED);
+            return 1;
+        }
+
+        std::string line;
+        std::size_t lineNumber = 0;
+        while (std::getline(lockFile, line)) {
+            ++lineNumber;
+            if (line.empty() || line[0] == '#')
+                continue;
+
+            std::vector<std::string> fields;
+            std::size_t start = 0;
+            while (true) {
+                std::size_t tab = line.find('\t', start);
+                fields.push_back(line.substr(start, tab == std::string::npos ? tab : tab - start));
+                if (tab == std::string::npos)
+                    break;
+                start = tab + 1;
+            }
+
+            if (fields.size() != 4 || (fields[0] != "fetch" && fields[0] != "dependency")) {
+                hp::printlnCl(std::format("[HelpMake] Error: Invalid lockfile entry at {}:{}.", lockPath.string(), lineNumber), hp::RED);
+                return 1;
+            }
+            if ((fields[3].size() != 40 && fields[3].size() != 64) ||
+                !std::ranges::all_of(fields[3], [](unsigned char c) { return std::isxdigit(c) != 0; })) {
+                hp::printlnCl(std::format("[HelpMake] Error: Invalid Git commit in lockfile at {}:{}.", lockPath.string(), lineNumber), hp::RED);
+                return 1;
+            }
+            if (fields[1].empty() || fields[2].empty() || (fields[0] == "fetch" && fields[1] != fields[2])) {
+                hp::printlnCl(std::format("[HelpMake] Error: Incomplete lockfile entry at {}:{}.", lockPath.string(), lineNumber), hp::RED);
+                return 1;
+            }
+
+            std::string key = (fields[0] == "fetch") ? "fetch:" + fields[1] : "dependency:" + fields[1];
+            if (lockEntries.contains(key)) {
+                hp::printlnCl(std::format("[HelpMake] Error: Duplicate lockfile entry at {}:{}.", lockPath.string(), lineNumber), hp::RED);
+                return 1;
+            }
+            lockEntries[key] = {fields[2], fields[3]};
+        }
+    }
+
     if (cfg.kind.empty())
         cfg.kind = "executable";
 
@@ -75,10 +125,11 @@ int Parser::parse() {
 #else
         cfg.output = "a.out";
 #endif
-        hp::printlnCl(std::format("Output not specified. Using default: {}", cfg.output), hp::YELLOW);
+        if (!cfg.updateLock)
+            hp::printlnCl(std::format("Output not specified. Using default: {}", cfg.output), hp::YELLOW);
     }
 
-    if (!cfg.v_Gens.empty() && !cfg.check) {
+    if (!cfg.v_Gens.empty() && !cfg.check && !cfg.updateLock) {
         Config genCfg = cfg;
         resolveDependencies(genCfg, "[HelpMake]");
         for (const auto &g : cfg.v_Gens) {
@@ -99,6 +150,91 @@ int Parser::parse() {
     r_logPath = r_logDir + "/" + baseName + ".txt";
     logPath = logDir + "/" + baseName + ".txt";
 
+    return 0;
+}
+
+int Parser::updateLock() {
+    std::map<std::string, LockEntry> updated;
+
+    auto resolveCommit = [](const std::string &url, const std::string &tag, const std::string &specifiedCommit, std::string &commit) -> bool {
+        if (!specifiedCommit.empty()) {
+            commit = specifiedCommit;
+            if ((commit.size() == 40 || commit.size() == 64) &&
+                std::ranges::all_of(commit, [](unsigned char c) { return std::isxdigit(c) != 0; }))
+                return true;
+            hp::printlnCl(std::format("[HelpMake] Error: Invalid Git commit '{}' for '{}'.", commit, url), hp::RED);
+            return false;
+        }
+
+        std::string refs = "HEAD";
+        if (!tag.empty())
+            refs = std::format("\"refs/tags/{}*\" \"refs/heads/{}\"", tag, tag);
+
+        auto result = hm::Process::run(std::format("git ls-remote \"{}\" {}", url, refs));
+        if (result.exitCode != 0) {
+            hp::printlnCl(std::format("[HelpMake] Error: Could not resolve Git ref '{}' from '{}'.", tag.empty() ? "HEAD" : tag, url), hp::RED);
+            if (!result.output.empty())
+                hp::printlnCl(result.output, hp::RED);
+            return false;
+        }
+
+        std::istringstream lines(result.output);
+        std::string line;
+        while (std::getline(lines, line)) {
+            std::size_t separator = line.find('\t');
+            if (separator == std::string::npos)
+                continue;
+            std::string ref = line.substr(separator + 1);
+            if (ref == "HEAD" || ref == "refs/tags/" + tag + "^{}" || ref == "refs/tags/" + tag || ref == "refs/heads/" + tag) {
+                commit = line.substr(0, separator);
+                if (ref.ends_with("^{}"))
+                    return true;
+                if (ref == "HEAD" || ref == "refs/heads/" + tag)
+                    return true;
+            }
+        }
+        if (!commit.empty())
+            return true;
+        hp::printlnCl(std::format("[HelpMake] Error: Git ref '{}' was not found in '{}'.", tag.empty() ? "HEAD" : tag, url), hp::RED);
+        return false;
+    };
+
+    for (const auto &[url, _] : fetchRoots) {
+        std::string commit;
+        if (!resolveCommit(url, "", "", commit))
+            return 1;
+        updated["fetch:" + url] = {url, commit};
+    }
+
+    for (const auto &[name, dep] : dependencies) {
+        if (dep.git.empty()) {
+            hp::printlnCl(std::format("[HelpMake] Error: Cannot lock non-Git dependency '{}'; use a Git source.", name), hp::RED);
+            return 1;
+        }
+        std::string commit;
+        if (!resolveCommit(dep.git, dep.tag, dep.commit, commit))
+            return 1;
+        updated["dependency:" + name] = {dep.git, commit};
+    }
+
+    std::filesystem::path lockPath = filename.parent_path() / "HelpMake.lock";
+    std::ofstream lockFile(lockPath, std::ios::trunc);
+    if (!lockFile) {
+        hp::printlnCl(std::format("[HelpMake] Error: Could not write lockfile '{}'.", lockPath.string()), hp::RED);
+        return 1;
+    }
+    lockFile << "# HelpMake lockfile v1\n";
+    for (const auto &[key, entry] : updated) {
+        const bool fetch = key.rfind("fetch:", 0) == 0;
+        const std::string nameOrUrl = fetch ? key.substr(6) : key.substr(11);
+        lockFile << (fetch ? "fetch" : "dependency") << '\t' << nameOrUrl << '\t' << entry.url << '\t' << entry.commit << '\n';
+    }
+    if (!lockFile) {
+        hp::printlnCl(std::format("[HelpMake] Error: Failed while writing lockfile '{}'.", lockPath.string()), hp::RED);
+        return 1;
+    }
+
+    hp::printlnCl(std::format("[HelpMake] Updated '{}'.", lockPath.string()), hp::GREEN);
     return 0;
 }
 

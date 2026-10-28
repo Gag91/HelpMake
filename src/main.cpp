@@ -52,6 +52,29 @@ int main(int argc, char *argv[]) {
         return hm::cli::clean(true, false, verbose);
     } else if (argument == "--clean-all") {
         return hm::cli::clean(true, true, verbose);
+    } else if (argument == "--update-lock") {
+        config.updateLock = true;
+        for (int i = 2; i < argc; ++i) {
+            std::string_view arg = argv[i];
+            if (arg == "-f" || arg == "--file") {
+                if (i + 1 >= argc || argv[i + 1][0] == '-') {
+                    hp::printlnCl("[HelpMake] Error: filename not specified after '--file'.", hp::RED);
+                    return 1;
+                }
+                filename = argv[++i];
+            } else if (arg.rfind("-f=", 0) == 0 && arg.size() > 3) {
+                filename = std::string(arg.substr(3));
+            } else if (arg.rfind("--file=", 0) == 0 && arg.size() > 7) {
+                filename = std::string(arg.substr(7));
+            } else {
+                hp::printlnCl(std::format("[HelpMake] Error: Invalid argument '{}' for --update-lock.", arg), hp::RED);
+                return 1;
+            }
+        }
+        Parser parser(filename, config);
+        if (parser.parse() != 0)
+            return 1;
+        return parser.updateLock();
     } else if (argument == "--init") {
         Parser::Init init;
         init.run();
@@ -199,6 +222,30 @@ int main(int argc, char *argv[]) {
         hp::printlnCl("[HelpMake] ✓ HelpMake.txt is valid", hp::GREEN);
         return 0;
     } else if (argument == "test" || argument == "--test") {
+        for (int i = 2; i < argc; ++i) {
+            std::string_view arg = argv[i];
+            if (arg == "--frozen") {
+                config.frozen = true;
+            } else if (arg == "--quiet") {
+                config.quiet = true;
+            } else if (arg == "--verbose") {
+                config.verbose = true;
+            } else if (arg == "-f" || arg == "--file") {
+                if (i + 1 >= argc || argv[i + 1][0] == '-') {
+                    hp::printlnCl("[HelpMake] Error: filename not specified after '--file'.", hp::RED);
+                    return 1;
+                }
+                filename = argv[++i];
+            } else if (arg.rfind("-f=", 0) == 0 && arg.size() > 3) {
+                filename = std::string(arg.substr(3));
+            } else if (arg.rfind("--file=", 0) == 0 && arg.size() > 7) {
+                filename = std::string(arg.substr(7));
+            } else {
+                hp::printlnCl(std::format("[HelpMake] Error: Invalid argument '{}' for test.", arg), hp::RED);
+                return 1;
+            }
+        }
+
         Parser parser(filename, config);
         if (parser.parse() != 0)
             return 1;
@@ -228,7 +275,9 @@ int main(int argc, char *argv[]) {
             local.quiet = true;
             parser.getConfig().quiet = true;
             auto t0 = hp::startTimer();
-            int rc = parser.executeConfig(local, name);
+            int rc = parser.resolveDependencies(local, std::format("[HelpMake] Config '{}':", name));
+            if (rc == 0)
+                rc = parser.executeConfig(local, name);
             double dt = hp::stopTimer(t0);
             total += dt;
 

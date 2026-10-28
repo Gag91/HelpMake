@@ -2,24 +2,44 @@
 #include "hm/parser/parser.hpp"
 #include "hm/process/process.hpp"
 
+#include <algorithm>
+#include <cctype>
+
 int Parser::buildDependency(const hm::Dependency &dep) {
     std::string tag = "[HelpMake]";
     std::string depRoot = "build/HelpMake/dep/" + dep.name;
 
+    if (!dep.commit.empty() && ((dep.commit.size() != 40 && dep.commit.size() != 64) ||
+                                !std::ranges::all_of(dep.commit, [](unsigned char c) -> bool { return std::isxdigit(c) != 0; }))) {
+        hp::printlnCl(std::format("{} Dependency '{}': invalid Git commit '{}'.", tag, dep.name, dep.commit), hp::RED);
+        return 1;
+    }
+
     std::filesystem::create_directories("build/HelpMake/dep");
 
-    if (!std::filesystem::exists(depRoot)) {
+    bool clone = !std::filesystem::exists(depRoot);
+    if (!clone && !dep.git.empty() && !isGitCheckout(depRoot, dep.git)) {
+        hp::printlnCl(std::format("{} Replacing stale dependency cache for '{}'.", tag, dep.name), hp::YELLOW);
+        std::string error;
+        if (!removeGitCheckout(depRoot, error)) {
+            hp::printlnCl(std::format("{} Dependency '{}': cannot remove stale cache '{}': {}", tag, dep.name, depRoot, error), hp::RED);
+            return 1;
+        }
+        clone = true;
+    }
+
+    if (clone) {
         std::string cmd;
         bool hasTmpFile = false;
         std::string tmpPath;
 
         if (!dep.git.empty()) {
             cmd = "git clone";
-            if (!dep.tag.empty() && dep.commit.empty())
+            if (dep.commit.empty() && !dep.tag.empty())
                 cmd += " --depth=1 -b " + dep.tag;
-            cmd += " " + dep.git + " " + depRoot;
-            if (!dep.commit.empty())
-                cmd += " && git -C " + depRoot + " checkout " + dep.commit;
+            else
+                cmd += " --depth=1";
+            cmd += " \"" + dep.git + "\" \"" + depRoot + "\"";
         } else if (!dep.url.empty()) {
             tmpPath = depRoot + ".download";
             hasTmpFile = true;
@@ -75,6 +95,23 @@ int Parser::buildDependency(const hm::Dependency &dep) {
                 hp::printlnCl(std::format("{} Dependency '{}': fetch failed", tag, dep.name), hp::RED);
                 if (!r.output.empty())
                     hp::printlnCl(r.output, hp::RED);
+                return 1;
+            }
+        }
+    }
+
+    if (!dep.git.empty() && !dep.commit.empty()) {
+        auto current = hm::Process::run(std::format("git -C \"{}\" rev-parse HEAD", depRoot));
+        std::string currentCommit = current.output;
+        currentCommit.erase(0, currentCommit.find_first_not_of(" \t\r\n"));
+        currentCommit.erase(currentCommit.find_last_not_of(" \t\r\n") + 1);
+        if (current.exitCode != 0 || currentCommit != dep.commit) {
+            std::string checkout = std::format("git -C \"{}\" fetch --depth=1 origin {} && git -C \"{}\" checkout --detach {}", depRoot, dep.commit, depRoot, dep.commit);
+            auto result = hm::Process::run(checkout);
+            if (result.exitCode != 0) {
+                hp::printlnCl(std::format("{} Dependency '{}': could not check out commit '{}'.", tag, dep.name, dep.commit), hp::RED);
+                if (!result.output.empty())
+                    hp::printlnCl(result.output, hp::RED);
                 return 1;
             }
         }

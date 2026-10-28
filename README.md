@@ -113,6 +113,7 @@ Compiles C, C++, Zig, Go, Assembly, Rust, or anything with a CLI compiler. Built
 
 - **`Config: name { }`** - multiple targets per file. `hm -b --config debug`, `--config release`, `--config-all`.
 - **`Dependency: name { }`** - fetch, build, and link external libraries. Git/URL/local-path sources, tag/commit pinning, shell build scripts. Cache at `build/HelpMake/dep/`.
+- **Reproducible Git dependencies** - `hm --update-lock` records exact Git revisions in `HelpMake.lock`; use `hm -b --frozen` to require them.
 - **`Set { }` variables** - `[[name]]` expansion everywhere, `--var NAME=VALUE` CLI override for CI.
 - **Platform conditionals** - `win:`, `linux:`, `mac:`, `unix:`, `x64:`, `arm64:`, `!tag:` on any line.
 - **Precompiled headers** - `PCH:` field. Works on GCC, Clang, MSVC, Zig C++.

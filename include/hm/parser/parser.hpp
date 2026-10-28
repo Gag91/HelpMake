@@ -33,6 +33,11 @@ struct FileSection {
     std::size_t startLine = 0;
 };
 
+struct LockEntry {
+    std::string url;
+    std::string commit;
+};
+
 class Parser {
   private:
     std::filesystem::path filename;
@@ -53,8 +58,11 @@ class Parser {
 
     Config currentConfig;
     std::map<std::string, Config> configs;
+    std::map<std::string, std::string> fetchRoots;
     int configBraceDepth = 1;
     static std::vector<std::string> splitArgs(const std::string &args);
+    bool isGitCheckout(const std::string &path, const std::string &url) const;
+    bool removeGitCheckout(const std::string &path, std::string &error) const;
 
     std::optional<std::string> fieldValue(std::string_view line, std::string_view key);
     void appendInputFiles(Config &c, const std::string &value);
@@ -104,6 +112,7 @@ class Parser {
     int buildCommand();
     int parseSection(const FileSection &section, Config &target, bool isRoot);
     int buildDependency(const hm::Dependency &dep);
+    int updateLock();
     int resolveDependencies(Config &c, const std::string &tag);
     int generateCompileCommands(const Config &c);
     int executeConfigs(const std::vector<std::string> &names);
@@ -129,6 +138,7 @@ class Parser {
     std::vector<FileSection> splitIntoFileSections(std::istream &in);
 
     std::map<std::string, hm::Dependency> dependencies;
+    std::map<std::string, LockEntry> lockEntries;
     std::map<std::string, Config> &getConfigs();
 
     Config &getConfig();

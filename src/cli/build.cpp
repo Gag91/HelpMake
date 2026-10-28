@@ -221,6 +221,8 @@ namespace hm::cli {
                 config.seperate = false;
             } else if (arg == "--rebuild") {
                 config.rebuild = true;
+            } else if (arg == "--frozen") {
+                config.frozen = true;
             } else if (arg == "--quiet") {
                 config.quiet = true;
             } else if (arg == "--notify") {

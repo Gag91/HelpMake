@@ -57,7 +57,19 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
 
         auto comp = hm::makeCompiler(c.compiler);
 
-        const auto &dep = it->second;
+        auto dep = it->second;
+        if (cfg.frozen) {
+            auto locked = lockEntries.find("dependency:" + depName);
+            if (locked == lockEntries.end() || locked->second.url != dep.git || locked->second.commit.empty()) {
+                hp::printlnCl(std::format("{} Error: No valid frozen lock entry for dependency '{}'. Run 'hm --update-lock'.", tag, depName), hp::RED);
+                return 1;
+            }
+            if (dep.git.empty()) {
+                hp::printlnCl(std::format("{} Error: Frozen builds currently require Git source for dependency '{}'.", tag, depName), hp::RED);
+                return 1;
+            }
+            dep.commit = locked->second.commit;
+        }
         std::string depRoot = "build/HelpMake/dep/" + dep.name;
 
         if (buildDependency(dep) != 0)

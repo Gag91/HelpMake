@@ -57,6 +57,8 @@ struct Config {
     bool check = false;
     bool watch = false;
     bool test = false;
+    bool frozen = false;
+    bool updateLock = false;
 
     int jobs = 0;
 };

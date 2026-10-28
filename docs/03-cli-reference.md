@@ -21,6 +21,7 @@ Complete list of `hm` command-line flags.
 | `--clean` | Delete `build/HelpMake/` |
 | `--clean-gcm` | Delete `gcm.cache/` |
 | `--clean-all` | Delete both |
+| `--update-lock` | Resolve Git dependencies and write `HelpMake.lock` without building |
 | `--gen <name>` | Emit a build file for another tool. See [Generators](#generators). |
 
 ## Testing
@@ -30,6 +31,7 @@ Complete list of `hm` command-line flags.
 ```bash
 hm test
 hm test --verbose
+hm test --frozen
 ```
 
 Configs are discovered via the `Test: true` field — a name match (`test-*`) is not how membership is decided. Add `Test: true` to any `Config: { }` block to include it:
@@ -138,6 +140,7 @@ hm -b -C="zig cc"
 | `--verbose` | Show the actual command lines and per-file timings. |
 | `--debug` | Show parser trace plus every command (implies `--verbose` output). |
 | `--rebuild` | Force a full rebuild, ignoring timestamps and dep files. |
+| `--frozen` | Require every Git `Fetch` and `Dependency` revision to match `HelpMake.lock`; fail if the lock is missing or incomplete. |
 | `--json` | Generate `compile_commands.json` alongside the build. |
 | `--no-sep` | One-shot compile - pass all sources to the compiler in one command. Disables incremental builds, PCH, and `Kind: static`. |
 | `--notify` | Desktop notification on build completion (Windows Toast / notify-send on Linux). |
@@ -160,6 +163,17 @@ hm -b --config debug
 ```bash
 hm -b --config-all --json --quiet
 ```
+
+### Reproducible Git dependencies
+
+Resolve Git revisions into `HelpMake.lock`, then commit the lockfile with the project:
+
+```bash
+hm --update-lock
+hm -b --frozen
+```
+
+`--update-lock` does not compile the project. `--frozen` checks out the recorded commits for Git sources and fails if a referenced Git source is not represented in the lockfile. If an existing dependency cache points to a different repository, HelpMake replaces that stale cache before fetching. This first lockfile version supports Git-backed `Fetch { }` and `Dependency:` entries; archive and local-path dependencies are not lockable.
 
 ### Override compiler without editing the file
 ```bash

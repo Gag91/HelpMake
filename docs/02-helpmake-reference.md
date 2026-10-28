@@ -170,6 +170,8 @@ HelpMake adds -I<cloned-path>/<subdir> to the compile flags automatically
 Requires git on PATH. Failing to find git is a fatal error.
 **For dependencies that need to be built or linked, use [`Dependency: name { }`](#dependency-blocks) instead.**
 
+Use `hm --update-lock` to record the resolved Git revision in `HelpMake.lock`, and `hm -b --frozen` to build using those exact revisions.
+
 `PreBuild { }` / `PostBuild { }`
 Commands run before / after the build.
 
