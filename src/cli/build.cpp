@@ -16,12 +16,6 @@
 namespace hm::cli {
 
     int build(int argc, char **argv, Config &config, const std::filesystem::path &filename) {
-        if (config.watch) {
-            Parser parse(filename, config);
-            parse.parse();
-            parse.execute();
-            parse.watch();
-        }
         std::vector<std::string> selectedConfigs;
 
         for (int i = 2; i < argc; i++) {
@@ -181,6 +175,7 @@ namespace hm::cli {
             } else if (arg == "-v" || arg == "--verbose") {
                 config.verbose = true;
             } else if (arg == "-r" || arg == "--run") {
+                std::cout << "run activated";
                 config.run = true;
             } else if (arg == "--var") {
                 if (i + 1 >= argc) {

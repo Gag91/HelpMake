@@ -11,8 +11,6 @@
 #include <fstream>
 #include <iostream>
 #include <string_view>
-#include <windows.h>
-#include <winscard.h>
 
 int main(int argc, char *argv[]) {
     hp::enableUTF8();

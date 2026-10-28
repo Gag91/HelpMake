@@ -474,9 +474,6 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 }
             }
 
-            if (c.run)
-                linkCmd += " && \"" + c.output + "\"";
-
             if (showOutput)
                 hp::printlnCl(std::format("\n{} Link Command: {}", tag, linkCmd), hp::YELLOW);
 
@@ -486,6 +483,23 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             {
                 std::ofstream linkLog(r_logPath);
                 linkLog << linkResult.output;
+            }
+
+            if (exitCode == 0 && c.run) {
+                if (showOutput)
+                    hp::printlnCl(std::format("{} Running: {}", tag, c.output), hp::CYAN);
+
+                auto runResult = hm::Process::run("\"" + c.output + "\"");
+                exitCode = runResult.exitCode;
+
+                if (!runResult.output.empty()) {
+                    std::cout << runResult.output;
+                    if (runResult.output.back() != '\n')
+                        std::cout << '\n';
+                }
+
+                if (exitCode != 0)
+                    hp::printlnCl(std::format("{} Exit code: {}", tag, exitCode), hp::YELLOW);
             }
         }
 
@@ -535,9 +549,6 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             }
         }
 
-        if (c.run)
-            command += " && \"" + c.output + "\"";
-
         if (showOutput)
             hp::printlnCl(std::format("{} Real Command: {}", tag, command), hp::YELLOW);
 
@@ -547,6 +558,23 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         {
             std::ofstream buildLog(r_logPath);
             buildLog << buildResult.output;
+        }
+
+        if (exitCode == 0 && c.run) {
+            if (showOutput)
+                hp::printlnCl(std::format("{} Running: {}", tag, c.output), hp::CYAN);
+
+            auto runResult = hm::Process::run("\"" + c.output + "\"");
+            exitCode = runResult.exitCode;
+
+            if (!runResult.output.empty()) {
+                std::cout << runResult.output;
+                if (runResult.output.back() != '\n')
+                    std::cout << '\n';
+            }
+
+            if (exitCode != 0)
+                hp::printlnCl(std::format("{} Exit code: {}", tag, exitCode), hp::YELLOW);
         }
     }
     double elapsed = hp::stopTimer(timer);
