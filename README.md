@@ -7,9 +7,9 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)]()
 [![Version](https://img.shields.io/badge/version-12.2.0-green.svg)](https://github.com/Gag91/Help_Make/releases)
 [![GitHub Stars](https://img.shields.io/github/stars/Gag91/Help_Make?style=social)](https://github.com/Gag91/Help_Make/stargazers)
-
 HelpMake is a build system for people who think CMake is too much and Make is too little.
 
+![HelpMake demo](docs/HelpMake.gif)
 One file - `HelpMake.txt` - describes your whole build. Run `hm -b` and you get an executable, a static library, or a test suite. No generator step, no `CMakeLists.txt` hierarchy, no `configure` scripts, no shell-quoting footguns. Just a file and a command.
 
 ```txt
