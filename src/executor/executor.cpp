@@ -72,7 +72,7 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
         }
         std::string depRoot = "build/HelpMake/dep/" + dep.name;
 
-        if (buildDependency(dep) != 0)
+        if (!c.dryRun && buildDependency(dep) != 0)
             return 1;
 
         for (const auto &inc : dep.includes) {
@@ -94,7 +94,7 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
         for (const auto &ln : dep.links)
             c.flags += " " + depRoot + "/" + ln;
 
-        c.v_Info[std::format("{} Linked dependency '{}' from '{}'", tag, depName, depRoot)] = hp::GREEN;
+        c.v_Info[std::format("{} {} dependency '{}' from '{}'", tag, c.dryRun ? "Would link" : "Linked", depName, depRoot)] = hp::GREEN;
     }
     return 0;
 }
@@ -117,37 +117,44 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     logPath = logDir + "/" + baseName + ".txt";
 
     bool isClang = (comp->name() == "clang");
-    bool showOutput = c.verbose || c.debug;
+    bool showOutput = c.verbose || c.debug || c.dryRun;
     bool isConfig = !name.empty();
 
     std::string tag = isConfig ? std::format("[HelpMake] Config '{}':", name) : "[HelpMake]";
 
     if (c.json) {
-        Parser::generateCompileCommands(c);
+        if (c.dryRun)
+            hp::printlnCl("[HelpMake] Dry run: would generate compile_commands.json", hp::CYAN);
+        else
+            Parser::generateCompileCommands(c);
     }
 
     if (!c.Precmd.empty()) {
         if (showOutput)
-            hp::printlnCl(std::format("{} Running pre-build command: {}", tag, c.Precmd), hp::CYAN);
+            hp::printlnCl(std::format("{} {} pre-build command: {}", tag, c.dryRun ? "Would run" : "Running", c.Precmd), hp::CYAN);
 
-        auto pre = hm::Process::run(c.Precmd);
+        if (!c.dryRun) {
+            auto pre = hm::Process::run(c.Precmd);
 
-        if (pre.exitCode == -1) {
-            hp::printlnCl("Error: Could not launch pre-build command.", hp::RED);
-            return 1;
+            if (pre.exitCode == -1) {
+                hp::printlnCl("Error: Could not launch pre-build command.", hp::RED);
+                return 1;
+            }
+            if (pre.exitCode != 0) {
+                hp::printlnCl(std::format("Error: Pre-build command failed (exit code {}).", pre.exitCode), hp::RED);
+                return 1;
+            }
+            if (showOutput)
+                hp::printlnCl("Pre-build command executed successfully.", hp::GREEN);
         }
-        if (pre.exitCode != 0) {
-            hp::printlnCl(std::format("Error: Pre-build command failed (exit code {}).", pre.exitCode), hp::RED);
-            return 1;
-        }
-        if (showOutput)
-            hp::printlnCl("Pre-build command executed successfully.", hp::GREEN);
     }
 
     std::string version = normalizeVersion(c.version, c.compiler);
 
-    std::filesystem::create_directories(r_logDir);
-    std::filesystem::create_directories(logDir);
+    if (!c.dryRun) {
+        std::filesystem::create_directories(r_logDir);
+        std::filesystem::create_directories(logDir);
+    }
 
     std::string CommandFlags;
 
@@ -177,7 +184,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         if (std::ifstream in(marker); in)
             std::getline(in, previous);
 
-        if (previous != current) {
+        if (!c.dryRun && previous != current) {
             if (!c.quiet && !previous.empty())
                 hp::printlnCl("[HelpMake] Build flags changed, invalidating objects.", hp::YELLOW);
             std::error_code ec;
@@ -208,7 +215,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     }
 
     if (isConfig && !c.quiet) {
-        hp::printlnCl(std::format("\nBuilding config: {}", name), hp::CYAN);
+        hp::printlnCl(std::format("\n{} config: {}", c.dryRun ? "Would build" : "Building", name), hp::CYAN);
         if (showOutput) {
             std::string displayCommand = std::format("{} {} {} -o {}", comp->binary(), CommandFlags, c.inputFile, c.output);
             std::cout << std::format("Config '{}': Command: {}\n", name, displayCommand);
@@ -225,9 +232,11 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         std::string pchBinary = "build/HelpMake/headers/" + comp->name() + "/" + (isConfig ? name + "/" : std::string{}) +
                                 std::filesystem::path(pchHeader).filename().string() + comp->pchExtension();
         std::string pchDir = "build/HelpMake/headers/" + comp->name();
-        std::filesystem::create_directories(pchDir);
+        if (!c.dryRun)
+            std::filesystem::create_directories(pchDir);
         if (PchneedsRebuild(pchHeader, pchBinary, c.rebuild)) {
-            std::filesystem::create_directories(std::filesystem::path(pchBinary).parent_path());
+            if (!c.dryRun)
+                std::filesystem::create_directories(std::filesystem::path(pchBinary).parent_path());
 
             std::vector<std::string> args = comp->pchCreateArgs(pchHeader, pchBinary);
             std::vector<std::string> full = {comp->binary()};
@@ -243,7 +252,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             if (comp->pchNeedsSourceFile()) {
                 std::string pchSrc = pchDir + "/pch.cpp";
                 std::string pchObj = pchDir + "/pch.obj";
-                std::ofstream(pchSrc) << comp->pchSourceFileContent(pchHeader);
+                if (!c.dryRun)
+                    std::ofstream(pchSrc) << comp->pchSourceFileContent(pchHeader);
                 full.push_back(pchSrc);
                 full.push_back("/Fo:" + pchObj);
             }
@@ -252,16 +262,20 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 hp::printlnCl(
                     std::format("{} PCH Command: {}", tag, hm::Process::join(full)), hp::YELLOW);
 
-            auto result = hm::Process::run(hm::Process::join(full));
+            if (c.dryRun) {
+                pchBinaryPath = pchBinary;
+            } else {
+                auto result = hm::Process::run(hm::Process::join(full));
 
-            if (result.exitCode != 0) {
-                hp::printlnCl(
-                    std::format("{} PCH creation failed (exit code {}).", tag, result.exitCode),
-                    hp::RED);
-                hp::printlnCl(result.output, hp::RED);
-                return 1;
+                if (result.exitCode != 0) {
+                    hp::printlnCl(
+                        std::format("{} PCH creation failed (exit code {}).", tag, result.exitCode),
+                        hp::RED);
+                    hp::printlnCl(result.output, hp::RED);
+                    return 1;
+                }
+                pchBinaryPath = pchBinary;
             }
-            pchBinaryPath = pchBinary;
         } else {
             pchBinaryPath = pchBinary;
         }
@@ -274,8 +288,9 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
     if (c.seperate && comp->supportsSeparate()) {
 
-        std::filesystem::create_directories(compilerDir + "/obj");
-        if (isClang)
+        if (!c.dryRun)
+            std::filesystem::create_directories(compilerDir + "/obj");
+        if (isClang && !c.dryRun)
             std::filesystem::create_directories(compilerDir + "/modules");
 
         std::map<std::string, std::string> clangModules;
@@ -323,7 +338,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             std::filesystem::path srcPath(file);
             std::filesystem::path relPath = srcPath.is_absolute() ? srcPath.filename() : srcPath;
             std::string objPath = compilerDir + "/obj/" + relPath.generic_string() + comp->objectExt();
-            std::filesystem::create_directories(std::filesystem::path(objPath).parent_path());
+            if (!c.dryRun)
+                std::filesystem::create_directories(std::filesystem::path(objPath).parent_path());
 
             std::vector<std::string> args;
             args.push_back(comp->binary());
@@ -409,16 +425,18 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             }
 
             int rc = 0;
-            for (auto &j : moduleJobs) {
-                std::vector<Job> single = {j};
-                if (runJobs(single, 1) != 0) {
-                    rc = 1;
-                    break;
+            if (!c.dryRun) {
+                for (auto &j : moduleJobs) {
+                    std::vector<Job> single = {j};
+                    if (runJobs(single, 1) != 0) {
+                        rc = 1;
+                        break;
+                    }
                 }
-            }
 
-            if (rc == 0 && !regularJobs.empty())
-                rc = runJobs(regularJobs, c.jobs);
+                if (rc == 0 && !regularJobs.empty())
+                    rc = runJobs(regularJobs, c.jobs);
+            }
 
             if (rc != 0)
                 exitCode = rc;
@@ -438,9 +456,10 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             if (c.kind == "static") {
                 auto parent = std::filesystem::path(c.output).parent_path();
-                if (!parent.empty())
+                if (!c.dryRun && !parent.empty())
                     std::filesystem::create_directories(parent);
-                std::filesystem::remove(c.output);
+                if (!c.dryRun)
+                    std::filesystem::remove(c.output);
 
                 binary = comp->archiveBinary();
                 args.push_back("rcs");
@@ -478,7 +497,9 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             if (linkCmd.size() > 30000) {
                 std::string rspPath = std::format("{}/{}.rsp", compilerDir, baseName);
-                std::string rspArg = hm::Process::writeResponseFile(args, rspPath);
+                std::string rspArg;
+                if (!c.dryRun)
+                    rspArg = hm::Process::writeResponseFile(args, rspPath);
                 if (!rspArg.empty()) {
                     linkCmd = binary + " " + rspArg;
                     if (showOutput)
@@ -489,15 +510,19 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             if (showOutput)
                 hp::printlnCl(std::format("\n{} Link Command: {}", tag, linkCmd), hp::YELLOW);
 
-            auto linkResult = hm::Process::run(linkCmd);
-            exitCode = linkResult.exitCode;
+            if (!c.dryRun) {
+                auto linkResult = hm::Process::run(linkCmd);
+                exitCode = linkResult.exitCode;
 
-            {
-                std::ofstream linkLog(r_logPath);
-                linkLog << linkResult.output;
+                {
+                    std::ofstream linkLog(r_logPath);
+                    linkLog << linkResult.output;
+                }
             }
 
-            if (exitCode == 0 && c.run) {
+            if (c.dryRun && c.run)
+                hp::printlnCl(std::format("{} Would run: {}", tag, c.output), hp::CYAN);
+            if (!c.dryRun && exitCode == 0 && c.run) {
                 if (showOutput)
                     hp::printlnCl(std::format("{} Running: {}", tag, c.output), hp::CYAN);
 
@@ -548,7 +573,9 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
         if (command.size() > 30000) {
             std::string rspPath = std::format("{}/{}.rsp", compilerDir, baseName);
-            std::string rspArg = hm::Process::writeResponseFile(args, rspPath);
+            std::string rspArg;
+            if (!c.dryRun)
+                rspArg = hm::Process::writeResponseFile(args, rspPath);
             if (!rspArg.empty()) {
                 command = comp->binary();
                 for (auto &s : comp->subcommand()) {
@@ -564,15 +591,19 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         if (showOutput)
             hp::printlnCl(std::format("{} Real Command: {}", tag, command), hp::YELLOW);
 
-        auto buildResult = hm::Process::run(command);
-        exitCode = buildResult.exitCode;
+        if (!c.dryRun) {
+            auto buildResult = hm::Process::run(command);
+            exitCode = buildResult.exitCode;
 
-        {
-            std::ofstream buildLog(r_logPath);
-            buildLog << buildResult.output;
+            {
+                std::ofstream buildLog(r_logPath);
+                buildLog << buildResult.output;
+            }
         }
 
-        if (exitCode == 0 && c.run) {
+        if (c.dryRun && c.run)
+            hp::printlnCl(std::format("[HelpMake] Would run: {}", c.output), hp::CYAN);
+        if (!c.dryRun && exitCode == 0 && c.run) {
             if (showOutput)
                 hp::printlnCl(std::format("{} Running: {}", tag, c.output), hp::CYAN);
 
@@ -590,6 +621,27 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         }
     }
     double elapsed = hp::stopTimer(timer);
+
+    if (c.dryRun) {
+        auto info = c.v_Info;
+        for (const auto &copy : c.v_Copy)
+            info[std::format("{} Would perform copy: {}", tag, copy)] = hp::CYAN;
+        if (!c.Postcmd.empty())
+            info[std::format("{} Would run post-build command: {}", tag, c.Postcmd)] = hp::CYAN;
+        hp::printlnCl(std::format("{} Dry run complete. No build commands were executed.", tag), hp::GREEN);
+        if (c.time)
+            info[std::format("{} Build Plan Time: {}s\n", tag, elapsed)] = hp::CYAN;
+
+        if (!info.empty()) {
+            std::cout << "\nInfo:\n";
+            for (const auto &[msg, color] : info) {
+                hp::printlnCl("  " + msg, color);
+            }
+            std::cout << '\n';
+        }
+
+        return 0;
+    }
 
     std::string result;
     {
@@ -774,6 +826,7 @@ Config Parser::inheritConfig(const Config &child) {
 
     local.verbose = local.verbose || cfg.verbose;
     local.debug = local.debug || cfg.debug;
+    local.dryRun = local.dryRun || cfg.dryRun;
     local.quiet = local.quiet || cfg.quiet;
     local.notify = local.notify || cfg.notify;
     local.rebuild = local.rebuild || cfg.rebuild;

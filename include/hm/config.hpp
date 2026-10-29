@@ -43,6 +43,7 @@ struct Config {
 
     bool verbose = false;
     bool debug = false;
+    bool dryRun = false;
     bool run = false;
     bool n_file = false;
     bool buildSere = false;

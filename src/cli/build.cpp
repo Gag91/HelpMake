@@ -17,6 +17,17 @@ namespace hm::cli {
 
     int build(int argc, char **argv, Config &config, const std::filesystem::path &filename) {
         std::vector<std::string> selectedConfigs;
+        bool dryRunRequested = false;
+        bool watchRequested = config.watch;
+        for (int i = 2; i < argc; ++i) {
+            std::string_view arg = argv[i];
+            dryRunRequested = dryRunRequested || arg == "--dry-run";
+            watchRequested = watchRequested || arg == "--watch";
+        }
+        if (dryRunRequested && watchRequested) {
+            hp::printlnCl("[HelpMake] Error: --dry-run cannot be combined with --watch.", hp::RED);
+            return 1;
+        }
 
         for (int i = 2; i < argc; i++) {
             std::string_view arg = argv[i];
@@ -211,6 +222,8 @@ namespace hm::cli {
                 config.compiler = "go";
             } else if (arg == "--debug") {
                 config.debug = true;
+            } else if (arg == "--dry-run") {
+                config.dryRun = true;
             } else if (arg == "--nofile") {
                 config.n_file = true;
             } else if (arg == "--create") {

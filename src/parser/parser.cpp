@@ -131,18 +131,28 @@ int Parser::parse() {
 
     if (!cfg.v_Gens.empty() && !cfg.check && !cfg.updateLock) {
         Config genCfg = cfg;
-        resolveDependencies(genCfg, "[HelpMake]");
-        for (const auto &g : cfg.v_Gens) {
-            if (g == "json" || g == "compile_commands") {
-                if (generateCompileCommands(genCfg) == 0)
-                    cfg.v_Info["[HelpMake] Generated compile_commands.json"] = hp::GREEN;
-            } else {
-                auto gen = hm::gen::makeGenerators(g);
-                if (gen->generate(genCfg))
-                    cfg.v_Info[std::format("[HelpMake] Generated {}", gen->Filename())] = hp::GREEN;
+        if (cfg.dryRun) {
+            for (const auto &g : cfg.v_Gens) {
+                if (g == "json" || g == "compile_commands") {
+                    cfg.v_Info["[HelpMake] Dry run: would generate compile_commands.json"] = hp::CYAN;
+                } else if (auto gen = hm::gen::makeGenerators(g)) {
+                    cfg.v_Info[std::format("[HelpMake] Dry run: would generate {}", gen->Filename())] = hp::CYAN;
+                }
             }
-            for (const auto &[key, value] : genCfg.v_Info)
-                cfg.v_Info[key] = value;
+        } else {
+            resolveDependencies(genCfg, "[HelpMake]");
+            for (const auto &g : cfg.v_Gens) {
+                if (g == "json" || g == "compile_commands") {
+                    if (generateCompileCommands(genCfg) == 0)
+                        cfg.v_Info["[HelpMake] Generated compile_commands.json"] = hp::GREEN;
+                } else {
+                    auto gen = hm::gen::makeGenerators(g);
+                    if (gen->generate(genCfg))
+                        cfg.v_Info[std::format("[HelpMake] Generated {}", gen->Filename())] = hp::GREEN;
+                }
+                for (const auto &[key, value] : genCfg.v_Info)
+                    cfg.v_Info[key] = value;
+            }
         }
     }
 

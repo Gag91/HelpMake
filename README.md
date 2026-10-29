@@ -22,9 +22,10 @@ Flags { -Wall -O2 linux: -pthread win: /W4 }
 ```
 
 ```bash
-hm -b        # build
-hm -b -w -r  # rebuild on save + run after every build
-hm test      # run every config marked Test: true
+hm -b           # build
+hm -b -w -r     # rebuild on save + run after every build
+hm -b --dry-run # preview build commands without executing them
+hm test         # run every config marked Test: true
 ```
 
 ## Why not CMake?

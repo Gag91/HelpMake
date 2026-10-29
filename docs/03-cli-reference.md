@@ -139,6 +139,7 @@ hm -b -C="zig cc"
 | `-r`, `--run` | Run the output binary after a successful build. |
 | `--verbose` | Show the actual command lines and per-file timings. |
 | `--debug` | Show parser trace plus every command (implies `--verbose` output). |
+| `--dry-run` | Show planned build commands without running them or changing build outputs. Dependency and generator actions are skipped.
 | `--rebuild` | Force a full rebuild, ignoring timestamps and dep files. |
 | `--frozen` | Require every Git `Fetch` and `Dependency` revision to match `HelpMake.lock`; fail if the lock is missing or incomplete. |
 | `--json` | Generate `compile_commands.json` alongside the build. |

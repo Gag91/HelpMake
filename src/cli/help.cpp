@@ -19,7 +19,7 @@ Options:
       --dump     Print raw HelpMake.txt contents
       --create   Generate HelpMake.txt from build arguments
       --clean    Delete build artifacts
-      --update-lock  Resolve Git dependencies and write HelpMake.lock
+  --update-lock  Resolve Git dependencies and write HelpMake.lock
   --gen ninja    Generates Ninja File: build.ninja
 
 Build Options (use with -b):
@@ -46,6 +46,7 @@ Build Flags:
       --nofile   Build from command line only (no config file)
       --verbose  Show detailed build output
       --debug    Show debug information
+      --dry-run  Show build commands without running them
       --rebuild  Force full rebuild (ignore timestamps)
       --frozen   Require Git revisions from HelpMake.lock
       --json     Generate compile_commands.json

@@ -183,18 +183,6 @@ std::string Parser::processGithubEntry(const std::string &value) {
         lockedCommit = it->second.commit;
     }
 
-    if (!gitAvailable()) {
-        hp::printlnCl("[HelpMake] Error: Git not found on PATH. Install git to use Fetch { }.", hp::RED);
-        std::exit(EXIT_FAILURE);
-    }
-
-    std::error_code ec;
-    std::filesystem::create_directories("build/HelpMake/dep", ec);
-    if (ec) {
-        cfg.v_Errors.push_back(std::format("[HelpMake] Error: Cannot create build/HelpMake/dep: {}", ec.message()));
-        return "";
-    }
-
     std::size_t slash = url.find_last_of("/");
     std::string name = (slash == std::string::npos) ? url : url.substr(slash + 1);
     if (name.size() > 4 && name.substr(name.size() - 4) == ".git")
@@ -206,6 +194,24 @@ std::string Parser::processGithubEntry(const std::string &value) {
     }
 
     std::string depRoot = std::format("build/HelpMake/dep/{}", name);
+    if (cfg.dryRun) {
+        std::string resolvedPath = depRoot;
+        if (!folder.empty() && folder != ".")
+            resolvedPath += "/" + folder;
+        return resolvedPath;
+    }
+
+    if (!gitAvailable()) {
+        hp::printlnCl("[HelpMake] Error: Git not found on PATH. Install git to use Fetch { }.", hp::RED);
+        std::exit(EXIT_FAILURE);
+    }
+
+    std::error_code ec;
+    std::filesystem::create_directories("build/HelpMake/dep", ec);
+    if (ec) {
+        cfg.v_Errors.push_back(std::format("[HelpMake] Error: Cannot create build/HelpMake/dep: {}", ec.message()));
+        return "";
+    }
 
     bool clone = !std::filesystem::exists(depRoot);
     if (!clone && !isGitCheckout(depRoot, url)) {
