@@ -8,6 +8,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -227,12 +228,38 @@ int Parser::updateLock() {
         updated["dependency:" + name] = {dep.git, commit};
     }
 
-    std::filesystem::path lockPath = filename.parent_path() / "HelpMake.lock";
+    std::filesystem::path lockDir = "build/HelpMake/dep/lock";
+    std::filesystem::path lockPath = lockDir / "HelpMake.lock";
+
+    std::error_code ec;
+    std::filesystem::create_directories(lockDir, ec);
+    if (ec) {
+        hp::printlnCl(std::format("[HelpMake] Error: Cannot create lock directory '{}': {}", lockDir.string(), ec.message()), hp::RED);
+        return 1;
+    }
+
+    if (std::filesystem::exists(lockPath, ec)) {
+        auto status = std::filesystem::status(lockPath, ec);
+        if (!ec && (status.permissions() & std::filesystem::perms::owner_write) == std::filesystem::perms::none) {
+            std::filesystem::permissions(lockPath, std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::replace, ec);
+            ec.clear();
+        }
+
+        std::filesystem::remove_all(lockPath, ec);
+        if (ec) {
+            hp::printlnCl(std::format("[HelpMake] Error: Existing lockfile '{}' cannot be removed: {}",lockPath.string(), ec.message()),hp::RED);
+            hp::printlnCl("  Close any editor or process holding the file, then retry.", hp::YELLOW);
+            return 1;
+        }
+    }
+
     std::ofstream lockFile(lockPath, std::ios::trunc);
     if (!lockFile) {
         hp::printlnCl(std::format("[HelpMake] Error: Could not write lockfile '{}'.", lockPath.string()), hp::RED);
         return 1;
     }
+
     lockFile << "# HelpMake lockfile v1\n";
     for (const auto &[key, entry] : updated) {
         const bool fetch = key.rfind("fetch:", 0) == 0;
