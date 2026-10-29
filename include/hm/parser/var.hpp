@@ -18,6 +18,7 @@ namespace hm {
 
         std::string parseVar(std::string_view line, std::vector<std::string> &errors);
         bool isValidVar(std::string_view var) const;
+        std::map<std::string, std::string> &getVariables();
 
         void defineVar(const std::string &key, const std::string &value);
     };

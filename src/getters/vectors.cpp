@@ -18,3 +18,6 @@ std::vector<std::string> Parser::getGithub() {
 std::vector<std::string> Parser::getCopy() {
     return cfg.v_Copy;
 }
+std::vector<std::string> Parser::getGens() {
+    return cfg.v_Gens;
+}

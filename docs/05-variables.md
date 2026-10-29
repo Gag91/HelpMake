@@ -40,6 +40,8 @@ Flags {
 ```
 `[[name]]` is expanded in every field and block entry. Values are substituted verbatim - no whitespace trimming happens on expansion.
 
+Run `hm --show` to inspect the parsed values. Root variables appear under `Variables`, and variables declared inside a `Config` block appear under that config.
+
 ## CLI override
 
 Any variable can be overridden from the command line:

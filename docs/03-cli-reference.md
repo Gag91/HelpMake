@@ -15,7 +15,7 @@ Complete list of `hm` command-line flags.
 | `-f <file>` / `-f=<file>` | Use a custom config file instead of `HelpMake.txt`. `-f<file>` (no space, no `=`) is not accepted. |
 | `--init` | Interactive project wizard that generates `HelpMake.txt` |
 | `--install` | Clone + build + add `hm` to PATH automatically |
-| `--show` | Parse and print the current configuration |
+| `--show` | Parse and print the current configuration, including root and per-config variables |
 | `--dump` | Print the raw `HelpMake.txt` contents |
 | `--create` | Generate `HelpMake.txt` from CLI arguments |
 | `--clean` | Delete `build/HelpMake/` |

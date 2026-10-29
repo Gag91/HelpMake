@@ -24,6 +24,10 @@ namespace hm {
         variables[key] = value;
     }
 
+    std::map<std::string, std::string> &Var::getVariables() {
+        return variables;
+    }
+
     std::string Var::parseVar(std::string_view line, std::vector<std::string> &errors) {
         std::string out;
         out.reserve(line.size());

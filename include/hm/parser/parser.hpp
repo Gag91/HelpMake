@@ -135,11 +135,13 @@ class Parser {
     std::vector<std::string> getModules();
     std::vector<std::string> getGithub();
     std::vector<std::string> getCopy();
+    std::vector<std::string> getGens();
     std::vector<FileSection> splitIntoFileSections(std::istream &in);
 
     std::map<std::string, hm::Dependency> dependencies;
     std::map<std::string, LockEntry> lockEntries;
     std::map<std::string, Config> &getConfigs();
+    std::map<std::string, std::string> &getVars();
 
     Config &getConfig();
     std::string getKind();
