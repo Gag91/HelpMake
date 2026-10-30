@@ -9,6 +9,7 @@ All notable changes to HelpMake.
 - **MSVC C++20 modules** - `.ixx`, `.cppm`, `.mpp`, and any file in `Modules { }` now compile as module interface units with `/interface /TP`. The `.ifc` goes to `build/HelpMake/msvc/modules/` (via `/ifcOutput`), consumers import via `/reference <name>=<path>`. Works for single modules and cross-imports; partitions are still unsupported (need `/internalPartition` and per-partition `/reference`).
 - **Dependency Locking** - `hm --update-lock` records exact Git revisions for Fetch { } and Dependencies, sources in `build/HelpMake/dep/lock/HelpMake.lock`; build with `--frozen` to use those revisions and fail if the lockfile is missing or incomplete. Archive and local-path dependencies aren’t lockable yet.
 - **HelpMake API** - `#include "HelpMake.hpp` includes all methods to build specified files/modules using specified flags.
+- **Dry Run** - `hm -b --dry-run` Outputs all commands whitout executing them.
 
 ### Fixed
 
