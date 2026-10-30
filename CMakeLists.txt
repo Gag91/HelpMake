@@ -35,6 +35,7 @@ add_executable(hm
     src/executor/workers.cpp
     src/fs/depfile.cpp
     src/fs/pch.cpp
+    src/generator/clangd.cpp
     src/generator/cmake.cpp
     src/generator/compile_commands.cpp
     src/generator/generator.cpp

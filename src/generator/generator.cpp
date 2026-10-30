@@ -24,11 +24,13 @@ namespace hm::gen {
             return makeNinja();
         if (name == "cmake")
             return makeCMake();
+        if (name == ".clangd")
+            return makeClangd();
         else {
             hp::printlnCl(std::format("[HelpMake] Invalid Generator '{}'.", name), hp::RED);
             std::cout << "\nAvaibles generators:\n";
             for (const auto &g : availableGenerators()) {
-                std::cout << "- " << g << '\n';
+                hp::printlnCl(std::format("- {}", g), hp::CYAN);
             }
             exit(EXIT_FAILURE);
         }

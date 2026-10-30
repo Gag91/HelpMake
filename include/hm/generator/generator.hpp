@@ -25,6 +25,7 @@ namespace hm::gen {
     std::unique_ptr<Generator> makeGenerators(std::string_view name);
     std::unique_ptr<Generator> makeNinja();
     std::unique_ptr<Generator> makeCMake();
+    std::unique_ptr<Generator> makeClangd();
     bool isKnownGenerator(std::string_view name);
 
 } // namespace hm::gen

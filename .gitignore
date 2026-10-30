@@ -69,6 +69,10 @@ vcpkg_installed/
 Testing/
 .cache/
 gcm.cache/
+.vs
 
 # help library
 include/hp/
+
+# clangd
+.clangd

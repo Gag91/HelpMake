@@ -216,6 +216,7 @@ argument) lists available generators.
 | `ninja` | `build.ninja` | ninja ≥ 1.10 |
 | `cmake` | `CMakeLists.txt` | CMake ≥ 4.0 (3.28+ for modules) |
 | `json` / `compile_commands` | `compile_commands.json` | any clangd-compatible tool |
+| `.clangd` | `.clangd`| any clangd-compatible tool |
 
 ### CMake generator support
 
