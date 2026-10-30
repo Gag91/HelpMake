@@ -71,8 +71,5 @@ Testing/
 gcm.cache/
 .vs
 
-# help library
-include/hp/
-
 # clangd
 .clangd

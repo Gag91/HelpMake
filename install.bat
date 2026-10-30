@@ -1,11 +1,12 @@
 @echo off
+setlocal EnableDelayedExpansion
 
 set "INSTALL_DIR=%USERPROFILE%\HelpMake"
 if defined HELPMAKE_DIR set "INSTALL_DIR=%HELPMAKE_DIR%"
 set "BIN_DIR=%USERPROFILE%\.local\bin"
 set "REPO=https://github.com/Gag91/Help_Make"
 
-echo [HelpMake] Installing to "$INSTALL_DIR$"
+echo [HelpMake] Installing to "%INSTALL_DIR%"
 
 where git 
 if errorlevel 1 (
