@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-12.2.0-green.svg)](https://github.com/Gag91/Help_Make/releases)
+[![Version](https://img.shields.io/badge/version-12.3.0-green.svg)](https://github.com/Gag91/Help_Make/releases)
 [![GitHub Stars](https://img.shields.io/github/stars/Gag91/Help_Make?style=social)](https://github.com/Gag91/Help_Make/stargazers)
 HelpMake is a build system for people who think CMake is too much and Make is too little.
 
@@ -55,33 +55,48 @@ If you just want `hm -b` to build your thing on Windows, Linux, and macOS from t
 
 ## Install
 
-One-liner (clones, builds, adds to PATH):
+**Prerequisites:** `git` and a C++20 compiler (`g++ 11+`, `clang++ 11+`, or `MSVC 19.30+`).
 
+### Linux / macOS / WSL:
 ```bash
-hm --install
+curl -fsSL https://raw.githubusercontent.com/Gag91/Help_Make/main/install.sh | bash
 ```
 
-If `hm` isn't on your PATH yet, install manually first - see below.
+### Windows (cmd or PowerShell):
+```cmd
+curl -fsSL -o install.bat https://raw.githubusercontent.com/Gag91/Help_Make/main/install.bat && install.bat
+```
 
-Manual build:
+Both scripts clone to `~/.local/share/HelpMake` (`%USERPROFILE%\HelpMake` on Windows), build `hm` with your system compiler, and add it to your user `PATH`. Restart your terminal after they finish.
 
+### Manual build (if you'd rather do it yourself):
 ```bash
 git clone https://github.com/Gag91/Help_Make
 cd Help_Make
 g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp \
-    src/generator/*.cpp src/getters/*.cpp src/init/*.cpp \
-    src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp \
-    src/main.cpp -o hm -Iinclude
+src/generator/*.cpp src/getters/*.cpp src/init/*.cpp \
+src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp \
+src/main.cpp -o hm -Iinclude
+```
+Then put `hm` on your `PATH` manually.
+
+### Custom install location:
+**Linux / macOS / WSL:**
+```bash
+HELPMAKE_DIR=/opt/HelpMake bash install.sh
 ```
 
-Then put `hm` on your PATH:
+**Windows:**
+```cmd
+set HELPMAKE_DIR=D:\Dev\HelpMake
+install.bat
+```
 
-- **Windows:** `setx PATH "%PATH%;C:\path\to\Help_Make"`
-- **Linux/macOS:** `cp hm ~/.local/bin/`
+### Uninstall:
+Delete `~/.local/share/HelpMake` (or `%USERPROFILE%\HelpMake`), remove `hm` from `~/.local/bin` (or `%USERPROFILE%\.local\bin`), and remove the corresponding line from your shell profile or user `PATH`.
 
-**Requirements:** C++20 compiler to build HelpMake itself (GCC 11+, Clang 11+, MSVC 19.30+). Everything else is optional - `git` for `Dependency:` / `Fetch:`, `ar` / `lib.exe` for static libraries, `curl` + `tar` for URL dependencies.
 
-## What's new in 12.2.0
+## What's new in 12.3.0
 
 Three releases since 12.0.0, all shipped:
 
@@ -91,6 +106,9 @@ Three releases since 12.0.0, all shipped:
 - **Response files** - projects with 300+ files no longer hit Windows's 32K command-line limit. Handled transparently.
 - **CMake generator parity** - `hm --gen cmake` now emits FetchContent, C++20 modules, PreBuild, PostBuild, and Copy.
 - **Clang modules** - `.ixx`, `.mpp`, `.module`, `.cppm` all work; `.pcm` cache, parallel ordering, stale rebuilds all handled.
+- **MSVC modules** - `.ixx`, `.cppm` or anything else.
+- **Dependency Locking** - `hm --update-lock` records exact Git revisions for Fetch { } and Dependencies; build with `--frozen` to use those revisions.
+- **Dry Run** - `--dry-run` Outputs all commands whitout executing them.
 
 [Full changelog →](docs/10-changelog.md)
 
