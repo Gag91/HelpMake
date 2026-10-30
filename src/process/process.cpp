@@ -273,9 +273,9 @@ std::string Parser::processGithubEntry(const std::string &value) {
     }
 
     if (cfg.debug) {
-        hp::printlnCl(std::format("[Debug] Fetch Include Folder: '{}'", folder), hp::YELLOW);
-        hp::printlnCl(std::format("[Debug] Fetch Clone Folder: '{}'", name), hp::YELLOW);
-        hp::printlnCl(std::format("[Debug] Fetch Resolved Path: '{}'", fullPath), hp::YELLOW);
+        cfg.v_Info[std::format("[Debug] Fetch Include Folder: '{}'", folder)] = hp::YELLOW;
+        cfg.v_Info[std::format("[Debug] Fetch Clone Folder: '{}'", name)] = hp::YELLOW;
+        cfg.v_Info[std::format("[Debug] Fetch Resolved Path: '{}'", fullPath)] = hp::YELLOW;
     }
 
     return fullPath;

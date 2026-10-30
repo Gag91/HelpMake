@@ -116,7 +116,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     r_logPath = r_logDir + "/" + baseName + ".txt";
     logPath = logDir + "/" + baseName + ".txt";
 
-    bool isClang = (comp->name() == "clang");
+    bool isClang = comp->isClang();
     bool showOutput = c.verbose || c.debug || c.dryRun;
     bool isConfig = !name.empty();
 
@@ -306,10 +306,20 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 std::string moduleBase = std::filesystem::path(m).stem().string();
                 clangModules[moduleName] = compilerDir + "/modules/" + moduleBase + ".pcm";
             }
-            if (showOutput && !clangModules.empty()) {
-                std::cout << std::format("{} Clang modules detected:\n", tag);
-                for (const auto &[modName, modPath] : clangModules)
-                    std::cout << std::format("  {} -> {}\n", modName, modPath);
+        }
+
+        std::map<std::string, std::string> msvcModules;
+        if (comp->isMSVC()) {
+            for (const auto &m : c.v_Modules) {
+                if (!std::filesystem::exists(m))
+                    continue;
+                std::string moduleName = extractModule(m);
+                if (moduleName.empty()) {
+                    hp::printlnCl(std::format("{} Error: File '{}' is not a module", tag, m), hp::RED);
+                    return 1;
+                }
+                std::string moduleBase = std::filesystem::path(m).stem().string();
+                msvcModules[moduleName] = compilerDir + "/modules/" + moduleBase + ".ifc";
             }
         }
 
@@ -353,12 +363,35 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 args.push_back(tok);
 
             bool isModFile = isModule(file) || isDeclaredModule(file, c.v_Modules);
-            if (isClang && isModFile) {
-                args.push_back("-xc++-module");
+            std::string thisModuleName;
+            if (isModFile)
+                thisModuleName = extractModule(file);
+            if (isModFile) {
+                if (isClang) {
+                    args.push_back("-xc++-module");
+                    std::string moduleBase = std::filesystem::path(file).stem().string();
+                    std::string pcmPath = compilerDir + "/modules/" + moduleBase + ".pcm";
+                    args.push_back("-fmodule-output=" + pcmPath);
+                }
 
-                std::string moduleBase = std::filesystem::path(file).stem().string();
-                std::string pcmPath = compilerDir + "/modules/" + moduleBase + ".pcm";
-                args.push_back("-fmodule-output=" + pcmPath);
+                if (comp->isMSVC()) {
+                    args.push_back("/interface");
+                    args.push_back("/TP");
+
+                    std::string moduleBase = std::filesystem::path(file).stem().string();
+                    std::string ifcPath = compilerDir + "/modules/" + moduleBase + ".ifc";
+
+                    if (ifcPath.find(' ') != std::string::npos) {
+                        hp::printlnCl(std::format("{} Error: MSVC module paths cannot contain spaces ('{}'). "
+                                                  "Move the project to a path without spaces, or use a different compiler.",
+                                                  tag, ifcPath),
+                                      hp::RED);
+                        return 1;
+                    }
+
+                    std::filesystem::create_directories(compilerDir + "/modules");
+                    args.push_back("/ifcOutput" + ifcPath);
+                }
             }
 
             for (auto &a : comp->compileArgs(file))
@@ -377,18 +410,40 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             if (isClang && !clangModules.empty()) {
                 for (const auto &[modName, modPath] : clangModules) {
+                    if (modName == thisModuleName)
+                        continue;
                     args.push_back("-fmodule-file=" + modName + "=" + modPath);
                 }
             }
 
+            if (comp->isMSVC() && !msvcModules.empty()) {
+                for (const auto &[modName, modPath] : msvcModules) {
+                    if (modName == thisModuleName)
+                        continue;
+
+                    if (modPath.find(' ') != std::string::npos) {
+                        hp::printlnCl(std::format("{} Error: MSVC module reference path cannot contain spaces ('{}').", tag, modPath), hp::RED);
+                        return 1;
+                    }
+
+                    args.push_back("/reference");
+                    args.push_back(modName + "=" + modPath);
+                }
+            }
             std::string objCmd = hm::Process::join(args);
 
             bool needsBuild = needsRebuild(file, objPath, c.rebuild);
-            if (!needsBuild && isClang && isModFile) {
+            if (!needsBuild && isModFile) {
                 std::string moduleBase = std::filesystem::path(file).stem().string();
-                std::string pcmPath = compilerDir + "/modules/" + moduleBase + ".pcm";
-                if (!std::filesystem::exists(pcmPath))
-                    needsBuild = true;
+                if (isClang) {
+                    std::string pcmPath = compilerDir + "/modules/" + moduleBase + ".pcm";
+                    if (!std::filesystem::exists(pcmPath))
+                        needsBuild = true;
+                } else if (comp->isMSVC()) {
+                    std::string ifcPath = compilerDir + "/modules/" + moduleBase + ".ifc";
+                    if (!std::filesystem::exists(ifcPath))
+                        needsBuild = true;
+                }
             }
 
             if (!needsBuild) {

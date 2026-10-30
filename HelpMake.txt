@@ -102,6 +102,24 @@ Config: test-clang-modules {
     }
 }
 
+# --------- C++20 modules, MSVC -----------
+Config: test-msvc-modules {
+    Test: true
+    Compiler: msvc
+    Version: /std:c++20
+    Output: build/test-msvc-modules.exe
+    InputFiles {
+        test/m_main.cpp
+    }
+    Modules {
+        test/m_math.ixx
+    }
+    Flags {
+        /EHsc
+        /W4
+    }
+}
+
 # ---------- Static library (not a test - no binary to run) ----------
 Config: test-math-lib {
     Kind: static

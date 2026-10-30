@@ -8,7 +8,7 @@ HelpMake has native support for five toolchain families plus a fallback for anyt
 |---|---|---|---|---|---|---|
 | GCC | `g++` | `.o` | ✅ `.gch` | ✅ | ✅ `ar` | ✅ |
 | Clang | `clang++` | `.o` | ✅ `.pch` | ✅ | ✅ `ar` | ✅ |
-| MSVC | `cl.exe` | `.obj` | ✅ `.pch` | ❌ | ✅ `lib.exe` | ✅ |
+| MSVC | `cl.exe` | `.pch` | ✅ (basic) | ✅ `lib.exe` | ✅ |
 | Zig | `zig` | *(none)* | ❌ | ❌ | ❌ | ❌ |
 | Zig C++ | `zig c++` | `.o` | ✅ `.pch` | ❌ | ✅ `ar` | ✅ |
 | Zig CC | `zig cc` | `.o` | ✅ `.pch` | ❌ | ✅ `ar` | ✅ |

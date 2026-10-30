@@ -248,7 +248,7 @@ int Parser::updateLock() {
 
         std::filesystem::remove_all(lockPath, ec);
         if (ec) {
-            hp::printlnCl(std::format("[HelpMake] Error: Existing lockfile '{}' cannot be removed: {}",lockPath.string(), ec.message()),hp::RED);
+            hp::printlnCl(std::format("[HelpMake] Error: Existing lockfile '{}' cannot be removed: {}", lockPath.string(), ec.message()), hp::RED);
             hp::printlnCl("  Close any editor or process holding the file, then retry.", hp::YELLOW);
             return 1;
         }
