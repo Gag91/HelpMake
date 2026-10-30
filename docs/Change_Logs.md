@@ -2,6 +2,18 @@
 
 All notable changes to HelpMake.
 
+## [12.3.0] - 2026-10-30
+
+### Added
+
+- **MSVC C++20 modules** - `.ixx`, `.cppm`, `.mpp`, and any file in `Modules { }` now compile as module interface units with `/interface /TP`. The `.ifc` goes to `build/HelpMake/msvc/modules/` (via `/ifcOutput`), consumers import via `/reference <name>=<path>`. Works for single modules and cross-imports; partitions are still unsupported (need `/internalPartition` and per-partition `/reference`).
+- **Dependency Locking** - `hm --update-lock` records exact Git revisions for Fetch { } and Dependencies, sources in `build/HelpMake/dep/lock/HelpMake.lock`; build with `--frozen` to use those revisions and fail if the lockfile is missing or incomplete. Archive and local-path dependencies aren’t lockable yet.
+- **HelpMake API** - `#include "HelpMake.hpp` includes all methods to build specified files/modules using specified flags.
+
+### Fixed
+
+- **Clang/MSVC self-reference in module flags** - the module currently being compiled was getting `-fmodule-file=` (Clang) or `/reference` (MSVC) pointing at its own `.pcm`/`.ifc` before that file existed. Both compilers tolerate it, but it's fragile. Now skipped when `modName == current module's name`.
+
 ## [12.2.0] - 2026-10-24
 
 ### Added
@@ -37,23 +49,23 @@ All notable changes to HelpMake.
 
 ### Added
 
-- **Platform conditionals** — prefix any line with `win:`, `linux:`, `mac:`, `unix:`, `x64:`, `arm64:`, `x86:`, or `!<tag>` to include it only on matching platforms
+- **Platform conditionals** - prefix any line with `win:`, `linux:`, `mac:`, `unix:`, `x64:`, `arm64:`, `x86:`, or `!<tag>` to include it only on matching platforms
   - Works for scalar fields (`win: Output: build/app.exe`), block entries (`linux: -pthread`), and `Set { }` variables
   - Recognized: `win`/`windows`, `linux`, `mac`/`darwin`/`macos`/`osx`, `unix`, `x64`/`x86_64`/`amd64`, `arm64`/`aarch64`, `x86`/`i386`/`i686`; negation via `!tag`
-- **`--watch`** — rebuild automatically on source, header, or `HelpMake.txt` change. Combine with `-r` for the full dev loop. Alias: `hm --watch` ≡ `hm -b --watch`
-- **CMake generator: Fetch / Modules / PreBuild / PostBuild / Copy** — the generator now emits `FetchContent_*`, `FILE_SET CXX_MODULES`, custom targets, and `POST_BUILD` copy commands. Closes the CMake-vs-Ninja feature gap
-- **`Set { }` scoping per config** — a `Set { }` inside a `Config: { }` no longer leaks to other configs
+- **`--watch`** - rebuild automatically on source, header, or `HelpMake.txt` change. Combine with `-r` for the full dev loop. Alias: `hm --watch` ≡ `hm -b --watch`
+- **CMake generator: Fetch / Modules / PreBuild / PostBuild / Copy** - the generator now emits `FetchContent_*`, `FILE_SET CXX_MODULES`, custom targets, and `POST_BUILD` copy commands. Closes the CMake-vs-Ninja feature gap
+- **`Set { }` scoping per config** - a `Set { }` inside a `Config: { }` no longer leaks to other configs
 
 ### Changed
 
-- **`--verbose` output cleaned up** — config fields print as a compact aligned block per config, not a flat stream of `X found in config 'Y'` lines
+- **`--verbose` output cleaned up** - config fields print as a compact aligned block per config, not a flat stream of `X found in config 'Y'` lines
 - **Generator warnings** route through the `Info:` block at the end of the build instead of printing mid-parse
 
 ### Fixed
 
-- **`--gen` paths run `resolveDependencies` first** — fetched and dependency include paths are emitted correctly into generated CMake/Ninja/JSON files
-- **Platform conditional overrides work** — `win: Output: ...` after a fallback `Output: ...` now overrides; previously the first write won and the conditional was silently dropped
-- **`Set { }` uses the config's variable scope** — fixes values leaking across configs during parse
+- **`--gen` paths run `resolveDependencies` first** - fetched and dependency include paths are emitted correctly into generated CMake/Ninja/JSON files
+- **Platform conditional overrides work** - `win: Output: ...` after a fallback `Output: ...` now overrides; previously the first write won and the conditional was silently dropped
+- **`Set { }` uses the config's variable scope** - fixes values leaking across configs during parse
   
 ## [12.0.0] - 2026-10-23
 
