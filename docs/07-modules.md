@@ -86,6 +86,18 @@ Modules {
 ```
 and HelpMake passes `-xc++-module` so Clang parses it correctly.
 
+## MSVC workflow
+
+MSVC compiles `.ixx` files as module interface units with `/interface /TP`. Any extension works — `/TP` forces C++ mode regardless of filename, so `.cppm` and `.mpp` are fine too.
+
+```bat
+cl.exe /std:c++20 /interface /TP /ifcOutputbuild/HelpMake/msvc/modules/math.ifc ^
+    /nologo /c test/math.ixx /showIncludes /Fo:build/.../math.ixx.obj
+```
+The .ifc goes to `build/HelpMake/msvc/modules/` (via /ifcOutput). Consumers get `/reference math=build/HelpMake/msvc/modules/math.ifc` and resolve the import from there.
+Modules compile sequentially before any regular source file, so consumers never start before their .ifc exists.
+**Not supported**: module partitions (`export module A:P;`) - MSVC needs /internalPartition on the partition file and per-partition /reference on consumers.
+
 ## Build order
 
 HelpMake partitions files into modules first, then regular sources:
@@ -113,7 +125,7 @@ The normal `hm --clean` does not delete `gcm.cache/` because GCC's cache is outs
 
 | Limitation | Reason | Workaround |
 |---|---|---|
-| No MSVC modules | MSBuild-based, requires `.vcxproj` | Use Clang on Windows |
+| Basic MSVC modules work; partitions don't |
 | No Zig toolchain modules | Zig's C++ mode doesn't expose module flags | Use `-C=clang++` |
 | No topological sort | Simple file-order compile | List dependencies before dependents |
 | No module partitions | `export module foo:part;` not yet parsed | Use flat modules |

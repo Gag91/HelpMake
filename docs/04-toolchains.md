@@ -15,6 +15,8 @@ HelpMake has native support for five toolchain families plus a fallback for anyt
 | Generic | any | `.o` | ❌ | ❌ | ✅ `ar` | ✅ |
 | Go | `go` | *(none)* | ❌ | ❌ | ❌ | ❌ |
 
+**MSVC modules:** basic support - single modules and cross-imports work. Module partitions (`export module A:P;`) are not supported; MSVC needs `/internalPartition` on the partition file and per-partition `/reference` on consumers, which HelpMake doesn't emit yet.
+
 ## Per-toolchain notes
 
 ### GCC
@@ -40,7 +42,6 @@ Identical to GCC except:
 - No `-xc++` on regular source files (Clang infers C++ from `.cpp`)
 
 ### MSVC
-
 Windows only. Uses `cl.exe` and `lib.exe`. Because MSVC's model is source-file-based (PCH requires generating a synthetic `.cpp`), MSVC uses `pchNeedsSourceFile() = true`:
 
 - `pchCreateArgs` returns `{" /c", "/Yc<header>", "/Fp<pch>"}` and writes `build/HelpMake/headers/msvc/pch.cpp` containing `#include "<header>"`
@@ -90,7 +91,7 @@ Same cold-start caveat as Zig C++.
 
 ### Go
 
-Standalone Go toolchain. One-shot only — `go build` produces a binary directly, no intermediate object files.
+Standalone Go toolchain. One-shot only - `go build` produces a binary directly, no intermediate object files.
 
 Command shape:
 
