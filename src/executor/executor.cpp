@@ -688,10 +688,43 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             info[std::format("{} Build Plan Time: {}s\n", tag, elapsed)] = hp::CYAN;
 
         if (!info.empty()) {
-            std::cout << "\nInfo:\n";
-            for (const auto &[msg, color] : info) {
-                hp::printlnCl("  " + msg, color);
+            hp::printlnCl("\nInfo:", hp::CYAN);
+
+            std::vector<const std::pair<const std::string, hp::Color> *> errors;
+            std::vector<const std::pair<const std::string, hp::Color> *> warnings;
+            std::vector<const std::pair<const std::string, hp::Color> *> successes;
+            std::vector<const std::pair<const std::string, hp::Color> *> infos;
+            std::vector<const std::pair<const std::string, hp::Color> *> debugs;
+
+            for (const auto &el : info) {
+                if (el.second == hp::RED)
+                    errors.push_back(&el);
+                else if (el.second == hp::YELLOW)
+                    warnings.push_back(&el);
+                else if (el.second == hp::GREEN)
+                    successes.push_back(&el);
+                else if (el.second == hp::CYAN)
+                    infos.push_back(&el);
+                else if (el.first.find("[Debug]") != std::string::npos)
+                    debugs.push_back(&el);
+                else
+                    infos.push_back(&el);
             }
+
+            auto dump = [](auto &v, const char *sym) {
+                if (v.empty())
+                    return;
+                std::cout << '\n';
+                for (const auto *el : v)
+                    hp::printlnCl(std::string("  ") + sym + "  " + el->first, el->second);
+            };
+
+            dump(errors, "✘");
+            dump(warnings, "⚠");
+            dump(successes, "✔");
+            dump(infos, "·");
+            dump(debugs, "-");
+
             std::cout << '\n';
         }
 
@@ -714,10 +747,44 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     }
 
     if (!c.v_Info.empty()) {
-        std::cout << "\nInfo:\n";
-        for (const auto &[msg, color] : c.v_Info) {
-            hp::printlnCl("  " + msg, color);
+        auto info = c.v_Info;
+        hp::printlnCl("\nInfo:", hp::CYAN);
+
+        std::vector<const std::pair<const std::string, hp::Color> *> errors;
+        std::vector<const std::pair<const std::string, hp::Color> *> warnings;
+        std::vector<const std::pair<const std::string, hp::Color> *> successes;
+        std::vector<const std::pair<const std::string, hp::Color> *> infos;
+        std::vector<const std::pair<const std::string, hp::Color> *> debugs;
+
+        for (const auto &el : info) {
+            if (el.second == hp::RED)
+                errors.push_back(&el);
+            else if (el.second == hp::YELLOW)
+                warnings.push_back(&el);
+            else if (el.second == hp::GREEN)
+                successes.push_back(&el);
+            else if (el.second == hp::CYAN)
+                infos.push_back(&el);
+            else if (el.first.find("[Debug]") != std::string::npos)
+                debugs.push_back(&el);
+            else
+                infos.push_back(&el);
         }
+
+        auto dump = [](auto &v, const char *sym) {
+            if (v.empty())
+                return;
+            std::cout << '\n';
+            for (const auto *el : v)
+                hp::printlnCl(std::string("  ") + sym + "  " + el->first, el->second);
+        };
+
+        dump(errors, "✘");
+        dump(warnings, "⚠");
+        dump(successes, "✔");
+        dump(infos, "·");
+        dump(debugs, "-");
+
         std::cout << '\n';
     }
 
