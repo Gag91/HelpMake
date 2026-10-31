@@ -2,22 +2,32 @@
 
 #include "hm/generator/generator.hpp"
 #include "hm/parser/parser.hpp"
+#include "hm/toolchain/compiler.hpp"
 
-#include <concepts>
-#include <filesystem>
-#include <string>
 #include <utility>
-#include <vector>
 
 namespace hp {
 
-    template <typename T>
-    concept StringLike = std::convertible_to<T, std::string>;
+    enum class Kind {
+        Executable,
+        Static
+    };
+
+    inline std::string parseKind(Kind kind) {
+        switch (kind) {
+            case Kind::Static:
+                return "static";
+            case Kind::Executable:
+                return "executable";
+        }
+        return "executable";
+    }
 
     class HelpMake {
       private:
         std::filesystem::path filename;
         Config cfg;
+        bool normalized = false;
 
         static std::string joinVec(const std::vector<std::string> &v) {
             std::string result;
@@ -30,6 +40,10 @@ namespace hp {
         }
 
         void normalize() {
+            if (normalized)
+                return;
+            normalized = true;
+
             std::string joinedInputs = joinVec(cfg.v_inputFiles);
             if (!joinedInputs.empty())
                 cfg.inputFile = joinedInputs;
@@ -50,8 +64,14 @@ namespace hp {
                     cfg.modules = joinedModules;
             }
 
-            for (const auto &inc : cfg.includeFiles)
-                cfg.flags += " -I" + inc;
+            if (!cfg.includeFiles.empty()) {
+                auto comp = hm::makeCompiler(cfg.compiler);
+                for (const auto &inc : cfg.includeFiles) {
+                    if (!cfg.flags.empty())
+                        cfg.flags += ' ';
+                    cfg.flags += comp->includeFlag(inc);
+                }
+            }
 
             if (!cfg.v_Precmd.empty())
                 cfg.Precmd = joinVec(cfg.v_Precmd);
@@ -117,6 +137,11 @@ namespace hp {
 
         HelpMake &setKind(const std::string &v) {
             cfg.kind = v;
+            return *this;
+        }
+
+        HelpMake &setKind(Kind kind) {
+            cfg.kind = parseKind(kind);
             return *this;
         }
 
@@ -315,6 +340,20 @@ namespace hp {
             return *this;
         }
 
+        HelpMake &addDependency(hm::Dependency dep) {
+            if (dep.name.empty()) {
+                hp::printlnCl("[HelpMake] Warning: ignoring dependency with empty name (use addDependency(name, dep))", hp::YELLOW);
+                return *this;
+            }
+            cfg.dep[dep.name] = std::move(dep);
+            return *this;
+        }
+
+        HelpMake &addDependency(const std::string &name, hm::Dependency dep) {
+            dep.name = name;
+            return addDependency(std::move(dep));
+        }
+
         std::string getCompiler() const {
             return cfg.compiler;
         }
@@ -377,6 +416,7 @@ namespace hp {
             normalize();
 
             Parser parser(filename, cfg);
+            parser.setDependencies(cfg.dep);
             if (parser.parse() != 0)
                 return 1;
 
@@ -400,7 +440,10 @@ namespace hp {
             if (filename.empty())
                 filename = "HelpMake.txt";
 
+            normalize();
+
             Parser parser(filename, cfg);
+            parser.setDependencies(cfg.dep);
             if (parser.parse() != 0)
                 return 1;
 
@@ -417,6 +460,7 @@ namespace hp {
             normalize();
 
             Parser parser(filename, cfg);
+            parser.setDependencies(cfg.dep);
             if (parser.parse() != 0)
                 return 1;
 
@@ -437,6 +481,7 @@ namespace hp {
             normalize();
 
             Parser parser(filename, cfg);
+            parser.setDependencies(cfg.dep);
             if (parser.parse() != 0)
                 return 1;
 
@@ -483,6 +528,7 @@ namespace hp {
             normalize();
 
             Parser parser(filename, cfg);
+            parser.setDependencies(cfg.dep);
             if (parser.parse() != 0)
                 return 1;
 

@@ -124,6 +124,7 @@ class Parser {
     void Notify(const double &time, bool success = true);
     void parseArgument(Config &config, std::string_view value);
     void parseTypos(std::size_t num, std::filesystem::path filename, std::string_view line, std::string_view value);
+    void setDependencies(const std::map<std::string, hm::Dependency> &deps);
 
     Config inheritConfig(const Config &child);
 

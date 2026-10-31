@@ -8,7 +8,6 @@
 
 struct Config {
     hm::Var var;
-    hm::Dependency dep;
 
     std::string name;
     std::string compiler;
@@ -38,6 +37,7 @@ struct Config {
     std::vector<std::string> v_Depends;
     std::vector<std::string> v_Gens;
 
+    std::map<std::string, hm::Dependency> dep;
     std::map<std::string, hp::Color> v_Info;
     std::map<std::string, std::string> v_Vars;
 

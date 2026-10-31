@@ -607,3 +607,10 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     }
     return 0;
 }
+
+void Parser::setDependencies(const std::map<std::string, hm::Dependency> &deps) {
+    for (const auto &[name, d] : deps) {
+        if (!dependencies.contains(name))
+            dependencies[name] = d;
+    }
+}
