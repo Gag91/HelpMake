@@ -20,7 +20,10 @@ Options:
       --create   Generate HelpMake.txt from build arguments
       --clean    Delete build artifacts
   --update-lock  Resolve Git dependencies and write HelpMake.lock
-  --gen ninja    Generates Ninja File: build.ninja
+  --gen <name> [--config <name>] Emit a build/config file for another tool.
+        --config selects which config to emit for.
+        Without --config, emits for the root config.
+        Available: ninja, cmake, json/compile_commands, .clangd
 
 Build Options (use with -b):
   -Gcc           Use GNU Compiler Collection

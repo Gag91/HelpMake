@@ -278,15 +278,50 @@ namespace hm::cli {
 
         if (std::filesystem::exists(filename) && !config.n_file && !config.create) {
             Parser parser(filename, config);
-            if (parser.parse() != 0)
-                return 1;
-            if (!config.create) {
-                if (!selectedConfigs.empty()) {
-                    if (parser.executeConfigs(selectedConfigs) != 0)
-                        return 1;
-                } else if (parser.execute() != 0)
-                    return 1;
+            int rc = 0;
+
+            if ((rc = parser.parse()) == 0 && !config.create) {
+                if (!selectedConfigs.empty())
+                    rc = parser.executeConfigs(selectedConfigs);
+                else
+                    rc = parser.execute();
             }
+
+            if (config.time) {
+                const auto &times = parser.getConfig().v_Times;
+
+                auto get = [&](const std::string &name) -> double {
+                    auto it = times.find(name);
+                    return it == times.end() ? 0.0 : it->second;
+                };
+
+                double parseRaw = get("Parse");
+                double fetch = get("Fetch");
+                double dep = get("Dependency");
+                double exec = get("Execute");
+
+                double parsePure = std::max(0.0, parseRaw - fetch);
+                double total = parseRaw + dep + exec;
+
+                if (total >= 0.001) {
+                    hp::printlnCl("\nTiming:", hp::CYAN);
+
+                    auto line = [](const std::string &label, double s, hp::Color c = hp::YELLOW) {
+                        hp::printlnCl(std::format("  {:<13}{:>8.3f}s", label, s), c);
+                    };
+
+                    line("Parse:", parsePure);
+                    if (fetch > 0.001)
+                        line("Fetch:", fetch);
+                    if (dep > 0.001)
+                        line("Dependency:", dep);
+                    line("Execute:", exec);
+                    line("Total:", total);
+                }
+            }
+
+            if (rc != 0)
+                return rc;
         } else {
             if (!config.n_file && !config.create)
                 hp::printlnCl("Build file not found: " + filename.string(), hp::YELLOW);
@@ -312,9 +347,11 @@ namespace hm::cli {
             }
 
             Parser parser(filename, config);
-            parser.parse();
+            if (parser.parse() != 0) {
+                return 1;
+            }
             if (!config.create)
-                parser.execute();
+                return parser.execute();
         }
         return 0;
     }

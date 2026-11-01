@@ -7,6 +7,11 @@
 #include <vector>
 
 struct Config {
+    double parseTime = 0.0;
+    double fetchTime = 0.0;
+    double dependencyTime = 0.0;
+    double executeTime = 0.0;
+
     hm::Var var;
 
     std::string name;
@@ -40,6 +45,7 @@ struct Config {
     std::map<std::string, hm::Dependency> dep;
     std::map<std::string, hp::Color> v_Info;
     std::map<std::string, std::string> v_Vars;
+    std::map<std::string, double> v_Times;
 
     bool verbose = false;
     bool debug = false;

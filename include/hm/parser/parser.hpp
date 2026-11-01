@@ -27,6 +27,10 @@
 #include <thread>
 #include <vector>
 
+inline void addTime(std::map<std::string, double> &times, const std::string &name, std::chrono::steady_clock::time_point start) {
+    times[name] += hp::stopTimer(start);
+}
+
 struct FileSection {
     std::vector<std::string> lines;
     std::string configName;

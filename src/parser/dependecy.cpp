@@ -6,6 +6,7 @@
 #include <cctype>
 
 int Parser::buildDependency(const hm::Dependency &dep) {
+    auto t0 = hp::startTimer();
     std::string tag = "[HelpMake]";
     std::string depRoot = "build/HelpMake/dep/" + dep.name;
 
@@ -140,6 +141,6 @@ int Parser::buildDependency(const hm::Dependency &dep) {
         }
         std::ofstream(buildIdPath) << currentId;
     }
-
+    addTime(cfg.v_Times, "Dependency" + dep.name, t0);
     return 0;
 }

@@ -29,6 +29,7 @@ std::vector<std::string> Parser::splitArgs(const std::string &args) {
 }
 
 int Parser::parse() {
+    auto t0 = hp::startTimer();
     if (cfg.frozen) {
         std::filesystem::path lockPath = "build/HelpMake/dep/lock/HelpMake.lock";
         std::ifstream lockFile(lockPath);
@@ -161,6 +162,7 @@ int Parser::parse() {
     r_logPath = r_logDir + "/" + baseName + ".txt";
     logPath = logDir + "/" + baseName + ".txt";
 
+    addTime(cfg.v_Times, "Parse", t0);
     return 0;
 }
 

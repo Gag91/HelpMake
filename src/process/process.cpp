@@ -158,6 +158,8 @@ bool Parser::removeGitCheckout(const std::string &path, std::string &error) cons
 }
 
 std::string Parser::processGithubEntry(const std::string &value) {
+    auto t0 = hp::startTimer();
+
     std::size_t arrow = value.find("->");
     if (arrow == std::string::npos) {
         cfg.v_Errors.push_back(std::format(
@@ -240,7 +242,7 @@ std::string Parser::processGithubEntry(const std::string &value) {
             return "";
         }
     } else if (cfg.debug) {
-        hp::printlnCl(std::format("[Debug] Fetch cache hit: '{}'", depRoot), hp::YELLOW);
+        cfg.v_Info[std::format("[Debug] Fetch cache hit: '{}'", depRoot)] = hp::YELLOW;
     }
 
     if (cfg.frozen) {
@@ -278,5 +280,6 @@ std::string Parser::processGithubEntry(const std::string &value) {
         cfg.v_Info[std::format("[Debug] Fetch Resolved Path: '{}'", fullPath)] = hp::YELLOW;
     }
 
+    addTime(cfg.v_Times, "Fetch", t0);
     return fullPath;
 }

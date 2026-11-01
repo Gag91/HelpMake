@@ -100,6 +100,7 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
 }
 
 int Parser::executeConfig(const Config &c, const std::string &name) {
+    auto t0 = hp::startTimer();
     v_DepFiles.clear();
     auto comp = hm::makeCompiler(c.compiler);
     if (!comp) {
@@ -447,7 +448,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             }
 
             if (!needsBuild) {
-                if (!c.quiet)
+                if (!c.quiet && c.verbose)
                     upToDate.push_back(std::format("{} Skip (up to date): {}", tag, file));
                 objects.push_back(objPath);
                 continue;
@@ -465,7 +466,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         }
 
         if (exitCode == 0) {
-            if (!c.quiet) {
+            if (!c.quiet && c.verbose && !upToDate.empty()) {
                 std::cout << '\n';
                 for (const auto &up : upToDate)
                     hp::printlnCl(up, hp::YELLOW);
@@ -586,7 +587,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
                 if (!runResult.output.empty()) {
                     std::cout << runResult.output;
-                    if (runResult.output.back() != '\n')
+                    if (runResult.output.back() != '\n' && c.verbose)
                         std::cout << '\n';
                 }
 
@@ -667,7 +668,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             if (!runResult.output.empty()) {
                 std::cout << runResult.output;
-                if (runResult.output.back() != '\n')
+                if (runResult.output.back() != '\n' && c.verbose)
                     std::cout << '\n';
             }
 
@@ -687,7 +688,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         if (c.time)
             info[std::format("{} Build Plan Time: {}s\n", tag, elapsed)] = hp::CYAN;
 
-        if (!info.empty()) {
+        if (!info.empty() && !c.quiet) {
             hp::printlnCl("\nInfo:", hp::CYAN);
 
             std::vector<const std::pair<const std::string, hp::Color> *> errors;
@@ -699,14 +700,15 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             for (const auto &el : info) {
                 if (el.second == hp::RED)
                     errors.push_back(&el);
+                else if (el.first.find("[Debug]") != std::string::npos && c.debug)
+                    debugs.push_back(&el);
                 else if (el.second == hp::YELLOW)
                     warnings.push_back(&el);
-                else if (el.second == hp::GREEN)
+                else if (el.second == hp::GREEN && c.verbose)
                     successes.push_back(&el);
                 else if (el.second == hp::CYAN)
                     infos.push_back(&el);
-                else if (el.first.find("[Debug]") != std::string::npos)
-                    debugs.push_back(&el);
+
                 else
                     infos.push_back(&el);
             }
@@ -719,11 +721,16 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                     hp::printlnCl(std::string("  ") + sym + "  " + el->first, el->second);
             };
 
-            dump(errors, "✘");
-            dump(warnings, "⚠");
-            dump(successes, "✔");
-            dump(infos, "·");
-            dump(debugs, "-");
+            if (!errors.empty())
+                dump(errors, "✘");
+            if (!warnings.empty())
+                dump(warnings, "⚠");
+            if (c.verbose) {
+                dump(successes, "✔");
+                dump(infos, "·");
+            }
+            if (c.debug)
+                dump(debugs, "·");
 
             std::cout << '\n';
         }
@@ -746,7 +753,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             cleanFile << cleanLog;
     }
 
-    if (!c.v_Info.empty()) {
+    if (!c.v_Info.empty() && !c.quiet) {
         auto info = c.v_Info;
         hp::printlnCl("\nInfo:", hp::CYAN);
 
@@ -759,14 +766,15 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         for (const auto &el : info) {
             if (el.second == hp::RED)
                 errors.push_back(&el);
+            else if (el.first.find("[Debug]") != std::string::npos && c.debug)
+                debugs.push_back(&el);
             else if (el.second == hp::YELLOW)
                 warnings.push_back(&el);
-            else if (el.second == hp::GREEN)
+            else if (el.second == hp::GREEN && c.verbose)
                 successes.push_back(&el);
             else if (el.second == hp::CYAN)
                 infos.push_back(&el);
-            else if (el.first.find("[Debug]") != std::string::npos)
-                debugs.push_back(&el);
+
             else
                 infos.push_back(&el);
         }
@@ -779,11 +787,16 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 hp::printlnCl(std::string("  ") + sym + "  " + el->first, el->second);
         };
 
-        dump(errors, "✘");
-        dump(warnings, "⚠");
-        dump(successes, "✔");
-        dump(infos, "·");
-        dump(debugs, "-");
+        if (!errors.empty())
+            dump(errors, "✘");
+        if (!warnings.empty())
+            dump(warnings, "⚠");
+        if (c.verbose) {
+            dump(successes, "✔");
+            dump(infos, "·");
+        }
+        if (c.debug)
+            dump(debugs, "·");
 
         std::cout << '\n';
     }
@@ -853,9 +866,9 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             }
         }
 
-        if (isConfig)
+        if (isConfig && showOutput)
             hp::printlnCl(std::format("\nConfig '{}' compiled successfully. Output: {}", name, c.output), hp::GREEN);
-        else
+        else if (showOutput)
             hp::printlnCl(std::format("\nCompilation successful. Output file: {}", c.output), hp::GREEN);
 
         if (!result.empty() && showOutput)
@@ -901,12 +914,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         return 1;
     }
 
-    if (showOutput || c.time) {
-        if (isConfig)
-            std::cout << std::format("{} Build Time: {}s\n", tag, elapsed);
-        else
-            std::cout << std::format("[HelpMake] Build Time: {}s\n", elapsed);
-    }
+    addTime(cfg.v_Times, "Execute", t0);
     return 0;
 }
 
