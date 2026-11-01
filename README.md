@@ -125,7 +125,7 @@ Compiles C, C++, Zig, Go, Assembly, Rust, or anything with a CLI compiler. Built
 | Compile | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Static libraries | ✅ | ✅ | ✅ | ✅ | ✅ | - | - |
 | Precompiled headers | ✅ | ✅ | ✅ | ✅ | ✅ | - | - |
-| C++20 modules | ✅ | ✅ | - | - | - | - | - |
+| C++20 modules | ✅ | ✅ | ✅ | - | - | - | - |
 | Response files | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | - |
 
 ### Build features
