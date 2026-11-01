@@ -21,7 +21,7 @@ namespace hm {
         }
 
         std::string includeFlag(const std::string &p) const override {
-            return "";
+            return p;
         }
 
         std::vector<std::string> pchCreateArgs(const std::string &, const std::string &) const override {
@@ -32,7 +32,7 @@ namespace hm {
         }
 
         std::vector<std::string> compileArgs(const std::string &src) const override {
-            return {};
+            return {src};
         }
 
         std::vector<std::string> objectOutputArgs(const std::string &) const override {

@@ -94,18 +94,23 @@ namespace hm::cli {
                 config.output = std::string(arg).substr(2);
             } else if (arg == "-F" || arg == "--Flag") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
-                    if (!config.v_Flags.empty())
-                        config.v_Flags.push_back(" ");
-                    config.v_Flags.push_back(argv[++i]);
+                    if (!config.flags.empty())
+                        config.flags += " ";
+                    std::string flagValue = argv[++i];
+                    if (!config.flags.empty())
+                        config.flags += " ";
+                    config.flags += flagValue;
+                    config.v_Flags.push_back(flagValue);
                 } else {
                     hp::printlnCl("[HelpMake] Error: Additional flags not specified after '" + std::string(arg) + "'.", hp::RED);
                     return 1;
                 }
             } else if (arg.rfind("-F", 0) == 0 && arg.size() > 2) {
                 std::string n_flags = std::string(arg).substr(2);
-                if (!config.v_Flags.empty())
+                if (!config.flags.empty())
                     config.flags += " ";
                 config.flags += n_flags;
+                config.v_Flags.push_back(n_flags);
             } else if (arg == "-I" || arg == "--Include") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     if (!config.flags.empty())

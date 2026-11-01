@@ -17,7 +17,9 @@ namespace hm {
         virtual std::string pchExtension() const = 0;
         virtual std::string includeFlag(const std::string &path) const = 0;
         virtual std::string pchSourceFileContent(const std::string &content) const {
-            return "";
+            if (content.empty())
+                return "";
+            return content;
         }
 
         virtual std::vector<std::string> pchCreateArgs(const std::string &headerPath, const std::string &outputPath) const = 0;
