@@ -151,19 +151,19 @@ namespace hm::cli {
             } else if (arg == "-j" || arg == "--jobs") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     try {
-                        config.jobs = std::stoul(argv[++i]);
+                        config.jobs = std::stoi(argv[++i]);
                     } catch (...) {
                         hp::printlnCl(std::format("Error: Invalid value for '{}'", arg), hp::RED);
                         return 1;
                     }
                 } else {
-                    config.jobs = std::thread::hardware_concurrency();
+                    config.jobs = static_cast<int>(std::thread::hardware_concurrency());
                     if (config.jobs == 0)
                         config.jobs = 1;
                 }
             } else if (arg.rfind("-j", 0) == 0 && arg.size() > 2) {
                 try {
-                    config.jobs = std::stoul(std::string(arg).substr(2));
+                    config.jobs = std::stoi(std::string(arg).substr(2));
                 } catch (...) {
                     hp::printlnCl(std::format("Error: Invalid value for '-j{}'", std::string(arg).substr(2)), hp::RED);
                     return 1;
