@@ -18,5 +18,13 @@ void Parser::parseArgument(Config &config, std::string_view value) {
         config.notify = true;
     } else if (similar(value, "quiet")) {
         config.quiet = true;
+    } else if (similar(value, "dry-run")) {
+        config.dryRun = true;
+    } else if (similar(value, "seperate")) {
+        config.seperate = true;
+    } else if (similar(value, "frozen")) {
+        config.frozen = true;
+    } else {
+        cfg.v_Errors.push_back(std::format("[HelpMake] Error: Unknown argument '{}'", value));
     }
 }
