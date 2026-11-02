@@ -1,5 +1,3 @@
-#define NOMINMAX
-
 #include "hm/parser/parser.hpp"
 #include "hm/util/strings.hpp"
 
