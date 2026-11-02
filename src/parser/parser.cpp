@@ -120,6 +120,12 @@ int Parser::parse() {
             return rc;
     }
 
+    if (cfg.v_inputFiles.empty()) {
+        int rc = autoInputFiles(cfg, "[HelpMake]");
+        if (rc != 0)
+            return rc;
+    }
+
     if (cfg.allCfgs) {
         std::vector<std::string> names;
         for (const auto &[n, _] : configs)

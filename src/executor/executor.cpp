@@ -1079,6 +1079,14 @@ int Parser::autoCompiler(Config &c, const std::string &tag) {
     std::string firstExt;
     bool anyInput = false;
 
+    if (c.v_inputFiles.empty()) {
+        int rc = collectFiles(c, ".");
+        if (rc != 0) {
+            hp::printlnCl(std::format("{} Error: No input files found for auto-detecting compiler.", tag), hp::RED);
+            return rc;
+        }
+    }
+
     for (const auto &file : c.v_inputFiles) {
         std::string ext = std::filesystem::path(file).extension().string();
         if (ext.empty())
@@ -1120,11 +1128,11 @@ int Parser::autoCompiler(Config &c, const std::string &tag) {
     }
 
     if (!anyInput) {
-        c.v_Errors.push_back(std::format("{} Error: No input files to detect a compiler from.\n Set 'Compiler:' explicitly or add 'InputFiles {{ }}'.", tag));
+        c.v_Info[std::format("{} Error: No input files to detect a compiler from.\n Set 'Compiler:' explicitly or add 'InputFiles {{ }}'.", tag)] = hp::RED;
         return 1;
     }
 
-    c.v_Errors.push_back(std::format("{} Error: No compiler known for extension '{}'. Set 'Compiler:' explicitly.", tag, firstExt));
+    c.v_Info[std::format("{} Error: No compiler known for extension '{}'. Set 'Compiler:' explicitly.", tag, firstExt)] = hp::RED;
     return 1;
 }
 
@@ -1188,5 +1196,244 @@ int Parser::autoVersion(Config &c, const std::string &tag) {
 
     c.version = isC ? pick(cMap, "std=c99") : pick(cxxMap, "std=c++14");
     c.v_Info[std::format("{} Warning: Version not specified. Auto-detected version flag: {}", tag, c.version)] = hp::YELLOW;
+    return 0;
+}
+
+int Parser::autoInputFiles(Config &c, const std::string &tag) {
+    if (!c.v_inputFiles.empty())
+        return 0;
+
+    struct SourceEntry {
+        std::vector<std::string> compilers;
+        std::vector<std::string> extensions;
+    };
+
+    static const std::vector<SourceEntry> sourceExts = {
+        {{"gcc", "clang", "zig cc"}, {".c"}},
+        {{"g++", "clang++", "cl", "zig c++"}, {".cpp", ".cxx", ".cc"}},
+        {{"zig"}, {".zig"}},
+        {{"go"}, {".go"}},
+        {{"rustc"}, {".rs"}},
+        {{"python3", "python"}, {".py"}},
+    };
+
+    static constexpr std::array<std::string_view, 32> excludedDirs = {
+        ".git",
+        ".hg",
+        ".svn",
+        ".vs",
+        ".cache",
+        ".idea",
+        ".gitlab",
+        ".github",
+        "build",
+        "bin",
+        "obj",
+        "out",
+        "dist",
+        "target",
+        "node_modules",
+        "vendor",
+        "third_party",
+        "external",
+        "deps",
+        "dep",
+        "lib",
+        "libs",
+        "include",
+        "includes",
+        "test",
+        "tests",
+        "examples",
+        "demos",
+        "playground",
+        "scratch",
+        "tmp",
+        "temp",
+    };
+
+    auto isSource = [&](const std::filesystem::path &p) {
+        const auto ext = p.extension().string();
+        return std::any_of(sourceExts.begin(), sourceExts.end(), [&](const SourceEntry &entry) {
+            const bool compilerMatches =
+                std::find(entry.compilers.begin(), entry.compilers.end(), c.compiler) != entry.compilers.end();
+            const bool extensionMatches =
+                std::find(entry.extensions.begin(), entry.extensions.end(), ext) != entry.extensions.end();
+            return compilerMatches && extensionMatches;
+        });
+    };
+
+    auto isExcluded = [&](const std::filesystem::path &p) {
+        for (const auto &component : p)
+            for (const auto &skip : excludedDirs)
+                if (component.string() == skip)
+                    return true;
+        return false;
+    };
+
+    auto addFile = [&](const std::filesystem::path &p) {
+        if (isSource(p) && !isExcluded(p))
+            c.v_inputFiles.push_back(p.generic_string());
+    };
+
+    if (std::filesystem::exists("src") && std::filesystem::is_directory("src")) {
+        std::error_code ec;
+        for (auto it = std::filesystem::recursive_directory_iterator("src", std::filesystem::directory_options::skip_permission_denied, ec);
+             it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+            if (ec)
+                break;
+            if (it->is_directory() && isExcluded(it->path())) {
+                it.disable_recursion_pending();
+                continue;
+            }
+            if (it->is_regular_file())
+                addFile(it->path());
+        }
+        for (const auto &entry : std::filesystem::directory_iterator(".", ec)) {
+            if (ec)
+                break;
+            if (entry.is_regular_file())
+                addFile(entry.path());
+        }
+    } else {
+        std::error_code ec;
+        for (auto it = std::filesystem::recursive_directory_iterator(".", std::filesystem::directory_options::skip_permission_denied, ec);
+             it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+            if (ec)
+                break;
+            if (it->is_directory() && isExcluded(it->path())) {
+                it.disable_recursion_pending();
+                continue;
+            }
+            if (it->is_regular_file())
+                addFile(it->path());
+        }
+    }
+
+    if (c.v_inputFiles.empty()) {
+        cfg.v_Info[std::format("{} Error: No input files found. Add an 'InputFiles {{ }}' block or place sources in 'src/'.", tag)] = hp::RED;
+        return 1;
+    }
+
+    return 0;
+}
+
+int Parser::collectFiles(Config &c, const std::string &folderPath) {
+    if (!c.v_inputFiles.empty())
+        return 0;
+
+    std::filesystem::path root(folderPath);
+    if (!std::filesystem::exists(root) || !std::filesystem::is_directory(root))
+        return 1;
+
+    static constexpr std::string_view sourceExts[] = {
+        ".c", ".cpp", ".cxx", ".cc", ".zig", ".go", ".rs", ".py", ".java", ".cs", ".ts", ".js",
+        ".rb", ".php", ".pl", ".swift", ".kt", ".kts", ".hs", ".lua", ".r", ".jl", ".dart", ".scala",
+        ".clj", ".erl", ".ex", ".exs", ".fs", ".fsi", ".fsx", ".ml", ".mli", ".vbs", ".bat", ".cmd", ".ps1"};
+
+    static constexpr std::array<std::string_view, 32> excludedDirs = {
+        ".git",
+        ".hg",
+        ".svn",
+        ".vs",
+        ".cache",
+        ".idea",
+        ".gitlab",
+        ".github",
+        "build",
+        "bin",
+        "obj",
+        "out",
+        "dist",
+        "target",
+        "node_modules",
+        "vendor",
+        "third_party",
+        "external",
+        "deps",
+        "dep",
+        "lib",
+        "libs",
+        "include",
+        "includes",
+        "test",
+        "tests",
+        "examples",
+        "demos",
+        "playground",
+        "scratch",
+        "tmp",
+        "temp",
+    };
+
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
+        return s;
+    };
+
+    auto isExcludedDir = [&](const std::filesystem::path &p) {
+        for (const auto &component : p) {
+            auto name = lower(component.string());
+            for (const auto &skip : excludedDirs)
+                if (name == skip)
+                    return true;
+        }
+        return false;
+    };
+
+    std::map<std::string, std::vector<std::string>> extGroupedFiles;
+
+    std::error_code ec;
+    for (auto it = std::filesystem::recursive_directory_iterator(
+             root, std::filesystem::directory_options::skip_permission_denied, ec);
+         it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+        if (ec)
+            break;
+
+        if (it->is_directory() && isExcludedDir(it->path())) {
+            it.disable_recursion_pending();
+            continue;
+        }
+
+        if (!it->is_regular_file())
+            continue;
+
+        std::string ext = lower(it->path().extension().string());
+        if (std::ranges::find(sourceExts, ext) == std::end(sourceExts))
+            continue;
+
+        extGroupedFiles[ext].push_back(it->path().lexically_relative(root).generic_string());
+    }
+
+    if (extGroupedFiles.empty())
+        return 1;
+
+    auto maxExtIt = std::max_element(
+        extGroupedFiles.begin(),
+        extGroupedFiles.end(),
+        [](const auto &a, const auto &b) {
+            return a.second.size() < b.second.size();
+        });
+
+    size_t dominantCount = maxExtIt->second.size();
+    const std::string dominantExt = maxExtIt->first;
+
+    for (const auto &[ext, files] : extGroupedFiles) {
+        if (ext == dominantExt || files.empty())
+            continue;
+
+        if ((dominantExt == ".c" || dominantExt == ".cpp" || dominantExt == ".cxx" || dominantExt == ".cc") &&
+            (ext == ".c" || ext == ".cpp" || ext == ".cxx" || ext == ".cc"))
+            continue;
+
+        hp::printlnCl(std::format("[HelpMake] Warning: Found {} '{}' file{} alongside {} '{}' file{}. Compiling only '{}'. Use 'InputFiles {{ }}' to include specific files.",
+                                  files.size(), ext, files.size() == 1 ? "" : "s", dominantCount, dominantExt, dominantCount == 1 ? "" : "s",
+                                  dominantExt),
+                      hp::YELLOW);
+    }
+
+    c.v_inputFiles.insert(c.v_inputFiles.end(), maxExtIt->second.begin(), maxExtIt->second.end());
     return 0;
 }
