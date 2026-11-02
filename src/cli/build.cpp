@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include "hm/parser/parser.hpp"
 #include "hm/util/strings.hpp"
 
@@ -305,7 +307,7 @@ namespace hm::cli {
                 double dep = get("Dependency");
                 double exec = get("Execute");
 
-                double parsePure = std::max(0.0, parseRaw - fetch);
+                double parsePure = (std::max(0.0, parseRaw - fetch));
                 double total = parseRaw + dep + exec;
 
                 if (total >= 0.001) {

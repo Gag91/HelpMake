@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cmath>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -705,3 +704,10 @@ BigInt operator/(const long long &num, const BigInt &other) {
 BigInt operator^(const long long &num, const BigInt &other) {
     return BigInt(num) ^ other;
 }
+
+template <>
+struct std::formatter<BigInt> : std::formatter<std::string> {
+    auto format(const BigInt &value, auto &ctx) const {
+        return std::formatter<std::string>::format(value.toString(), ctx);
+    }
+};
