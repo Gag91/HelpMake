@@ -2,29 +2,32 @@
 
 void Parser::parseArgument(Config &config, std::string_view value) {
 
-    if (similar(value, "Verbose")) {
-        config.verbose = true;
-    } else if (similar(value, "debug")) {
-        config.debug = true;
-    } else if (similar(value, "Run")) {
-        config.run = true;
-    } else if (similar(value, "time")) {
-        config.time = true;
-    } else if (similar(value, "json")) {
-        config.json = true;
-    } else if (similar(value, "rebuild")) {
-        config.rebuild = true;
-    } else if (similar(value, "notify")) {
-        config.notify = true;
-    } else if (similar(value, "quiet")) {
-        config.quiet = true;
-    } else if (similar(value, "dry-run")) {
-        config.dryRun = true;
-    } else if (similar(value, "seperate")) {
-        config.seperate = true;
-    } else if (similar(value, "frozen")) {
-        config.frozen = true;
-    } else {
+    std::map<std::string_view, bool &> argMap = {
+        {"verbose", config.verbose},
+        {"debug", config.debug},
+        {"run", config.run},
+        {"time", config.time},
+        {"json", config.json},
+        {"rebuild", config.rebuild},
+        {"notify", config.notify},
+        {"quiet", config.quiet},
+        {"dry-run", config.dryRun},
+        {"seperate", config.seperate},
+        {"frozen", config.frozen},
+    };
+
+    for (auto &[arg, flag] : argMap) {
+        if (is_typo(value, arg)) {
+            cfg.v_Errors.push_back(std::format("[HelpMake] Error: Unknown argument '{}', did you mean '{}'?", value, arg));
+        }
+        if (similar(value, arg)) {
+            flag = true;
+        }
+    }
+
+    if (std::any_of(argMap.begin(), argMap.end(), [value](const auto &pair) {
+            return pair.first == to_lower(value);
+        })) {
         cfg.v_Errors.push_back(std::format("[HelpMake] Error: Unknown argument '{}'", value));
     }
 }
