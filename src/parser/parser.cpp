@@ -107,6 +107,13 @@ int Parser::parse() {
             configs[sec.configName] = c;
         }
     }
+
+    if (cfg.compiler.empty()) {
+        int rc = autoCompiler(cfg, "[HelpMake]");
+        if (rc != 0)
+            return rc;
+    }
+
     if (cfg.allCfgs) {
         std::vector<std::string> names;
         for (const auto &[n, _] : configs)

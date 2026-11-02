@@ -90,6 +90,25 @@ target_compile_options(hmm PRIVATE
     -Wuseless-cast
     -Wdouble-promotion
     -Wformat=2
+    -Wvla
+    -Wfloat-equal
+    -Wswitch-enum
+    -Wno-unused-parameter
+    -Wno-missing-field-initializers
+    -Wno-unknown-pragmas
+    -Wno-gnu-zero-variadic-macro-arguments
+    -Wno-cast-function-type
+    -Wno-nonnull
+    -Wno-unused-but-set-variable
+    -Wno-unused-result
+    -Wno-unused-variable
+    -Wno-unused-value
+    -Wno-unused-function
+    -Wno-unused-label
+    -Wno-unused-local-typedefs
+    -Wno-unused-private-field
+    -Wno-unused-template
+    -Wno-unused-const-variable
     -pedantic-errors
     -O2
 )

@@ -99,6 +99,17 @@ namespace hm {
         return "@" + rspPath.generic_string();
     }
 
+    bool Process::exists(const std::string &name) {
+        std::string command;
+#ifdef _WIN32
+        command = std::format("where \"{}\" >nul 2>&1", name);
+#else
+        command = std::format("command -v \"{}\" >/dev/null 2>&1", name);
+#endif
+        auto result = Process::run(command);
+        return result.exitCode == 0;
+    }
+
 } // namespace hm
 
 bool Parser::isGitCheckout(const std::string &path, const std::string &url) const {

@@ -11,7 +11,11 @@ namespace hm {
         explicit GccCompiler(bool clang, bool isC = false) : is_clang(clang), isC(isC) {}
 
         std::string name() const override {
-            return is_clang ? "clang" : "gcc";
+            if (isC && is_clang)
+                return "clang";
+            if (isC)
+                return "gcc";
+            return is_clang ? "clangxx" : "gxx";
         }
         std::string binary() const override {
             if (isC && is_clang)

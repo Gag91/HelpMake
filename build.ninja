@@ -6,7 +6,7 @@ ninja_required_version = 1.10
 builddir = build/HelpMake/Ninja
 
 cxx     = g++
-cflags  = -std=c++20 -Ibuild/HelpMake/dep/Help_Library -Iinclude -Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused -Woverloaded-virtual -Wconversion -Wsign-conversion -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wnull-dereference -Wuseless-cast -Wdouble-promotion -Wformat=2 -pedantic-errors -O2
+cflags  = -std=c++20 -Ibuild/HelpMake/dep/Help_Library -Iinclude -Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused -Woverloaded-virtual -Wconversion -Wsign-conversion -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wnull-dereference -Wuseless-cast -Wdouble-promotion -Wformat=2 -Wvla -Wfloat-equal -Wswitch-enum -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-gnu-zero-variadic-macro-arguments -Wno-cast-function-type -Wno-nonnull -Wno-unused-but-set-variable -Wno-unused-result -Wno-unused-variable -Wno-unused-value -Wno-unused-function -Wno-unused-label -Wno-unused-local-typedefs -Wno-unused-private-field -Wno-unused-template -Wno-unused-const-variable -pedantic-errors -O2
 ldflags = 
 
 rule cxx_compile
@@ -19,44 +19,44 @@ rule link
   command = $cxx $in $ldflags -o $out
   description = LINK $out
 
-build build/HelpMake/gcc/obj/src/cli/build.cpp.o: cxx_compile src/cli/build.cpp
-build build/HelpMake/gcc/obj/src/cli/clean.cpp.o: cxx_compile src/cli/clean.cpp
-build build/HelpMake/gcc/obj/src/cli/help.cpp.o: cxx_compile src/cli/help.cpp
-build build/HelpMake/gcc/obj/src/cli/install.cpp.o: cxx_compile src/cli/install.cpp
-build build/HelpMake/gcc/obj/src/cli/license.cpp.o: cxx_compile src/cli/license.cpp
-build build/HelpMake/gcc/obj/src/cli/show.cpp.o: cxx_compile src/cli/show.cpp
-build build/HelpMake/gcc/obj/src/cli/version.cpp.o: cxx_compile src/cli/version.cpp
-build build/HelpMake/gcc/obj/src/executor/executor.cpp.o: cxx_compile src/executor/executor.cpp
-build build/HelpMake/gcc/obj/src/executor/watch.cpp.o: cxx_compile src/executor/watch.cpp
-build build/HelpMake/gcc/obj/src/executor/workers.cpp.o: cxx_compile src/executor/workers.cpp
-build build/HelpMake/gcc/obj/src/fs/depfile.cpp.o: cxx_compile src/fs/depfile.cpp
-build build/HelpMake/gcc/obj/src/fs/pch.cpp.o: cxx_compile src/fs/pch.cpp
-build build/HelpMake/gcc/obj/src/generator/clangd.cpp.o: cxx_compile src/generator/clangd.cpp
-build build/HelpMake/gcc/obj/src/generator/cmake.cpp.o: cxx_compile src/generator/cmake.cpp
-build build/HelpMake/gcc/obj/src/generator/compile_commands.cpp.o: cxx_compile src/generator/compile_commands.cpp
-build build/HelpMake/gcc/obj/src/generator/generator.cpp.o: cxx_compile src/generator/generator.cpp
-build build/HelpMake/gcc/obj/src/generator/ninja.cpp.o: cxx_compile src/generator/ninja.cpp
-build build/HelpMake/gcc/obj/src/getters/configs.cpp.o: cxx_compile src/getters/configs.cpp
-build build/HelpMake/gcc/obj/src/getters/maps.cpp.o: cxx_compile src/getters/maps.cpp
-build build/HelpMake/gcc/obj/src/getters/strings.cpp.o: cxx_compile src/getters/strings.cpp
-build build/HelpMake/gcc/obj/src/getters/vectors.cpp.o: cxx_compile src/getters/vectors.cpp
-build build/HelpMake/gcc/obj/src/init/init.cpp.o: cxx_compile src/init/init.cpp
-build build/HelpMake/gcc/obj/src/main.cpp.o: cxx_compile src/main.cpp
-build build/HelpMake/gcc/obj/src/parser/appends.cpp.o: cxx_compile src/parser/appends.cpp
-build build/HelpMake/gcc/obj/src/parser/args.cpp.o: cxx_compile src/parser/args.cpp
-build build/HelpMake/gcc/obj/src/parser/create.cpp.o: cxx_compile src/parser/create.cpp
-build build/HelpMake/gcc/obj/src/parser/dependecy.cpp.o: cxx_compile src/parser/dependecy.cpp
-build build/HelpMake/gcc/obj/src/parser/parser.cpp.o: cxx_compile src/parser/parser.cpp
-build build/HelpMake/gcc/obj/src/parser/typos.cpp.o: cxx_compile src/parser/typos.cpp
-build build/HelpMake/gcc/obj/src/parser/var.cpp.o: cxx_compile src/parser/var.cpp
-build build/HelpMake/gcc/obj/src/process/process.cpp.o: cxx_compile src/process/process.cpp
-build build/HelpMake/gcc/obj/src/toolchain/gcc_toolchain.cpp.o: cxx_compile src/toolchain/gcc_toolchain.cpp
-build build/HelpMake/gcc/obj/src/toolchain/go_toolchain.cpp.o: cxx_compile src/toolchain/go_toolchain.cpp
-build build/HelpMake/gcc/obj/src/toolchain/msvc_toolchain.cpp.o: cxx_compile src/toolchain/msvc_toolchain.cpp
-build build/HelpMake/gcc/obj/src/toolchain/toolchain.cpp.o: cxx_compile src/toolchain/toolchain.cpp
-build build/HelpMake/gcc/obj/src/toolchain/zig_toolchain.cpp.o: cxx_compile src/toolchain/zig_toolchain.cpp
-build build/HelpMake/gcc/obj/src/toolchain/zigc_toolchain.cpp.o: cxx_compile src/toolchain/zigc_toolchain.cpp
-build build/HelpMake/gcc/obj/src/toolchain/zigcpp_toolchain.cpp.o: cxx_compile src/toolchain/zigcpp_toolchain.cpp
+build build/HelpMake/gxx/obj/src/cli/build.cpp.o: cxx_compile src/cli/build.cpp
+build build/HelpMake/gxx/obj/src/cli/clean.cpp.o: cxx_compile src/cli/clean.cpp
+build build/HelpMake/gxx/obj/src/cli/help.cpp.o: cxx_compile src/cli/help.cpp
+build build/HelpMake/gxx/obj/src/cli/install.cpp.o: cxx_compile src/cli/install.cpp
+build build/HelpMake/gxx/obj/src/cli/license.cpp.o: cxx_compile src/cli/license.cpp
+build build/HelpMake/gxx/obj/src/cli/show.cpp.o: cxx_compile src/cli/show.cpp
+build build/HelpMake/gxx/obj/src/cli/version.cpp.o: cxx_compile src/cli/version.cpp
+build build/HelpMake/gxx/obj/src/executor/executor.cpp.o: cxx_compile src/executor/executor.cpp
+build build/HelpMake/gxx/obj/src/executor/watch.cpp.o: cxx_compile src/executor/watch.cpp
+build build/HelpMake/gxx/obj/src/executor/workers.cpp.o: cxx_compile src/executor/workers.cpp
+build build/HelpMake/gxx/obj/src/fs/depfile.cpp.o: cxx_compile src/fs/depfile.cpp
+build build/HelpMake/gxx/obj/src/fs/pch.cpp.o: cxx_compile src/fs/pch.cpp
+build build/HelpMake/gxx/obj/src/generator/clangd.cpp.o: cxx_compile src/generator/clangd.cpp
+build build/HelpMake/gxx/obj/src/generator/cmake.cpp.o: cxx_compile src/generator/cmake.cpp
+build build/HelpMake/gxx/obj/src/generator/compile_commands.cpp.o: cxx_compile src/generator/compile_commands.cpp
+build build/HelpMake/gxx/obj/src/generator/generator.cpp.o: cxx_compile src/generator/generator.cpp
+build build/HelpMake/gxx/obj/src/generator/ninja.cpp.o: cxx_compile src/generator/ninja.cpp
+build build/HelpMake/gxx/obj/src/getters/configs.cpp.o: cxx_compile src/getters/configs.cpp
+build build/HelpMake/gxx/obj/src/getters/maps.cpp.o: cxx_compile src/getters/maps.cpp
+build build/HelpMake/gxx/obj/src/getters/strings.cpp.o: cxx_compile src/getters/strings.cpp
+build build/HelpMake/gxx/obj/src/getters/vectors.cpp.o: cxx_compile src/getters/vectors.cpp
+build build/HelpMake/gxx/obj/src/init/init.cpp.o: cxx_compile src/init/init.cpp
+build build/HelpMake/gxx/obj/src/main.cpp.o: cxx_compile src/main.cpp
+build build/HelpMake/gxx/obj/src/parser/appends.cpp.o: cxx_compile src/parser/appends.cpp
+build build/HelpMake/gxx/obj/src/parser/args.cpp.o: cxx_compile src/parser/args.cpp
+build build/HelpMake/gxx/obj/src/parser/create.cpp.o: cxx_compile src/parser/create.cpp
+build build/HelpMake/gxx/obj/src/parser/dependecy.cpp.o: cxx_compile src/parser/dependecy.cpp
+build build/HelpMake/gxx/obj/src/parser/parser.cpp.o: cxx_compile src/parser/parser.cpp
+build build/HelpMake/gxx/obj/src/parser/typos.cpp.o: cxx_compile src/parser/typos.cpp
+build build/HelpMake/gxx/obj/src/parser/var.cpp.o: cxx_compile src/parser/var.cpp
+build build/HelpMake/gxx/obj/src/process/process.cpp.o: cxx_compile src/process/process.cpp
+build build/HelpMake/gxx/obj/src/toolchain/gcc_toolchain.cpp.o: cxx_compile src/toolchain/gcc_toolchain.cpp
+build build/HelpMake/gxx/obj/src/toolchain/go_toolchain.cpp.o: cxx_compile src/toolchain/go_toolchain.cpp
+build build/HelpMake/gxx/obj/src/toolchain/msvc_toolchain.cpp.o: cxx_compile src/toolchain/msvc_toolchain.cpp
+build build/HelpMake/gxx/obj/src/toolchain/toolchain.cpp.o: cxx_compile src/toolchain/toolchain.cpp
+build build/HelpMake/gxx/obj/src/toolchain/zig_toolchain.cpp.o: cxx_compile src/toolchain/zig_toolchain.cpp
+build build/HelpMake/gxx/obj/src/toolchain/zigc_toolchain.cpp.o: cxx_compile src/toolchain/zigc_toolchain.cpp
+build build/HelpMake/gxx/obj/src/toolchain/zigcpp_toolchain.cpp.o: cxx_compile src/toolchain/zigcpp_toolchain.cpp
 
-build hmm.exe: link build/HelpMake/gcc/obj/src/cli/build.cpp.o build/HelpMake/gcc/obj/src/cli/clean.cpp.o build/HelpMake/gcc/obj/src/cli/help.cpp.o build/HelpMake/gcc/obj/src/cli/install.cpp.o build/HelpMake/gcc/obj/src/cli/license.cpp.o build/HelpMake/gcc/obj/src/cli/show.cpp.o build/HelpMake/gcc/obj/src/cli/version.cpp.o build/HelpMake/gcc/obj/src/executor/executor.cpp.o build/HelpMake/gcc/obj/src/executor/watch.cpp.o build/HelpMake/gcc/obj/src/executor/workers.cpp.o build/HelpMake/gcc/obj/src/fs/depfile.cpp.o build/HelpMake/gcc/obj/src/fs/pch.cpp.o build/HelpMake/gcc/obj/src/generator/clangd.cpp.o build/HelpMake/gcc/obj/src/generator/cmake.cpp.o build/HelpMake/gcc/obj/src/generator/compile_commands.cpp.o build/HelpMake/gcc/obj/src/generator/generator.cpp.o build/HelpMake/gcc/obj/src/generator/ninja.cpp.o build/HelpMake/gcc/obj/src/getters/configs.cpp.o build/HelpMake/gcc/obj/src/getters/maps.cpp.o build/HelpMake/gcc/obj/src/getters/strings.cpp.o build/HelpMake/gcc/obj/src/getters/vectors.cpp.o build/HelpMake/gcc/obj/src/init/init.cpp.o build/HelpMake/gcc/obj/src/main.cpp.o build/HelpMake/gcc/obj/src/parser/appends.cpp.o build/HelpMake/gcc/obj/src/parser/args.cpp.o build/HelpMake/gcc/obj/src/parser/create.cpp.o build/HelpMake/gcc/obj/src/parser/dependecy.cpp.o build/HelpMake/gcc/obj/src/parser/parser.cpp.o build/HelpMake/gcc/obj/src/parser/typos.cpp.o build/HelpMake/gcc/obj/src/parser/var.cpp.o build/HelpMake/gcc/obj/src/process/process.cpp.o build/HelpMake/gcc/obj/src/toolchain/gcc_toolchain.cpp.o build/HelpMake/gcc/obj/src/toolchain/go_toolchain.cpp.o build/HelpMake/gcc/obj/src/toolchain/msvc_toolchain.cpp.o build/HelpMake/gcc/obj/src/toolchain/toolchain.cpp.o build/HelpMake/gcc/obj/src/toolchain/zig_toolchain.cpp.o build/HelpMake/gcc/obj/src/toolchain/zigc_toolchain.cpp.o build/HelpMake/gcc/obj/src/toolchain/zigcpp_toolchain.cpp.o
+build hmm.exe: link build/HelpMake/gxx/obj/src/cli/build.cpp.o build/HelpMake/gxx/obj/src/cli/clean.cpp.o build/HelpMake/gxx/obj/src/cli/help.cpp.o build/HelpMake/gxx/obj/src/cli/install.cpp.o build/HelpMake/gxx/obj/src/cli/license.cpp.o build/HelpMake/gxx/obj/src/cli/show.cpp.o build/HelpMake/gxx/obj/src/cli/version.cpp.o build/HelpMake/gxx/obj/src/executor/executor.cpp.o build/HelpMake/gxx/obj/src/executor/watch.cpp.o build/HelpMake/gxx/obj/src/executor/workers.cpp.o build/HelpMake/gxx/obj/src/fs/depfile.cpp.o build/HelpMake/gxx/obj/src/fs/pch.cpp.o build/HelpMake/gxx/obj/src/generator/clangd.cpp.o build/HelpMake/gxx/obj/src/generator/cmake.cpp.o build/HelpMake/gxx/obj/src/generator/compile_commands.cpp.o build/HelpMake/gxx/obj/src/generator/generator.cpp.o build/HelpMake/gxx/obj/src/generator/ninja.cpp.o build/HelpMake/gxx/obj/src/getters/configs.cpp.o build/HelpMake/gxx/obj/src/getters/maps.cpp.o build/HelpMake/gxx/obj/src/getters/strings.cpp.o build/HelpMake/gxx/obj/src/getters/vectors.cpp.o build/HelpMake/gxx/obj/src/init/init.cpp.o build/HelpMake/gxx/obj/src/main.cpp.o build/HelpMake/gxx/obj/src/parser/appends.cpp.o build/HelpMake/gxx/obj/src/parser/args.cpp.o build/HelpMake/gxx/obj/src/parser/create.cpp.o build/HelpMake/gxx/obj/src/parser/dependecy.cpp.o build/HelpMake/gxx/obj/src/parser/parser.cpp.o build/HelpMake/gxx/obj/src/parser/typos.cpp.o build/HelpMake/gxx/obj/src/parser/var.cpp.o build/HelpMake/gxx/obj/src/process/process.cpp.o build/HelpMake/gxx/obj/src/toolchain/gcc_toolchain.cpp.o build/HelpMake/gxx/obj/src/toolchain/go_toolchain.cpp.o build/HelpMake/gxx/obj/src/toolchain/msvc_toolchain.cpp.o build/HelpMake/gxx/obj/src/toolchain/toolchain.cpp.o build/HelpMake/gxx/obj/src/toolchain/zig_toolchain.cpp.o build/HelpMake/gxx/obj/src/toolchain/zigc_toolchain.cpp.o build/HelpMake/gxx/obj/src/toolchain/zigcpp_toolchain.cpp.o
 default hmm.exe

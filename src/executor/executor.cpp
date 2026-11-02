@@ -1028,3 +1028,102 @@ void Parser::Notify(const double &time, bool success) {
 
     hm::Process::run(notifyCmd);
 }
+
+int Parser::autoCompiler(Config &c, const std::string &tag) {
+    if (!c.compiler.empty())
+        return 0;
+
+    struct Candidate {
+        std::string base;
+        std::string subcommand;
+    };
+
+    struct CompilerGroup {
+        std::vector<std::string> extensions;
+        std::vector<Candidate> candidates;
+        std::string languageName;
+    };
+
+    static const std::vector<CompilerGroup> compilerGroups = {
+        {{".c"}, {{"gcc", ""}, {"clang", ""}, {"zig", "cc"}}, "C"},
+        {{".cpp", ".cxx", ".cc"}, {{"g++", ""}, {"clang++", ""}, {"cl", ""}, {"zig", "c++"}}, "C++"},
+        {{".zig"}, {{"zig", ""}}, "Zig"},
+        {{".go"}, {{"go", ""}}, "Go"},
+        {{".rs"}, {{"rustc", ""}}, "Rust"},
+        {{".py"}, {{"python3", ""}, {"python", ""}}, "Python"},
+        {{".java"}, {{"javac", ""}}, "Java"},
+        {{".cs"}, {{"csc", ""}, {"mcs", ""}}, "C#"},
+        {{".ts"}, {{"tsc", ""}}, "TypeScript"},
+        {{".js"}, {{"node", ""}}, "JavaScript"},
+        {{".rb"}, {{"ruby", ""}}, "Ruby"},
+        {{".php"}, {{"php", ""}}, "PHP"},
+        {{".pl"}, {{"perl", ""}}, "Perl"},
+        {{".swift"}, {{"swiftc", ""}}, "Swift"},
+        {{".kt", ".kts"}, {{"kotlinc", ""}}, "Kotlin"},
+        {{".hs"}, {{"ghc", ""}}, "Haskell"},
+        {{".lua"}, {{"lua", ""}}, "Lua"},
+        {{".r"}, {{"Rscript", ""}}, "R"},
+        {{".jl"}, {{"julia", ""}}, "Julia"},
+        {{".dart"}, {{"dart", ""}}, "Dart"},
+        {{".scala"}, {{"scalac", ""}}, "Scala"},
+        {{".clj"}, {{"clojure", ""}}, "Clojure"},
+        {{".erl"}, {{"erlc", ""}}, "Erlang"},
+        {{".ex", ".exs"}, {{"elixir", ""}}, "Elixir"},
+        {{".fs", ".fsi", ".fsx"}, {{"fsharpc", ""}, {"dotnet", "fsi"}, {"dotnet", "fsc"}}, "F#"},
+        {{".ml", ".mli"}, {{"ocamlc", ""}, {"ocamlopt", ""}}, "OCaml"},
+        {{".vbs"}, {{"cscript", ""}}, "VBScript"},
+        {{".bat", ".cmd"}, {{"cmd.exe", ""}}, "Batch Script"},
+        {{".ps1"}, {{"powershell.exe", ""}, {"pwsh.exe", ""}}, "PowerShell"},
+    };
+
+    std::string firstExt;
+    bool anyInput = false;
+
+    for (const auto &file : c.v_inputFiles) {
+        std::string ext = std::filesystem::path(file).extension().string();
+        if (ext.empty())
+            continue;
+
+        if (!anyInput) {
+            firstExt = ext;
+            anyInput = true;
+        }
+
+        for (const auto &group : compilerGroups) {
+            bool extMatches = false;
+            for (const auto &e : group.extensions) {
+                if (e == ext) {
+                    extMatches = true;
+                    break;
+                }
+            }
+            if (!extMatches)
+                continue;
+
+            for (const auto &cand : group.candidates) {
+                if (hm::Process::exists(cand.base)) {
+                    c.compiler = cand.subcommand.empty() ? cand.base : (cand.base + " " + cand.subcommand);
+                    c.v_Info[std::format("{} Warning: Compiler not specified. Auto-detected compiler: {}", tag, c.compiler)] = hp::YELLOW;
+                    return 0;
+                }
+            }
+
+            c.v_Errors.push_back(std::format("{} Error: No compiler found for '{}' files. Install one of: {}", tag, group.languageName,
+                                             hm::Process::join([&] {
+                                                 std::vector<std::string> names;
+                                                 for (const auto &cand : group.candidates)
+                                                     names.push_back(cand.subcommand.empty() ? cand.base : cand.base + " " + cand.subcommand);
+                                                 return names;
+                                             }())));
+            return 1;
+        }
+    }
+
+    if (!anyInput) {
+        c.v_Errors.push_back(std::format("{} Error: No input files to detect a compiler from.\n Set 'Compiler:' explicitly or add 'InputFiles {{ }}'.", tag));
+        return 1;
+    }
+
+    c.v_Errors.push_back(std::format("{} Error: No compiler known for extension '{}'. Set 'Compiler:' explicitly.", tag, firstExt));
+    return 1;
+}

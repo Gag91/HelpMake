@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-
 namespace hm {
 
     struct ProcessResult {
@@ -17,6 +16,7 @@ namespace hm {
         static ProcessResult run(const std::string &commandLine);
         static std::string join(const std::vector<std::string> &args);
         static std::string writeResponseFile(const std::vector<std::string> &args, const std::filesystem::path &rspPath);
+        static bool exists(const std::string &name);
     };
 
 } // namespace hm
