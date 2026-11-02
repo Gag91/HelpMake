@@ -186,8 +186,14 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             std::getline(in, previous);
 
         if (!c.dryRun && previous != current) {
-            if (!c.quiet && !previous.empty())
-                hp::printlnCl("[HelpMake] Build flags changed, invalidating objects.", hp::YELLOW);
+            if (!c.quiet && !previous.empty()) {
+                std::size_t width = static_cast<std::size_t>(hp::platform::console_width());
+                std::string separator(width, '-');
+                hp::printlnCl(std::format("\n{}\n[HelpMake] Build flags changed, invalidating objects.", separator), hp::YELLOW);
+                hp::printlnCl(std::format("[HelpMake] Previous:\n '{}'", previous), hp::YELLOW);
+                hp::printlnCl(std::format("\n[HelpMake] Current:\n '{}'", current), hp::YELLOW);
+                hp::printlnCl(separator + "\n", hp::YELLOW);
+            }
             std::error_code ec;
             std::filesystem::remove_all(compilerDir + "/obj", ec);
             std::filesystem::remove_all("build/HelpMake/headers/" + comp->name(), ec);
@@ -491,7 +497,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 }
 
                 if (rc == 0 && !regularJobs.empty())
-                    rc = runJobs(regularJobs, c.jobs);
+                    rc = runJobs(regularJobs, static_cast<std::size_t>(c.jobs));
             }
 
             if (rc != 0)
