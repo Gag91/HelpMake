@@ -2,7 +2,7 @@
 # Regenerate with: hm --gen cmake
 
 cmake_minimum_required(VERSION 4.0)
-project(hmm LANGUAGES CXX)
+project(hm LANGUAGES CXX)
 
 set(CMAKE_CXX_COMPILER "g++")
 
@@ -20,9 +20,9 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Help_Library)
 
-target_include_directories(hmm PRIVATE ${Help_Library_SOURCE_DIR})
+target_include_directories(hm PRIVATE ${Help_Library_SOURCE_DIR})
 
-add_executable(hmm
+add_executable(hm
     src/cli/build.cpp
     src/cli/clean.cpp
     src/cli/help.cpp
@@ -63,28 +63,25 @@ add_executable(hmm
     src/toolchain/zigcpp_toolchain.cpp
 )
 
-target_include_directories(hmm PRIVATE
+target_include_directories(hm PRIVATE
     include
 )
 
-target_compile_options(hmm PRIVATE
+target_compile_options(hm PRIVATE
     -std=c++20
     -Ibuild/HelpMake/dep/Help_Library
     -Iinclude
     -Wall
     -Wextra
+    -Werror
     -Wpedantic
     -Wshadow
     -Wnon-virtual-dtor
     -Wold-style-cast
     -Wcast-align
-    -Wunused
     -Woverloaded-virtual
     -Wconversion
-    -Wsign-conversion
-    -Wmisleading-indentation
     -Wduplicated-cond
-    -Wduplicated-branches
     -Wlogical-op
     -Wnull-dereference
     -Wuseless-cast
@@ -92,23 +89,16 @@ target_compile_options(hmm PRIVATE
     -Wformat=2
     -Wvla
     -Wfloat-equal
-    -Wswitch-enum
     -Wno-unused-parameter
-    -Wno-missing-field-initializers
-    -Wno-unknown-pragmas
-    -Wno-gnu-zero-variadic-macro-arguments
-    -Wno-cast-function-type
-    -Wno-nonnull
-    -Wno-unused-but-set-variable
-    -Wno-unused-result
     -Wno-unused-variable
     -Wno-unused-value
     -Wno-unused-function
-    -Wno-unused-label
     -Wno-unused-local-typedefs
     -Wno-unused-private-field
-    -Wno-unused-template
-    -Wno-unused-const-variable
+    -Wno-missing-field-initializers
+    -Wno-unknown-pragmasFLAGS:
+    -pedantic-errors
+    -O2
     -pedantic-errors
     -O2
 )

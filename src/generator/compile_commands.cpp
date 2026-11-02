@@ -29,15 +29,15 @@ int Parser::generateCompileCommands(const Config &c) {
     bool firstEntry = true;
 
     for (const auto &file : files) {
-        std::string baseName = std::filesystem::path(file).stem().string();
+        std::string base_Name = std::filesystem::path(file).stem().string();
         bool isModExt = isModule(file);
         bool isMod = isModExt || isDeclaredModule(file, c.v_Modules);
-        std::string objPath = std::format("build/HelpMake/{}/obj/{}.o", compilerName, baseName);
+        std::string objPath = std::format("build/HelpMake/{}/obj/{}.o", compilerName, base_Name);
         std::string command;
 
         if (isClang && isMod) {
             std::string moduleName = extractModule(file);
-            std::string pcmPath = std::format("build/HelpMake/{}/modules/{}.pcm", compilerName, baseName);
+            std::string pcmPath = std::format("build/HelpMake/{}/modules/{}.pcm", compilerName, base_Name);
             std::string langFlag = (isClang && isMod) ? "-xc++-module " : "";
             command = std::format("{} -fdiagnostics-color=always {}{} -c {} -o {} -MMD -fmodule-file={}={}", comp, langFlag, CommandFlags, file, objPath, moduleName, pcmPath);
         } else {

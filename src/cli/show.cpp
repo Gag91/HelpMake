@@ -13,8 +13,8 @@ namespace hm::cli {
         if (items.empty())
             return;
 
-        std::string pad(indent, ' ');
-        std::string inner(indent + 4, ' ');
+        std::string pad(static_cast<std::size_t>(indent), ' ');
+        std::string inner(static_cast<std::size_t>(indent + 4), ' ');
         std::cout << pad << label << ":\n";
         for (const auto &item : items)
             std::cout << inner << item << "\n";
@@ -25,8 +25,8 @@ namespace hm::cli {
         if (items.empty())
             return;
 
-        std::string pad(indent, ' ');
-        std::string inner(indent + 4, ' ');
+        std::string pad(static_cast<std::size_t>(indent), ' ');
+        std::string inner(static_cast<std::size_t>(indent + 4), ' ');
         std::cout << pad << label << ":\n";
         for (const auto &[key, value] : items)
             std::cout << inner << std::left << std::setw(10) << (key + ":") << value << "\n";
@@ -37,11 +37,11 @@ namespace hm::cli {
         if (item.empty())
             return;
 
-        std::string pad(indent, ' ');
+        std::string pad(static_cast<std::size_t>(indent), ' ');
         std::cout << pad << std::left << std::setw(10) << (label + ":") << item << "\n";
     }
 
-    void show(const std::filesystem::path &filename, Config &config) {
+    int show(const std::filesystem::path &filename, Config &config) {
         Parser parser(filename, config);
         parser.parse();
 
@@ -99,7 +99,7 @@ namespace hm::cli {
 
         const auto &configs = parser.getConfigs();
         if (configs.empty())
-            return;
+            return 0;
 
         std::cout << "Configs:\n";
 
@@ -137,6 +137,7 @@ namespace hm::cli {
 
             std::cout << "\n";
         }
+        return 0;
     }
 
 } // namespace hm::cli

@@ -33,11 +33,13 @@ int main(int argc, char *argv[]) {
     std::string_view argument = argv[1];
 
     if (argument == "--help" || argument == "-h") {
-        hm::cli::help();
+        return hm::cli::help();
     } else if (argument == "--version" || argument == "-v") {
-        hm::cli::version();
+        return hm::cli::version();
+    } else if (argument == "-dumpversion" || argument == "-dump-version") {
+        return hm::cli::Dumpversion();
     } else if (argument == "--license" || argument == "-l") {
-        hm::cli::license();
+        return hm::cli::license();
     } else if (argument == "--install" || argument == "install") {
         Parser parser(filename, config);
         parser.install();

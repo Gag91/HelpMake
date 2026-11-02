@@ -24,7 +24,7 @@ static bool registerFile(const std::filesystem::path &filename) {
     }
 
     std::vector<char> currentPathBuffer(bufferSize);
-    if (RegQueryValueExA(hKey, "Path", NULL, &type, (LPBYTE)currentPathBuffer.data(), &bufferSize) != ERROR_SUCCESS) {
+    if (RegQueryValueExA(hKey, "Path", NULL, &type, reinterpret_cast<LPBYTE>(currentPathBuffer.data()), &bufferSize) != ERROR_SUCCESS) {
         RegCloseKey(hKey);
         return false;
     }
@@ -38,7 +38,9 @@ static bool registerFile(const std::filesystem::path &filename) {
 
     std::string newPath = currentPathStr.empty() ? folderPathStr : currentPathStr + ";" + folderPathStr;
 
-    if (RegSetValueExA(hKey, "Path", 0, REG_EXPAND_SZ, (const BYTE *)newPath.c_str(), newPath.length() + 1) != ERROR_SUCCESS) {
+    if (newPath.size() >= MAXDWORD ||
+        RegSetValueExA(hKey, "Path", 0, REG_EXPAND_SZ, reinterpret_cast<const BYTE *>(newPath.c_str()),
+                       static_cast<DWORD>(newPath.size() + 1)) != ERROR_SUCCESS) {
         RegCloseKey(hKey);
         return false;
     }
@@ -46,7 +48,7 @@ static bool registerFile(const std::filesystem::path &filename) {
     RegCloseKey(hKey);
 
     DWORD_PTR dwReturnValue;
-    SendMessageTimeoutA(HWND_BROADCAST, WM_SETTINGCHANGE, 0, (LPARAM) "Environment", SMTO_ABORTIFHUNG, 5000, &dwReturnValue);
+    SendMessageTimeoutA(HWND_BROADCAST, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>("Environment"), SMTO_ABORTIFHUNG, 5000, &dwReturnValue);
 
     return true;
 

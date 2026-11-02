@@ -5,7 +5,7 @@
 
 namespace hm::cli {
 
-    void help() {
+    int help() {
         constexpr std::string_view help = R"HELP(Help_Make (hm) - Build System
 Use : hm [options]
 
@@ -60,6 +60,7 @@ Build Flags:
 )HELP";
 
         std::cout << help << "\n";
+        return 0;
     }
 
 } // namespace hm::cli

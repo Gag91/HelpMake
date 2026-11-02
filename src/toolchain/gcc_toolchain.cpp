@@ -8,7 +8,7 @@ namespace hm {
         bool isC;
 
       public:
-        explicit GccCompiler(bool clang, bool isC = false) : is_clang(clang), isC(isC) {}
+        explicit GccCompiler(bool clang, bool C_lang = false) : is_clang(clang), isC(C_lang) {}
 
         std::string name() const override {
             if (isC && is_clang)
