@@ -445,42 +445,42 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 continue;
             }
 
-            if (auto v = fieldValue(line, "Git:"); v) {
-                currentDep.git = *v;
-                debugField("Dependency Git", *v);
-            } else if (auto v = fieldValue(line, "Url:"); v) {
-                currentDep.url = *v;
-                debugField("Dependency Url", *v);
-            } else if (auto v = fieldValue(line, "Path:"); v) {
-                currentDep.path = *v;
-                debugField("Dependency Path", *v);
-            } else if (auto v = fieldValue(line, "Tag:"); v) {
-                currentDep.tag = *v;
-                debugField("Dependency Tag", *v);
-            } else if (auto v = fieldValue(line, "Commit:"); v) {
-                currentDep.commit = *v;
-                debugField("Dependency Commit", *v);
-            } else if (auto v = fieldValue(line, "Hash:"); v) {
-                currentDep.hash = *v;
-                debugField("Dependency Hash", *v);
-            } else if (auto v = fieldValue(line, "Build:"); v) {
-                currentDep.builds.push_back(*v);
-                debugField("Dependency Build", *v);
-            } else if (auto v = fieldValue(line, "Include:"); v) {
-                currentDep.includes.push_back(*v);
-                debugField("Dependency Include", *v);
-            } else if (auto v = fieldValue(line, "Link:"); v) {
-                currentDep.links.push_back(*v);
-                debugField("Dependency Link", *v);
-            } else if (auto v = fieldValue(line, "LinkDir:"); v) {
-                currentDep.linkDirs.push_back(*v);
-                debugField("Dependency LinkDir", *v);
-            } else if (auto v = fieldValue(line, "LinkFlags:"); v) {
-                currentDep.linkFlags.push_back(*v);
-                debugField("Dependency LinkFlags", *v);
-            } else if (auto v = fieldValue(line, "Depends:"); v) {
+            if (auto gitValue = fieldValue(line, "Git:"); gitValue) {
+                currentDep.git = *gitValue;
+                debugField("Dependency Git", *gitValue);
+            } else if (auto urlValue = fieldValue(line, "Url:"); urlValue) {
+                currentDep.url = *urlValue;
+                debugField("Dependency Url", *urlValue);
+            } else if (auto pathValue = fieldValue(line, "Path:"); pathValue) {
+                currentDep.path = *pathValue;
+                debugField("Dependency Path", *pathValue);
+            } else if (auto tagValue = fieldValue(line, "Tag:"); tagValue) {
+                currentDep.tag = *tagValue;
+                debugField("Dependency Tag", *tagValue);
+            } else if (auto commitValue = fieldValue(line, "Commit:"); commitValue) {
+                currentDep.commit = *commitValue;
+                debugField("Dependency Commit", *commitValue);
+            } else if (auto hashValue = fieldValue(line, "Hash:"); hashValue) {
+                currentDep.hash = *hashValue;
+                debugField("Dependency Hash", *hashValue);
+            } else if (auto buildValue = fieldValue(line, "Build:"); buildValue) {
+                currentDep.builds.push_back(*buildValue);
+                debugField("Dependency Build", *buildValue);
+            } else if (auto includeValue = fieldValue(line, "Include:"); includeValue) {
+                currentDep.includes.push_back(*includeValue);
+                debugField("Dependency Include", *includeValue);
+            } else if (auto linkValue = fieldValue(line, "Link:"); linkValue) {
+                currentDep.links.push_back(*linkValue);
+                debugField("Dependency Link", *linkValue);
+            } else if (auto linkDirValue = fieldValue(line, "LinkDir:"); linkDirValue) {
+                currentDep.linkDirs.push_back(*linkDirValue);
+                debugField("Dependency LinkDir", *linkDirValue);
+            } else if (auto linkFlagsValue = fieldValue(line, "LinkFlags:"); linkFlagsValue) {
+                currentDep.linkFlags.push_back(*linkFlagsValue);
+                debugField("Dependency LinkFlags", *linkFlagsValue);
+            } else if (auto dependencyNamesValue = fieldValue(line, "Depends:"); dependencyNamesValue) {
                 std::string cleaned;
-                for (char c : *v)
+                for (char c : *dependencyNamesValue)
                     cleaned += (c == ',') ? ' ' : c;
                 for (const auto &depName : splitArgs(cleaned))
                     if (!depName.empty())
@@ -520,53 +520,53 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             continue;
         }
 
-        if (auto v = fieldValue(line, "Arguments:"); v) {
-            parseArgument(target, *v);
-        } else if (auto v = fieldValue(line, "Compiler:"); v) {
+        if (auto argumentsValue = fieldValue(line, "Arguments:"); argumentsValue) {
+            parseArgument(target, *argumentsValue);
+        } else if (auto compilerValue = fieldValue(line, "Compiler:"); compilerValue) {
             if (target.compiler.empty() || pl.conditional)
-                target.compiler = *v;
+                target.compiler = *compilerValue;
             debugField("Compiler", target.compiler, section.configName);
-        } else if (auto v = fieldValue(line, "Version:"); v) {
+        } else if (auto versionValue = fieldValue(line, "Version:"); versionValue) {
             if (target.version.empty() || pl.conditional)
-                target.version = *v;
+                target.version = *versionValue;
             debugField("Version", target.version, section.configName);
-        } else if (auto v = fieldValue(line, "Output:"); v) {
+        } else if (auto outputValue = fieldValue(line, "Output:"); outputValue) {
             if (target.output.empty() || pl.conditional)
-                target.output = *v;
+                target.output = *outputValue;
             debugField("Output", target.output, section.configName);
-        } else if (auto v = fieldValue(line, "Flags:"); v) {
-            appendFlags(target, *v);
-            debugField("Flags", *v, section.configName);
-        } else if (auto v = fieldValue(line, "InputFiles:"); v) {
-            appendInputFiles(target, *v);
-        } else if (auto v = fieldValue(line, "Includes:"); v) {
-            target.includes += (target.includes.empty() ? "" : " ") + *v;
-            appendIncludes(target, *v);
+        } else if (auto flagsValue = fieldValue(line, "Flags:"); flagsValue) {
+            appendFlags(target, *flagsValue);
+            debugField("Flags", *flagsValue, section.configName);
+        } else if (auto inputFilesValue = fieldValue(line, "InputFiles:"); inputFilesValue) {
+            appendInputFiles(target, *inputFilesValue);
+        } else if (auto includesValue = fieldValue(line, "Includes:"); includesValue) {
+            target.includes += (target.includes.empty() ? "" : " ") + *includesValue;
+            appendIncludes(target, *includesValue);
         } else if (line.find("Run:") != std::string_view::npos) {
             target.run = true;
             debugField("Run", "true", section.configName);
-        } else if (auto v = fieldValue(line, "Kind:"); v) {
-            setKind(target, *v, lineNo);
+        } else if (auto kindValue = fieldValue(line, "Kind:"); kindValue) {
+            setKind(target, *kindValue, lineNo);
             debugField("Kind", target.kind, section.configName);
-        } else if (auto v = fieldValue(line, "Jobs:"); v) {
-            setJobs(target, *v, lineNo);
+        } else if (auto jobsValue = fieldValue(line, "Jobs:"); jobsValue) {
+            setJobs(target, *jobsValue, lineNo);
             debugField("Jobs", target.jobs, section.configName);
-        } else if (auto v = fieldValue(line, "Modules:"); v) {
-            appendModules(target, *v);
-        } else if (auto v = fieldValue(line, "PCH:"); v) {
+        } else if (auto modulesValue = fieldValue(line, "Modules:"); modulesValue) {
+            appendModules(target, *modulesValue);
+        } else if (auto pchValue = fieldValue(line, "PCH:"); pchValue) {
             if (target.pch.empty() || pl.conditional)
-                target.pch = *v;
+                target.pch = *pchValue;
             debugField("PCH", target.pch, section.configName);
-        } else if (auto v = fieldValue(line, "Gen:"); v) {
-            target.v_Gens.push_back(*v);
-            debugField("Generator", *v);
-        } else if (auto v = fieldValue(line, "Test:"); v) {
+        } else if (auto generatorValue = fieldValue(line, "Gen:"); generatorValue) {
+            target.v_Gens.push_back(*generatorValue);
+            debugField("Generator", *generatorValue);
+        } else if (auto testValue = fieldValue(line, "Test:"); testValue) {
             if (isRoot) {
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: 'Test:' is only valid inside a Config block", filename.string(), lineNo));
                 continue;
             }
 
-            std::string val = to_lower(trim(*v));
+            std::string val = to_lower(trim(*testValue));
 
             if (val == "true" || val == "1")
                 target.test = true;
@@ -578,9 +578,9 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             }
 
             debugField("Test", target.test, section.configName);
-        } else if (auto v = fieldValue(line, "Depends:"); v) {
+        } else if (auto configDependenciesValue = fieldValue(line, "Depends:"); configDependenciesValue) {
             std::string cleaned;
-            for (char c : *v)
+            for (char c : *configDependenciesValue)
                 cleaned += (c == ',') ? ' ' : c;
             for (const auto &name : splitArgs(cleaned))
                 if (!name.empty())
