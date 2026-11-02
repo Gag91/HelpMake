@@ -121,6 +121,7 @@ class Parser {
     int generateCompileCommands(const Config &c);
     int executeConfigs(const std::vector<std::string> &names);
     int autoCompiler(Config &c, const std::string &tag);
+    int autoVersion(Config &c, const std::string &tag);
 
     void install();
     void compileLib();

@@ -114,6 +114,12 @@ int Parser::parse() {
             return rc;
     }
 
+    if (cfg.version.empty()) {
+        int rc = autoVersion(cfg, "[HelpMake]");
+        if (rc != 0)
+            return rc;
+    }
+
     if (cfg.allCfgs) {
         std::vector<std::string> names;
         for (const auto &[n, _] : configs)

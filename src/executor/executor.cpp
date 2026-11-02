@@ -162,7 +162,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     if (!version.empty())
         CommandFlags = version;
     if (!c.v_Modules.empty() && comp->name() == "gcc" &&
-        std::ranges::find(c.v_Modules, "-fmodules") == std::ranges::end(c.v_Modules)) {
+        std::find(c.v_Modules.begin(), c.v_Modules.end(), "-fmodules") == std::ranges::end(c.v_Modules)) {
         if (!CommandFlags.empty())
             CommandFlags += ' ';
         CommandFlags += "-fmodules";
@@ -1126,4 +1126,67 @@ int Parser::autoCompiler(Config &c, const std::string &tag) {
 
     c.v_Errors.push_back(std::format("{} Error: No compiler known for extension '{}'. Set 'Compiler:' explicitly.", tag, firstExt));
     return 1;
+}
+
+int Parser::autoVersion(Config &c, const std::string &tag) {
+    if (!c.version.empty())
+        return 0;
+
+    if (c.compiler == "cl" || c.compiler == "msvc") {
+        c.version = "/std:c++latest";
+        return 0;
+    }
+
+    bool isGcc = c.compiler == "gcc" || c.compiler == "g++";
+    bool isClang = c.compiler == "clang" || c.compiler == "clang++";
+    bool isZig = c.compiler == "zig cc" || c.compiler == "zig c++";
+
+    if (!isGcc && !isClang && !isZig)
+        return 0;
+
+    std::string raw = trim(hp::command(std::format("{} -dumpversion", c.compiler)));
+    if (raw.empty())
+        return 0;
+
+    int major = 0;
+    std::sscanf(raw.c_str(), "%d", &major);
+    if (major <= 0)
+        return 0;
+
+    bool isC = (c.compiler == "gcc" || c.compiler == "clang" || c.compiler == "zig cc");
+
+    struct StdEntry {
+        std::string flag;
+        int gcc;
+        int clang;
+    };
+
+    static constexpr std::array<StdEntry, 5> cxxMap = {{
+        {"std=c++14", 5, 3},
+        {"std=c++17", 8, 7},
+        {"std=c++20", 11, 12},
+        {"std=c++23", 14, 17},
+        {"std=c++26", 16, 22},
+    }};
+
+    static constexpr std::array<StdEntry, 4> cMap = {{
+        {"std=c99", 5, 3},
+        {"std=c11", 8, 6},
+        {"std=c17", 14, 18},
+        {"std=c23", 14, 18},
+    }};
+
+    auto pick = [&](const auto &table, const std::string &fallback) -> std::string {
+        std::string chosen = fallback;
+        for (const auto &entry : table) {
+            int required = isGcc ? entry.gcc : entry.clang;
+            if (major >= required)
+                chosen = entry.flag;
+        }
+        return chosen;
+    };
+
+    c.version = isC ? pick(cMap, "std=c99") : pick(cxxMap, "std=c++14");
+    c.v_Info[std::format("{} Warning: Version not specified. Auto-detected version flag: {}", tag, c.version)] = hp::YELLOW;
+    return 0;
 }

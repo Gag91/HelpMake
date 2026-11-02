@@ -1,5 +1,4 @@
 #pragma once
-
 #include <iostream>
 
 namespace hp {
@@ -22,7 +21,7 @@ namespace hp {
                 return value;
             }
             std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cin.ignore((std::numeric_limits<std::streamsize>::max()), '\n');
             std::cout << error << std::endl;
         }
     }
@@ -35,7 +34,7 @@ namespace hp {
             return value;
         } else {
             std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cin.ignore((std::numeric_limits<std::streamsize>::max()), '\n');
             std::cout << error << std::endl;
         }
         return "";
