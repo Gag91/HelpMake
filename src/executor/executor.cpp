@@ -1367,6 +1367,16 @@ int Parser::collectFiles(Config &c, const std::string &folderPath) {
         "temp",
     };
 
+    static constexpr std::array<std::string_view, 10> extMain{
+        ".c",
+        ".cpp",
+        ".cxx",
+        ".cc",
+        ".zig",
+        ".go",
+        ".rs",
+    };
+
     auto lower = [](std::string s) {
         std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) {
             return static_cast<char>(std::tolower(ch));
@@ -1386,6 +1396,7 @@ int Parser::collectFiles(Config &c, const std::string &folderPath) {
 
     std::map<std::string, std::vector<std::string>> extGroupedFiles;
 
+    bool haveMain;
     std::error_code ec;
     for (auto it = std::filesystem::recursive_directory_iterator(
              root, std::filesystem::directory_options::skip_permission_denied, ec);
@@ -1406,7 +1417,19 @@ int Parser::collectFiles(Config &c, const std::string &folderPath) {
             continue;
 
         extGroupedFiles[ext].push_back(it->path().lexically_relative(root).generic_string());
+        if (std::any_of(extMain.begin(), extMain.end(), [ext](std::string_view local_ext) -> bool { return local_ext == ext; })) {
+            std::string line;
+            std::fstream src(it->path(), std::ios::in);
+            while (std::getline(src, line)) {
+                if (line.find("//") != std::string::npos)
+                    continue;
+                if (line.find("main()") != std::string::npos)
+                    haveMain = true;
+            }
+        }
     }
+    if (c.kind != "executable")
+        c.kind = haveMain ? "executable" : "static";
 
     if (extGroupedFiles.empty())
         return 1;
