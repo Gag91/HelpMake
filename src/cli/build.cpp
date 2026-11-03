@@ -1,4 +1,5 @@
 #include "hm/parser/parser.hpp"
+#include "hm/util/bools.hpp"
 #include "hm/util/strings.hpp"
 
 #include "hp/colors/color.hpp"
@@ -15,8 +16,51 @@
 
 namespace hm::cli {
 
+    struct ScalarFlag {
+        std::string_view name;
+        std::string Config::*field;
+    };
+
+    static constexpr std::array<ScalarFlag, 11> scalarFlags = {{
+        {"compiler", &Config::compiler},
+        {"version", &Config::version},
+        {"output", &Config::output},
+        {"flags", &Config::flags},
+        {"includes", &Config::includes},
+        {"kind", &Config::kind},
+        {"modules", &Config::modules},
+        {"input", &Config::inputFile},
+        {"pre", &Config::Precmd},
+        {"post", &Config::Postcmd},
+        {"pch", &Config::pch},
+    }};
+
+    struct BoolFlag {
+        std::string_view name;
+        bool Config::*field;
+    };
+
+    static constexpr std::array<BoolFlag, 15> boolFlags = {{
+        {"verbose", &Config::verbose},
+        {"debug", &Config::debug},
+        {"dry-run", &Config::dryRun},
+        {"quiet", &Config::quiet},
+        {"notify", &Config::notify},
+        {"rebuild", &Config::rebuild},
+        {"json", &Config::json},
+        {"time", &Config::time},
+        {"sep", &Config::seperate},
+        {"watch", &Config::watch},
+        {"run", &Config::run},
+        {"nofile", &Config::n_file},
+        {"create", &Config::create},
+        {"config-all", &Config::allCfgs},
+        {"frozen", &Config::frozen},
+    }};
+
     int build(int argc, char **argv, Config &config, const std::filesystem::path &filename) {
         std::vector<std::string> selectedConfigs;
+
         bool dryRunRequested = false;
         bool watchRequested = config.watch;
         for (int i = 2; i < argc; ++i) {
@@ -31,6 +75,79 @@ namespace hm::cli {
 
         for (int i = 2; i < argc; i++) {
             std::string_view arg = argv[i];
+            bool handled = false;
+
+            if (arg.starts_with("--")) {
+                std::string_view body = arg.substr(2);
+                std::string name;
+                std::string value;
+                bool hasValue = false;
+
+                std::size_t pos = body.find('=');
+                if (pos != std::string_view::npos) {
+                    name = body.substr(0, pos);
+                    value = std::string(body.substr(pos + 1));
+                    hasValue = true;
+                } else {
+                    name = body;
+                }
+
+                for (const auto &f : boolFlags) {
+                    if (is_typo(name, f.name)) {
+                        hp::printlnCl(std::format("[HelpMake] Error: Unknown Flag '{}'. Did you mean {} ?", name, f.name), hp::RED);
+                        return 1;
+                    }
+                    if (f.name != name)
+                        continue;
+
+                    if (!value.empty()) {
+                        value = to_lower(value);
+                        if (value == "true")
+                            config.*f.field = true;
+                        else if (value == "false")
+                            config.*f.field = false;
+                        else {
+                            if (is_typo("false", value))
+                                hp::printlnCl(std::format("[HelpMake] Error: Unknow bool value '{}'. Did you mean false ?", value), hp::RED);
+                            else if (is_typo("true", value))
+                                hp::printlnCl(std::format("[HelpMake] Error: Unknow bool value '{}'. Did you mean true ?", value), hp::RED);
+                            else
+                                hp::printlnCl(std::format("[HelpMake] Error: Unknow bool value '{}'", value), hp::RED);
+                            return 1;
+                        }
+                    } else {
+                        config.*f.field = true;
+                    }
+                    handled = true;
+                    break;
+                }
+
+                for (const auto &f : scalarFlags) {
+                    if (f.name != name)
+                        continue;
+
+                    if (!hasValue) {
+                        if (i + 1 < argc) {
+                            value = std::string(argv[++i]);
+                        } else {
+                            hp::printlnCl(std::format("[HelpMake] Error: value required after '--{}'.", name), hp::RED);
+                            return 1;
+                        }
+                    }
+
+                    if (name == "kind") {
+                        config.kind = to_lower(value);
+                    } else {
+                        config.*f.field = value;
+                    }
+
+                    handled = true;
+                    break;
+                }
+
+                if (handled)
+                    continue;
+            }
 
             if (arg == "-Gcc" || arg == "-gcc") {
                 config.compiler = "gcc";
@@ -43,115 +160,115 @@ namespace hm::cli {
             } else if (arg == "-sere" || arg == "-Sere") {
                 config.compiler = "sere";
                 config.buildSere = true;
-            } else if (arg == "-C" || arg == "--compiler") {
-                if (i + 1 < argc && argv[i + 1][0] != '-')
-                    config.compiler = argv[++i];
-                else {
+            } else if (arg == "-C") {
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    config.compiler = std::string(argv[++i]);
+                } else {
                     hp::printlnCl("[HelpMake] Error: Compiler not specified after '-C'.", hp::RED);
-                    std::exit(EXIT_FAILURE);
+                    return 1;
                 }
-            } else if (arg == "-V" || arg == "--compiler-version") {
-                if (i + 1 < argc && argv[i + 1][0] != '-')
-                    config.version = argv[++i];
-                else {
+            } else if (arg == "-V") {
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    config.version = std::string(argv[++i]);
+                } else {
                     hp::printlnCl("[HelpMake] Error: Version not specified after '-V'.", hp::RED);
-                    std::exit(EXIT_FAILURE);
+                    return 1;
                 }
             } else if (arg.rfind("-C=", 0) == 0) {
-                std::string value = std::string(arg).substr(3);
+                std::string value = std::string(arg.substr(3));
                 if (value.empty()) {
-                    if (i + 1 < argc && argv[i + 1][0] != '-')
-                        value = argv[++i];
-                    else {
+                    if (i + 1 < argc && argv[i + 1][0] != '-') {
+                        value = std::string(argv[++i]);
+                    } else {
                         hp::printlnCl("[HelpMake] Error: Compiler not specified after '-C='.", hp::RED);
                         return 1;
                     }
                 }
                 config.compiler = value;
-                if (config.debug)
-                    hp::printlnCl(std::format("[Debug] Special compiler: {}", config.compiler), hp::YELLOW);
             } else if (arg.rfind("-V=", 0) == 0) {
-                std::string value = std::string(arg).substr(3);
+                std::string value = std::string(arg.substr(3));
                 if (value.empty()) {
-                    if (i + 1 < argc && argv[i + 1][0] != '-')
-                        value = argv[++i];
-                    else {
+                    if (i + 1 < argc && argv[i + 1][0] != '-') {
+                        value = std::string(argv[++i]);
+                    } else {
                         hp::printlnCl("[HelpMake] Error: Version not specified after '-V='.", hp::RED);
                         return 1;
                     }
                 }
                 config.version = value;
-                if (config.debug)
-                    hp::printlnCl(std::format("[Debug] Special version: {}", config.version), hp::YELLOW);
-            } else if (arg == "-o" || arg == "--output") {
-                if (i + 1 < argc && argv[i + 1][0] != '-')
-                    config.output = argv[++i];
-                else {
-                    hp::printlnCl("[HelpMake] Error: Output file not specified after '" + std::string(arg) + "'.", hp::RED);
+            } else if (arg == "-o") {
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    config.output = std::string(argv[++i]);
+                } else {
+                    hp::printlnCl("[HelpMake] Error: Output file not specified after '-o'.", hp::RED);
                     return 1;
                 }
             } else if (arg.rfind("-o", 0) == 0 && arg.size() > 2) {
-                config.output = std::string(arg).substr(2);
-            } else if (arg == "-F" || arg == "--Flag") {
+                config.output = std::string(arg.substr(2));
+            } else if (arg == "-F") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
-                    if (!config.flags.empty())
-                        config.flags += " ";
-                    std::string flagValue = argv[++i];
+                    std::string flagValue = std::string(argv[++i]);
                     if (!config.flags.empty())
                         config.flags += " ";
                     config.flags += flagValue;
                     config.v_Flags.push_back(flagValue);
                 } else {
-                    hp::printlnCl("[HelpMake] Error: Additional flags not specified after '" + std::string(arg) + "'.", hp::RED);
+                    hp::printlnCl("[HelpMake] Error: Additional flags not specified after '-F'.", hp::RED);
                     return 1;
                 }
             } else if (arg.rfind("-F", 0) == 0 && arg.size() > 2) {
-                std::string n_flags = std::string(arg).substr(2);
+                std::string flagValue = std::string(arg.substr(2));
                 if (!config.flags.empty())
                     config.flags += " ";
-                config.flags += n_flags;
-                config.v_Flags.push_back(n_flags);
-            } else if (arg == "-I" || arg == "--Include") {
+                config.flags += flagValue;
+                config.v_Flags.push_back(flagValue);
+            } else if (arg == "-I") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    std::string includePath = std::string(argv[++i]);
                     if (!config.flags.empty())
                         config.flags += " ";
-                    config.flags += "-I" + std::string(argv[++i]);
+                    config.flags += "-I" + includePath;
+                    config.includeFiles.push_back(includePath);
                 } else {
-                    hp::printlnCl("[HelpMake] Error: Include path not specified after '" + std::string(arg) + "'.", hp::RED);
+                    hp::printlnCl("[HelpMake] Error: Include path not specified after '-I'.", hp::RED);
                     return 1;
                 }
             } else if (arg.rfind("-I", 0) == 0 && arg.size() > 2) {
-                std::string includePath = std::string(arg).substr(2);
-                if (!config.v_Flags.empty())
+                std::string includePath = std::string(arg.substr(2));
+                if (!config.flags.empty())
                     config.flags += " ";
                 config.flags += "-I" + includePath;
-            } else if (arg == "-L" || arg == "--Library") {
+                config.includeFiles.push_back(includePath);
+            } else if (arg == "-L") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
-                    if (!config.v_Flags.empty())
+                    std::string libPath = std::string(argv[++i]);
+                    if (!config.flags.empty())
                         config.flags += " ";
-                    config.flags += "-L" + std::string(argv[++i]);
+                    config.flags += "-L" + libPath;
                 } else {
-                    hp::printlnCl("[HelpMake] Error: Library path not specified after '" + std::string(arg) + "'.", hp::RED);
+                    hp::printlnCl("[HelpMake] Error: Library path not specified after '-L'.", hp::RED);
                     return 1;
                 }
             } else if (arg.rfind("-L", 0) == 0 && arg.size() > 2) {
-                std::string libPath = std::string(arg).substr(2);
-                if (!config.v_Flags.empty())
+                std::string libPath = std::string(arg.substr(2));
+                if (!config.flags.empty())
                     config.flags += " ";
                 config.flags += "-L" + libPath;
-            } else if (arg == "-f" || arg == "--file") {
+            } else if (arg == "-f") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     const_cast<std::filesystem::path &>(filename) = std::string(argv[++i]);
                 } else {
-                    hp::printlnCl("[HelpMake] Error: filename not specified after '" + std::string(arg) + "'.", hp::RED);
+                    hp::printlnCl("[HelpMake] Error: filename not specified after '-f'.", hp::RED);
                     return 1;
                 }
-            } else if (arg == "-j" || arg == "--jobs") {
+            } else if (arg.rfind("-f=", 0) == 0 && arg.size() > 2) {
+                const_cast<std::filesystem::path &>(filename) = std::string(arg.substr(3));
+            } else if (arg == "-j") {
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     try {
-                        config.jobs = std::stoi(argv[++i]);
+                        config.jobs = std::stoi(std::string(argv[++i]));
                     } catch (...) {
-                        hp::printlnCl(std::format("Error: Invalid value for '{}'", arg), hp::RED);
+                        hp::printlnCl("[HelpMake] Error: Invalid value for '-j'.", hp::RED);
                         return 1;
                     }
                 } else {
@@ -161,92 +278,50 @@ namespace hm::cli {
                 }
             } else if (arg.rfind("-j", 0) == 0 && arg.size() > 2) {
                 try {
-                    config.jobs = std::stoi(std::string(arg).substr(2));
+                    config.jobs = std::stoi(std::string(arg.substr(2)));
                 } catch (...) {
-                    hp::printlnCl(std::format("Error: Invalid value for '-j{}'", std::string(arg).substr(2)), hp::RED);
+                    hp::printlnCl(std::format("[HelpMake] Error: Invalid value for '-j{}'.", arg.substr(2)), hp::RED);
                     return 1;
                 }
             } else if (arg == "--config") {
-                if (i + 1 < argc && argv[i + 1][0] != '-')
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
                     selectedConfigs.push_back(std::string(argv[++i]));
-                else {
-                    hp::printlnCl("[HelpMake] Error: Config name not specified after '" + std::string(arg) + "'.", hp::RED);
+                } else {
+                    hp::printlnCl("[HelpMake] Error: Config name not specified after '--config'.", hp::RED);
                     return 1;
                 }
             } else if (arg.rfind("--config=", 0) == 0 && arg.size() > 9) {
-                selectedConfigs.push_back(std::string(arg).substr(9));
-            } else if (arg == "--Kind") {
-                if (i + 1 < argc && argv[i + 1][0] != '-')
-                    config.kind = to_lower(argv[++i]);
-                else {
-                    hp::printlnCl(std::format("[HelpMake] Error: Kind not specified after '{}'.", arg), hp::RED);
-                    return 1;
-                }
-            } else if (arg.rfind("--Kind=", 0) == 0 && arg.size() > 7) {
-                config.kind = to_lower(arg.substr(7));
-            } else if (arg == "--config-all") {
-                config.allCfgs = true;
-            } else if (arg.rfind("-f=", 0) == 0 && arg.size() > 2) {
-                const_cast<std::filesystem::path &>(filename) = std::string(arg).substr(3);
-            } else if (arg == "-v" || arg == "--verbose") {
-                config.verbose = true;
-            } else if (arg == "-r" || arg == "--run") {
-                std::cout << "run activated";
-                config.run = true;
+                selectedConfigs.push_back(std::string(arg.substr(9)));
             } else if (arg == "--var") {
                 if (i + 1 >= argc) {
                     hp::printlnCl("[HelpMake] Error: --var requires NAME=VALUE", hp::RED);
-                    exit(EXIT_FAILURE);
+                    return 1;
                 }
-                std::string rest = argv[++i];
+                std::string rest = std::string(argv[++i]);
                 std::size_t pos = rest.find('=');
                 if (pos == std::string::npos || pos == 0) {
                     hp::printlnCl(std::format("[HelpMake] Error: --var expects NAME=VALUE, got '{}'", rest), hp::RED);
-                    exit(EXIT_FAILURE);
+                    return 1;
                 }
-                std::string key = trim(rest.substr(0, pos));
-                std::string value = trim(rest.substr(pos + 1));
-                config.v_Vars[key] = value;
-
+                config.v_Vars[trim(rest.substr(0, pos))] = trim(rest.substr(pos + 1));
             } else if (arg.rfind("--var=", 0) == 0) {
-                std::string rest = std::string(arg).substr(6);
+                std::string rest = std::string(arg.substr(6));
                 std::size_t pos = rest.find('=');
                 if (pos == std::string::npos || pos == 0) {
-                    hp::printlnCl(std::format("[HelpMake] Error: --var expects NAME=VALUE, got '{}'", arg), hp::RED);
-                    exit(EXIT_FAILURE);
+                    hp::printlnCl(std::format("[HelpMake] Error: --var expects NAME=VALUE, got '{}'", rest), hp::RED);
+                    return 1;
                 }
-                std::string key = trim(rest.substr(0, pos));
-                std::string value = trim(rest.substr(pos + 1));
-                config.v_Vars[key] = value;
-
+                config.v_Vars[trim(rest.substr(0, pos))] = trim(rest.substr(pos + 1));
             } else if (arg == "-ZigCpp" || arg == "-zigcpp" || arg == "-zig-c++" || arg == "-Zigc++") {
                 config.compiler = "zig c++";
             } else if (arg == "-ZigCC" || arg == "-zigcc" || arg == "-zig-cc" || arg == "-Zigcc") {
                 config.compiler = "zig-cc";
             } else if (arg == "-Go" || arg == "-go" || arg == "-golang") {
                 config.compiler = "go";
-            } else if (arg == "--debug") {
-                config.debug = true;
-            } else if (arg == "--dry-run") {
-                config.dryRun = true;
-            } else if (arg == "--nofile") {
-                config.n_file = true;
-            } else if (arg == "--create") {
-                config.create = true;
-            } else if (arg == "--json") {
-                config.json = true;
-            } else if (arg == "--no-sep") {
-                config.seperate = false;
-            } else if (arg == "--rebuild") {
-                config.rebuild = true;
-            } else if (arg == "--frozen") {
-                config.frozen = true;
-            } else if (arg == "--quiet") {
-                config.quiet = true;
-            } else if (arg == "--notify") {
-                config.notify = true;
-            } else if (arg == "--time") {
-                config.time = true;
+            } else if (arg == "-v") {
+                config.verbose = true;
+            } else if (arg == "-r") {
+                config.run = true;
             } else if (arg == "--watch") {
                 Parser parse(filename, config);
                 parse.parse();
@@ -270,7 +345,7 @@ namespace hm::cli {
                 config.inputFile += std::string(arg);
             } else {
                 hp::printlnCl(std::format("[HelpMake] Error: Invalid Argument '{}'.\n Use --help for the available arguments", arg), hp::RED);
-                exit(EXIT_FAILURE);
+                return 1;
             }
         }
 
@@ -305,7 +380,7 @@ namespace hm::cli {
                 double dep = get("Dependency");
                 double exec = get("Execute");
 
-                double parsePure = (std::max(0.0, parseRaw - fetch));
+                double parsePure = std::max(0.0, parseRaw - fetch);
                 double total = parseRaw + dep + exec;
 
                 if (total >= 0.001) {
@@ -352,9 +427,8 @@ namespace hm::cli {
             }
 
             Parser parser(filename, config);
-            if (parser.parse() != 0) {
+            if (parser.parse() != 0)
                 return 1;
-            }
             if (!config.create)
                 return parser.execute();
         }

@@ -628,6 +628,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             args.push_back(tok);
 
         std::vector<std::string> inputs = splitArgs(c.inputFile);
+        inputs = expandInputs(c);
         for (auto &a : comp->directBuildArgs(inputs, c.output))
             args.push_back(a);
 
@@ -651,7 +652,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         }
 
         if (showOutput)
-            hp::printlnCl(std::format("{} Real Command: {}", tag, command), hp::YELLOW);
+            hp::printlnCl(std::format("\n{} Real Command: {}", tag, command), hp::YELLOW);
 
         if (!c.dryRun) {
             auto buildResult = hm::Process::run(command);

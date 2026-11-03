@@ -1,7 +1,10 @@
 #include "hm/cli/cli.hpp"
 #include "hm/generator/generator.hpp"
 #include "hm/parser/parser.hpp"
+#include "hm/process/process.hpp"
+#include "hm/toolchain/compiler.hpp"
 #include "hm/util/containers.hpp"
+
 #include "hp/colors/color.hpp"
 #include "hp/containers/containers.hpp"
 #include "hp/other/other.hpp"
@@ -269,11 +272,20 @@ int main(int argc, char *argv[]) {
 
         int passed = 0;
         int failed = 0;
+        int skipped = 0;
         double total = 0;
         std::vector<std::pair<std::string, std::string>> failures;
 
         for (const auto &name : names) {
+
             Config local = parser.inheritConfig(parser.getConfigs()[name]);
+            auto comp = hm::makeCompiler(local.compiler);
+            if (comp && !hm::Process::exists(comp->binary())) {
+                hp::printlnCl(std::format("  {:<20} SKIP  compiler '{}' not found", name, local.compiler), hp::YELLOW);
+                skipped++;
+                continue;
+            }
+
             local.quiet = true;
             parser.getConfig().quiet = true;
             auto t0 = hp::startTimer();
@@ -308,7 +320,7 @@ int main(int argc, char *argv[]) {
             hp::printlnCl("", hp::RESET);
 
         hp::Color summaryColor = (failed == 0) ? hp::GREEN : hp::RED;
-        hp::printlnCl(std::format("  {} passed, {} failed, {:.2f}s total", passed, failed, total), summaryColor);
+        hp::printlnCl(std::format("  {} passed, {} failed, {} skipped, {:.2f}s total", passed, failed, skipped, total), summaryColor);
 
         if (!failures.empty()) {
             hp::printlnCl("\nFailures:", hp::RED);

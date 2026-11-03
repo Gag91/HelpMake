@@ -84,6 +84,7 @@ Config: test-gcc-modules {
     }
     Flags {
         -Wall
+        -fmodules
     }
 }
 
