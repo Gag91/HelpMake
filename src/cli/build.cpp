@@ -354,6 +354,43 @@ namespace hm::cli {
                 hp::printlnCl("Build file not found. Using default HelpMake.txt", hp::YELLOW);
                 const_cast<std::filesystem::path &>(filename) = "HelpMake.txt";
             }
+
+            if (!config.n_file && !config.create)
+                hp::printlnCl("Build file not found: " + filename.string(), hp::YELLOW);
+            if (config.verbose)
+                hp::printlnCl("Building from command-line arguments only\n", hp::CYAN);
+
+            Parser Rawparser(filename, config);
+            if (config.v_inputFiles.empty()) {
+                if (Rawparser.collectFiles(config, ".") != 0) {
+                    hp::printlnCl("[HelpMake] Error: No source files found in the current directory.", hp::RED);
+                    return 1;
+                }
+            }
+
+            if (Rawparser.autoInputFiles(config, "[HelpMake]") != 0)
+                return 1;
+            if (config.compiler.empty() && Rawparser.autoCompiler(config, "[HelpMake]") != 0)
+                return 1;
+            if (config.version.empty() && Rawparser.autoVersion(config, "[HelpMake]") != 0)
+                return 1;
+
+            if (config.compiler.empty()) {
+#ifdef _WIN32
+                config.compiler = "a.exe";
+#else
+                config.compiler = "a.out";
+#endif
+                config.v_Info[std::format("[HelpMake] Warning: Output not specified. Using {}", config.compiler)] = hp::YELLOW;
+            }
+            if (!config.v_Errors.empty()) {
+                for (const auto &e : config.v_Errors)
+                    hp::printCl(e, hp::RED);
+                return 1;
+            }
+
+            Parser full(filename, config);
+            return full.execute();
         }
 
         if (std::filesystem::exists(filename) && !config.n_file && !config.create) {
@@ -402,35 +439,6 @@ namespace hm::cli {
 
             if (rc != 0)
                 return rc;
-        } else {
-            if (!config.n_file && !config.create)
-                hp::printlnCl("Build file not found: " + filename.string(), hp::YELLOW);
-            if (config.verbose)
-                hp::printlnCl("Building from command-line arguments only\n", hp::CYAN);
-
-            if (config.compiler.empty()) {
-                hp::printlnCl("[HelpMake] Error: No compiler specified. Use -Gcc, -Clang, -MSVC, -Zig, -Sere or -C=<compiler>", hp::RED);
-                return 1;
-            }
-            if (config.inputFile.empty()) {
-                hp::printlnCl("[HelpMake] Error: No input files specified.", hp::RED);
-                return 1;
-            }
-            if (config.output.empty()) {
-#ifdef _WIN32
-                config.output = "a.exe";
-#else
-                config.output = "a.out";
-#endif
-                if (!config.quiet)
-                    hp::printlnCl("Warning: No output file specified. Using default: " + config.output, hp::YELLOW);
-            }
-
-            Parser parser(filename, config);
-            if (parser.parse() != 0)
-                return 1;
-            if (!config.create)
-                return parser.execute();
         }
         return 0;
     }

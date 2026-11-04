@@ -1134,6 +1134,7 @@ int Parser::autoCompiler(Config &c, const std::string &tag) {
     }
 
     c.v_Info[std::format("{} Error: No compiler known for extension '{}'. Set 'Compiler:' explicitly.", tag, firstExt)] = hp::RED;
+    c.v_Errors.push_back(std::format("{} Error: No compiler known for extension '{}'. Set 'Compiler:' explicitly.", tag, firstExt));
     return 1;
 }
 
@@ -1313,6 +1314,7 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
 
     if (c.v_inputFiles.empty()) {
         cfg.v_Info[std::format("{} Error: No input files found. Add an 'InputFiles {{ }}' block or place sources in 'src/'.", tag)] = hp::RED;
+        c.v_Errors.push_back(std::format("{} Error: No input files found. Add an 'InputFiles {{ }}' block or place sources in 'src/'.", tag));
         return 1;
     }
 
