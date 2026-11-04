@@ -1226,7 +1226,6 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
         "source",
         "code",
         "app",
-        "lib",
     };
 
     static constexpr std::array<std::string_view, 32> excludedDirs = {
