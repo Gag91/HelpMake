@@ -63,15 +63,16 @@ add_executable(hm
     src/toolchain/zigcpp_toolchain.cpp
 )
 
-target_include_directories(hmm PRIVATE
+target_include_directories(hm PRIVATE
     include
 )
 
-target_compile_options(hmm PRIVATE
+target_compile_options(hm PRIVATE
     -std=c++20
     -Ibuild/HelpMake/dep/Help_Library
     -Iinclude
     -Wall
+    -Werror
     -Wextra
     -Wpedantic
     -Wshadow

@@ -1221,6 +1221,14 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
         {{"python3", "python"}, {".py"}},
     };
 
+    static constexpr std::array<std::string_view, 5> srcDirs{
+        "src",
+        "source",
+        "code",
+        "app",
+        "lib",
+    };
+
     static constexpr std::array<std::string_view, 32> excludedDirs = {
         ".git",
         ".hg",
@@ -1280,19 +1288,25 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
             c.v_inputFiles.push_back(p.generic_string());
     };
 
-    if (std::filesystem::exists("src") && std::filesystem::is_directory("src")) {
+    if (std::any_of(srcDirs.begin(), srcDirs.end(), [](const std::filesystem::path &dir) -> bool {
+            return std::filesystem::exists(dir) && std::filesystem::is_directory(dir);
+        })) {
+
         std::error_code ec;
-        for (auto it = std::filesystem::recursive_directory_iterator("src", std::filesystem::directory_options::skip_permission_denied, ec);
-             it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
-            if (ec)
-                break;
-            if (it->is_directory() && isExcluded(it->path())) {
-                it.disable_recursion_pending();
-                continue;
+        for (const auto dirSrc : srcDirs) {
+            for (auto it = std::filesystem::recursive_directory_iterator(dirSrc, std::filesystem::directory_options::skip_permission_denied, ec);
+                 it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+                if (ec)
+                    break;
+                if (it->is_directory() && isExcluded(it->path())) {
+                    it.disable_recursion_pending();
+                    continue;
+                }
+                if (it->is_regular_file())
+                    addFile(it->path());
             }
-            if (it->is_regular_file())
-                addFile(it->path());
         }
+
         for (const auto &entry : std::filesystem::directory_iterator(".", ec)) {
             if (ec)
                 break;
@@ -1624,5 +1638,260 @@ int Parser::autoKind(Config &c, const std::string &tag) {
     c.kind = foundMain ? "executable" : "static";
     if (!foundMain)
         c.v_Info[std::format("{} Warning: No 'main' found. Using Kind: static", tag)] = hp::YELLOW;
+    return 0;
+}
+
+int Parser::autoOutput(Config &c, const std::string &tag) {
+    if (!c.output.empty())
+        return 0;
+
+#ifdef _WIN32
+    const std::string ext = ".exe";
+#else
+    const std::string ext = "";
+#endif
+
+    auto set = [&](const std::string &name) -> bool {
+        if (name.empty() || name == "." || name == "/" || name == "\\" || name.front() == '.')
+            return false;
+        c.output = name + ext;
+        return true;
+    };
+
+    if (std::filesystem::exists("Cargo.toml")) {
+        std::ifstream in("Cargo.toml");
+        std::string line;
+        bool inPackage = false;
+        while (std::getline(in, line)) {
+            std::string t = trim(line);
+            if (t == "[package]") {
+                inPackage = true;
+                continue;
+            }
+            if (!t.empty() && t.front() == '[')
+                inPackage = false;
+            if (!inPackage)
+                continue;
+            if (!t.starts_with("name ") && !t.starts_with("name="))
+                continue;
+            std::size_t q1 = t.find('"');
+            if (q1 == std::string::npos)
+                continue;
+            std::size_t q2 = t.find('"', q1 + 1);
+            if (q2 == std::string::npos)
+                continue;
+            if (set(t.substr(q1 + 1, q2 - q1 - 1)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("go.mod")) {
+        std::ifstream in("go.mod");
+        std::string line;
+        while (std::getline(in, line)) {
+            if (!line.starts_with("module "))
+                continue;
+            std::string mod = trim(line.substr(7));
+            std::size_t slash = mod.find_last_of('/');
+            if (set(slash == std::string::npos ? mod : mod.substr(slash + 1)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("package.json")) {
+        std::ifstream in("package.json");
+        std::string line;
+        while (std::getline(in, line)) {
+            std::size_t pos = line.find("\"name\"");
+            if (pos == std::string::npos)
+                continue;
+            std::size_t colon = line.find(':', pos);
+            if (colon == std::string::npos)
+                continue;
+            std::size_t q1 = line.find('"', colon);
+            if (q1 == std::string::npos)
+                continue;
+            std::size_t q2 = line.find('"', q1 + 1);
+            if (q2 == std::string::npos)
+                continue;
+            if (set(line.substr(q1 + 1, q2 - q1 - 1)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("pyproject.toml")) {
+        std::ifstream in("pyproject.toml");
+        std::string line;
+        bool inProject = false;
+        while (std::getline(in, line)) {
+            std::string t = trim(line);
+            if (t == "[project]" || t == "[tool.poetry]") {
+                inProject = true;
+                continue;
+            }
+            if (!t.empty() && t.front() == '[')
+                inProject = false;
+            if (!inProject)
+                continue;
+            if (!t.starts_with("name ") && !t.starts_with("name="))
+                continue;
+            std::size_t q1 = t.find_first_of("\"'");
+            if (q1 == std::string::npos)
+                continue;
+            char quote = t[q1];
+            std::size_t q2 = t.find(quote, q1 + 1);
+            if (q2 == std::string::npos)
+                continue;
+            if (set(t.substr(q1 + 1, q2 - q1 - 1)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("setup.py")) {
+        std::ifstream in("setup.py");
+        std::string line;
+        while (std::getline(in, line)) {
+            std::size_t pos = line.find("name=");
+            if (pos == std::string::npos)
+                continue;
+            std::size_t q1 = line.find_first_of("\"'", pos);
+            if (q1 == std::string::npos)
+                continue;
+            char quote = line[q1];
+            std::size_t q2 = line.find(quote, q1 + 1);
+            if (q2 == std::string::npos)
+                continue;
+            if (set(line.substr(q1 + 1, q2 - q1 - 1)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("build.zig")) {
+        std::ifstream in("build.zig");
+        std::string line;
+        while (std::getline(in, line)) {
+            if (line.find("addExecutable") == std::string::npos)
+                continue;
+            std::size_t pos = line.find(".name");
+            if (pos == std::string::npos)
+                continue;
+            std::size_t q1 = line.find('"', pos);
+            if (q1 == std::string::npos)
+                continue;
+            std::size_t q2 = line.find('"', q1 + 1);
+            if (q2 == std::string::npos)
+                continue;
+            if (set(line.substr(q1 + 1, q2 - q1 - 1)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("meson.build")) {
+        std::ifstream in("meson.build");
+        std::string line;
+        while (std::getline(in, line)) {
+            std::size_t pos = line.find("project(");
+            if (pos == std::string::npos)
+                continue;
+            std::size_t q1 = line.find('\'', pos);
+            if (q1 == std::string::npos)
+                continue;
+            std::size_t q2 = line.find('\'', q1 + 1);
+            if (q2 == std::string::npos)
+                continue;
+            if (set(line.substr(q1 + 1, q2 - q1 - 1)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("CMakeLists.txt")) {
+        std::ifstream in("CMakeLists.txt");
+        std::string line;
+        while (std::getline(in, line)) {
+            std::size_t start = line.find("project(");
+            if (start == std::string::npos)
+                continue;
+            start += 8;
+            std::size_t end = line.find_first_of(" )", start);
+            if (end == std::string::npos)
+                continue;
+            if (set(line.substr(start, end - start)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("pom.xml")) {
+        std::ifstream in("pom.xml");
+        std::string line;
+        while (std::getline(in, line)) {
+            std::size_t start = line.find("<artifactId>");
+            if (start == std::string::npos)
+                continue;
+            start += 12;
+            std::size_t end = line.find("</artifactId>", start);
+            if (end == std::string::npos)
+                continue;
+            if (set(line.substr(start, end - start)))
+                goto done;
+        }
+    }
+
+    if (std::filesystem::exists("build.gradle") || std::filesystem::exists("build.gradle.kts")) {
+        std::ifstream in(std::filesystem::exists("build.gradle") ? "build.gradle" : "build.gradle.kts");
+        std::string line;
+        while (std::getline(in, line)) {
+            std::size_t pos = line.find("rootProject.name");
+            if (pos == std::string::npos)
+                continue;
+            std::size_t q1 = line.find_first_of("\"'", pos);
+            if (q1 == std::string::npos)
+                continue;
+            char quote = line[q1];
+            std::size_t q2 = line.find(quote, q1 + 1);
+            if (q2 == std::string::npos)
+                continue;
+            if (set(line.substr(q1 + 1, q2 - q1 - 1)))
+                goto done;
+        }
+    }
+
+    {
+        std::error_code ec;
+        for (const auto &e : std::filesystem::directory_iterator(".", ec)) {
+            if (ec)
+                break;
+            if (!e.is_regular_file())
+                continue;
+            std::string ext2 = e.path().extension().string();
+            if (ext2 != ".csproj" && ext2 != ".fsproj" && ext2 != ".vbproj")
+                continue;
+            if (set(e.path().stem().string()))
+                goto done;
+        }
+    }
+
+    for (const auto &f : expandInputs(c)) {
+        if (std::filesystem::path(f).stem() != "main")
+            continue;
+        if (set("main"))
+            goto done;
+    }
+
+    if (set(std::filesystem::current_path().filename().string()))
+        goto done;
+
+#ifdef _WIN32
+    c.output = "a.exe";
+#else
+    c.output = "a.out";
+#endif
+    if (!c.quiet)
+        c.v_Info[std::format("{} Warning: Output not specified. Using default {}", tag, c.output)] = hp::YELLOW;
+    return 0;
+
+done:
+    c.output = trim(c.output);
+    if (!c.quiet)
+        c.v_Info[std::format("{} Warning: Output not specified. Auto-detected {}", tag, c.output)] = hp::YELLOW;
     return 0;
 }
