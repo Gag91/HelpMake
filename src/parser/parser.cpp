@@ -78,9 +78,6 @@ int Parser::parse() {
         }
     }
 
-    if (cfg.kind.empty())
-        cfg.kind = "executable";
-
     if (cfg.create)
         createConfig(cfg);
     if (cfg.buildSere || cfg.compiler == "sere")
@@ -122,6 +119,18 @@ int Parser::parse() {
 
     if (cfg.v_inputFiles.empty()) {
         int rc = autoInputFiles(cfg, "[HelpMake]");
+        if (rc != 0)
+            return rc;
+    }
+
+    if (cfg.includeFiles.empty()) {
+        int rc = autoIncludes(cfg, "[HelpMake]");
+        if (rc != 0)
+            return rc;
+    }
+
+    if (cfg.kind.empty()) {
+        int rc = autoKind(cfg, "[HelpMake]");
         if (rc != 0)
             return rc;
     }

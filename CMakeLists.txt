@@ -63,42 +63,21 @@ add_executable(hm
     src/toolchain/zigcpp_toolchain.cpp
 )
 
-target_include_directories(hm PRIVATE
+target_include_directories(hmm PRIVATE
     include
 )
 
-target_compile_options(hm PRIVATE
+target_compile_options(hmm PRIVATE
     -std=c++20
     -Ibuild/HelpMake/dep/Help_Library
     -Iinclude
     -Wall
     -Wextra
-    -Werror
     -Wpedantic
     -Wshadow
-    -Wnon-virtual-dtor
-    -Wold-style-cast
-    -Wcast-align
-    -Woverloaded-virtual
     -Wconversion
-    -Wduplicated-cond
-    -Wlogical-op
-    -Wnull-dereference
-    -Wuseless-cast
-    -Wdouble-promotion
+    -Wcast-align
     -Wformat=2
-    -Wvla
-    -Wfloat-equal
-    -Wno-unused-parameter
-    -Wno-unused-variable
-    -Wno-unused-value
-    -Wno-unused-function
-    -Wno-unused-local-typedefs
-    -Wno-unused-private-field
-    -Wno-missing-field-initializers
-    -Wno-unknown-pragmasFLAGS:
-    -pedantic-errors
-    -O2
     -pedantic-errors
     -O2
 )

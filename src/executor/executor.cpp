@@ -1,7 +1,9 @@
 #include "hm/parser/parser.hpp"
 #include "hm/process/process.hpp"
 #include "hm/toolchain/compiler.hpp"
+
 #include "hp/colors/color.hpp"
+#include "hp/containers/containers.hpp"
 #include "hp/other/other.hpp"
 
 int Parser::execute() {
@@ -290,7 +292,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
     if (!pchBinaryPath.empty() && !isClang) {
         std::string pchIncludeDir = std::filesystem::path(pchBinaryPath).parent_path().string();
-        compileFlags = "-I" + pchIncludeDir + " " + compileFlags;
+        compileFlags = comp->includeFlag(pchIncludeDir) + " " + compileFlags;
     }
 
     if (c.seperate && comp->supportsSeparate()) {
@@ -720,12 +722,12 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                     infos.push_back(&el);
             }
 
-            auto dump = [](auto &v, const char *sym) {
+            auto dump = [](auto &v, const std::string &sym) {
                 if (v.empty())
                     return;
                 std::cout << '\n';
                 for (const auto *el : v)
-                    hp::printlnCl(std::string("  ") + sym + "  " + el->first, el->second);
+                    hp::printlnCl("  " + sym + "  " + el->first, el->second);
             };
 
             if (!errors.empty())
@@ -786,12 +788,12 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 infos.push_back(&el);
         }
 
-        auto dump = [](auto &v, const char *sym) {
+        auto dump = [](auto &v, const std::string &sym) {
             if (v.empty())
                 return;
             std::cout << '\n';
             for (const auto *el : v)
-                hp::printlnCl(std::string("  ") + sym + "  " + el->first, el->second);
+                hp::printlnCl("  " + sym + "  " + el->first, el->second);
         };
 
         if (!errors.empty())
@@ -1318,6 +1320,8 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
         return 1;
     }
 
+    c.v_Info[std::format("{} Warning: Input Files not specified. Auto-detected Input Files.", tag)] = hp::YELLOW;
+
     return 0;
 }
 
@@ -1369,26 +1373,9 @@ int Parser::collectFiles(Config &c, const std::string &folderPath) {
         "temp",
     };
 
-    static constexpr std::array<std::string_view, 10> extMain{
-        ".c",
-        ".cpp",
-        ".cxx",
-        ".cc",
-        ".zig",
-        ".go",
-        ".rs",
-    };
-
-    auto lower = [](std::string s) {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) {
-            return static_cast<char>(std::tolower(ch));
-        });
-        return s;
-    };
-
     auto isExcludedDir = [&](const std::filesystem::path &p) {
         for (const auto &component : p) {
-            auto name = lower(component.string());
+            auto name = to_lower(component.string());
             for (const auto &skip : excludedDirs)
                 if (name == skip)
                     return true;
@@ -1398,7 +1385,6 @@ int Parser::collectFiles(Config &c, const std::string &folderPath) {
 
     std::map<std::string, std::vector<std::string>> extGroupedFiles;
 
-    bool haveMain;
     std::error_code ec;
     for (auto it = std::filesystem::recursive_directory_iterator(
              root, std::filesystem::directory_options::skip_permission_denied, ec);
@@ -1414,24 +1400,12 @@ int Parser::collectFiles(Config &c, const std::string &folderPath) {
         if (!it->is_regular_file())
             continue;
 
-        std::string ext = lower(it->path().extension().string());
+        std::string ext = to_lower(it->path().extension().string());
         if (std::ranges::find(sourceExts, ext) == std::end(sourceExts))
             continue;
 
         extGroupedFiles[ext].push_back(it->path().lexically_relative(root).generic_string());
-        if (std::any_of(extMain.begin(), extMain.end(), [ext](std::string_view local_ext) -> bool { return local_ext == ext; })) {
-            std::string line;
-            std::fstream src(it->path(), std::ios::in);
-            while (std::getline(src, line)) {
-                if (line.find("//") != std::string::npos)
-                    continue;
-                if (line.find("main()") != std::string::npos)
-                    haveMain = true;
-            }
-        }
     }
-    if (c.kind != "executable")
-        c.kind = haveMain ? "executable" : "static";
 
     if (extGroupedFiles.empty())
         return 1;
@@ -1454,12 +1428,201 @@ int Parser::collectFiles(Config &c, const std::string &folderPath) {
             (ext == ".c" || ext == ".cpp" || ext == ".cxx" || ext == ".cc"))
             continue;
 
-        hp::printlnCl(std::format("[HelpMake] Warning: Found {} '{}' file{} alongside {} '{}' file{}. Compiling only '{}'. Use 'InputFiles {{ }}' to include specific files.",
-                                  files.size(), ext, files.size() == 1 ? "" : "s", dominantCount, dominantExt, dominantCount == 1 ? "" : "s",
-                                  dominantExt),
-                      hp::YELLOW);
+        c.v_Info[std::format("[HelpMake] Warning: Found {} '{}' file{} alongside {} '{}' file{}. Compiling only '{}'.\n     Use 'InputFiles {{ }}' to include specific files.",
+                             files.size(), ext, files.size() == 1 ? "" : "s", dominantCount, dominantExt, dominantCount == 1 ? "" : "s",
+                             dominantExt)] = hp::YELLOW;
     }
 
     c.v_inputFiles.insert(c.v_inputFiles.end(), maxExtIt->second.begin(), maxExtIt->second.end());
+    return 0;
+}
+
+int Parser::autoIncludes(Config &c, const std::string &tag) {
+    if (!c.includeFiles.empty())
+        return 0;
+
+    static constexpr std::array<std::string_view, 6> potentialIncludeDirs = {
+        "include",
+        "includes",
+        "inc",
+        "headers",
+        "api",
+        "public",
+    };
+
+    static constexpr std::array<std::string_view, 22> excludedDirs = {
+        ".git",
+        ".hg",
+        ".svn",
+        ".vs",
+        ".cache",
+        ".idea",
+        ".gitlab",
+        ".github",
+        "build",
+        "bin",
+        "obj",
+        "out",
+        "dist",
+        "target",
+        "node_modules",
+        "vendor",
+        "third_party",
+        "external",
+        "deps",
+        "dep",
+        "test",
+        "tests",
+
+    };
+
+    static constexpr std::array<std::string_view, 9> headerExts = {
+        ".h",
+        ".hpp",
+        ".hxx",
+        ".hh",
+        ".inl",
+        ".inc",
+        ".ixx",
+        ".cppm",
+        ".tpp",
+    };
+
+    auto isExcludedDir = [&](const std::filesystem::path &p) {
+        auto name = to_lower(p.filename().string());
+        for (const auto &skip : excludedDirs)
+            if (name == skip)
+                return true;
+        return false;
+    };
+
+    auto isNamedIncludeDir = [&](const std::filesystem::path &p) {
+        auto name = to_lower(p.filename().string());
+        for (const auto &inc : potentialIncludeDirs)
+            if (name == inc)
+                return true;
+        return false;
+    };
+
+    auto hasHeaderExt = [&](const std::filesystem::path &p) {
+        auto ext = to_lower(p.extension().string());
+        for (const auto &e : headerExts)
+            if (ext == e)
+                return true;
+        return false;
+    };
+
+    std::vector<std::string> headerDirs;
+
+    std::error_code ec;
+    for (auto it = std::filesystem::recursive_directory_iterator(".", std::filesystem::directory_options::skip_permission_denied, ec); it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+        if (ec)
+            break;
+
+        const auto &path = it->path();
+
+        if (it->is_directory() && isExcludedDir(path)) {
+            it.disable_recursion_pending();
+            continue;
+        }
+
+        if (it->is_directory() && isNamedIncludeDir(path)) {
+            c.includeFiles.push_back(path.lexically_relative(".").generic_string());
+            it.disable_recursion_pending();
+            continue;
+        }
+
+        if (it->is_regular_file() && hasHeaderExt(path))
+            headerDirs.push_back(path.parent_path().lexically_relative(".").generic_string());
+    }
+
+    if (c.includeFiles.empty())
+        c.includeFiles = headerDirs;
+
+    c.includeFiles = hp::remove::duplicates(c.includeFiles);
+
+    if (c.includeFiles.empty())
+        return 0;
+
+    auto comp = hm::makeCompiler(c.compiler);
+    for (const auto &dir : c.includeFiles) {
+        if (!c.flags.empty())
+            c.flags += ' ';
+        c.flags += comp->includeFlag(dir);
+    }
+
+    std::string info = std::format("{} Warning: Include dirs not specified. Auto-detected include dirs:\n", tag);
+    for (const auto &dir : c.includeFiles)
+        info += std::format("    - {}\n", dir);
+
+    c.v_Info[info] = hp::YELLOW;
+
+    return 0;
+}
+
+int Parser::autoKind(Config &c, const std::string &tag) {
+    if (c.kind == "static")
+        return 0;
+    if (c.v_inputFiles.empty())
+        collectFiles(c, tag);
+
+    static constexpr std::array<std::string_view, 10> extMain{
+        ".c",
+        ".cpp",
+        ".cxx",
+        ".cc",
+        ".zig",
+        ".go",
+        ".rs",
+    };
+
+    auto hasMain = [](std::string_view line) -> bool {
+        std::size_t pos = 0;
+        while ((pos = line.find("main", pos)) != std::string_view::npos) {
+            bool wordStart = (pos == 0) || (!std::isalnum(static_cast<unsigned char>(line[pos - 1])) && line[pos - 1] != '_');
+            bool wordEnd = (pos + 4 >= line.size()) || (!std::isalnum(static_cast<unsigned char>(line[pos + 4])) && line[pos + 4] != '_');
+            if (wordStart && wordEnd) {
+                std::size_t p = pos + 4;
+                while (p < line.size() && std::isspace(static_cast<unsigned char>(line[p])))
+                    ++p;
+                if (p < line.size() && line[p] == '(')
+                    return true;
+            }
+            pos += 4;
+        }
+        return false;
+    };
+
+    bool hasCFamily = false;
+    bool foundMain = false;
+
+    for (const auto &file : expandInputs(c)) {
+        std::string ext = to_lower(std::filesystem::path(file).extension().string());
+        if (std::ranges::find(extMain, ext) == extMain.end())
+            continue;
+        hasCFamily = true;
+
+        std::ifstream src(file);
+        std::string line;
+        while (std::getline(src, line)) {
+            if (line.find("//") != std::string::npos)
+                continue;
+            if (hasMain(line)) {
+                foundMain = true;
+                break;
+            }
+        }
+        if (foundMain)
+            break;
+    }
+
+    if (!hasCFamily) {
+        c.kind = "executable";
+        return 0;
+    }
+
+    c.kind = foundMain ? "executable" : "static";
+    if (!foundMain)
+        c.v_Info[std::format("{} Warning: No 'main' found. Using Kind: static", tag)] = hp::YELLOW;
     return 0;
 }

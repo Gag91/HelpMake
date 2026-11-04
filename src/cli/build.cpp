@@ -374,15 +374,20 @@ namespace hm::cli {
                 return 1;
             if (config.version.empty() && Rawparser.autoVersion(config, "[HelpMake]") != 0)
                 return 1;
+            if (config.includeFiles.empty() && Rawparser.autoIncludes(config, "[HelpMake]") != 0)
+                return 1;
+            if (config.kind.empty() && Rawparser.autoKind(config, "[HelpMake]") != 0)
+                return 1;
 
-            if (config.compiler.empty()) {
+            if (config.output.empty()) {
 #ifdef _WIN32
-                config.compiler = "a.exe";
+                config.output = "a.exe";
 #else
-                config.compiler = "a.out";
+                config.output = "a.out";
 #endif
-                config.v_Info[std::format("[HelpMake] Warning: Output not specified. Using {}", config.compiler)] = hp::YELLOW;
+                config.v_Info[std::format("[HelpMake] Warning: Output not specified. Using {}", config.output)] = hp::YELLOW;
             }
+
             if (!config.v_Errors.empty()) {
                 for (const auto &e : config.v_Errors)
                     hp::printCl(e, hp::RED);

@@ -123,6 +123,8 @@ class Parser {
     int autoCompiler(Config &c, const std::string &tag);
     int autoVersion(Config &c, const std::string &tag);
     int autoInputFiles(Config &c, const std::string &tag);
+    int autoIncludes(Config &c, const std::string &tag);
+    int autoKind(Config &c, const std::string &tag);
     int collectFiles(Config &c, const std::string &folderPath);
 
     void install();
