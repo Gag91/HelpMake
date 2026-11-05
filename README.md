@@ -1,16 +1,25 @@
 # HelpMake (hm)
 
-**One plain-text file. C, C++, Zig, Go. Windows, Linux, macOS.**
+**Point `hm -b` at any C/C++ project. No CMakeLists. No Makefile. One command.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-12.3.0-green.svg)](https://github.com/Gag91/Help_Make/releases)
+[![Version](https://img.shields.io/badge/version-12.4.0-green.svg)](https://github.com/Gag91/Help_Make/releases)
 [![GitHub Stars](https://img.shields.io/github/stars/Gag91/Help_Make?style=social)](https://github.com/Gag91/Help_Make/stargazers)
+
 HelpMake is a build system for people who think CMake is too much and Make is too little.
 
 ![HelpMake demo](docs/HelpMake.gif)
-One file - `HelpMake.txt` - describes your whole build. Run `hm -b` and you get an executable, a static library, or a test suite. No generator step, no `CMakeLists.txt` hierarchy, no `configure` scripts, no shell-quoting footguns. Just a file and a command.
+
+**No config file? No problem.** Drop `hm` into any project directory and run `hm -b`. It detects your compiler, standard version, source files, include paths, link flags, target kind, and output name - then builds. Add a `HelpMake.txt` only when you want to pin a field or override a default.
+
+```bash
+cd your-existing-project
+hm -b                # detects everything, builds
+```
+
+When you do want control, one file describes the whole build:
 
 ```txt
 Compiler: g++
@@ -39,6 +48,7 @@ CMake is 20 years old and carries a lot of weight. HelpMake isn't trying to repl
 
 | | HelpMake | CMake | Make |
 |---|---|---|---|
+| Zero-config builds | ✅ `hm -b` just works | ❌ requires `CMakeLists.txt` | ❌ requires `Makefile` |
 | Learning curve | one file, ~10 keywords | CMakeLists + CMakeLang + generators | Makefile syntax + tab-vs-space archaeology |
 | Cross-platform | ✅ built-in platform conditionals | ✅ | ❌ shell-dependent |
 | Parallel builds | ✅ `-j N` by default | ✅ | needs `-j` + careful deps |
@@ -51,7 +61,7 @@ CMake is 20 years old and carries a lot of weight. HelpMake isn't trying to repl
 
 The tradeoff: HelpMake doesn't do everything CMake does. It won't generate Visual Studio solutions. It won't auto-detect hundreds of system libraries. It's a build system, not a project generator. If you need those things, use CMake.
 
-If you just want `hm -b` to build your thing on Windows, Linux, and macOS from the same file, this is for you.
+If you just want `hm -b` to build your thing on Windows, Linux, and macOS from the same file - **or from no file at all** - this is for you.
 
 ## Install
 
@@ -95,24 +105,34 @@ install.bat
 ### Uninstall:
 Delete `~/.local/share/HelpMake` (or `%USERPROFILE%\HelpMake`), remove `hm` from `~/.local/bin` (or `%USERPROFILE%\.local\bin`), and remove the corresponding line from your shell profile or user `PATH`.
 
+## What's new in 12.4.0
 
-## What's new in 12.3.0
+- **Zero-config builds.** `hm -b` with no `HelpMake.txt` now works. Compiler, version, sources, includes, link flags, kind, and output are all inferred. See [Auto-detection](docs/11-auto-detection.md).
+- **`autoLinkFlags`** - reads `#include <thread>` and adds `-pthread`; `<cmath>` → `-lm`; `<curl/curl.h>` → `-lcurl`; MSVC gets `.lib` equivalents where they exist.
+- **`autoKind`** - scans for `main(` (properly word-bounded) and picks `executable` vs `static`.
+- **`autoOutput`** - infers output name from `Cargo.toml`, `go.mod`, `package.json`, `pyproject.toml`, `setup.py`, `build.zig`, `meson.build`, `CMakeLists.txt`, `pom.xml`, `build.gradle`, `*.csproj`, `main.*`, or the directory name.
+- **Companion source detection** - `#include "foo.hpp"` now pulls `foo.cpp` in automatically when it exists.
+- **`Info:` block formatting** - multi-line auto-detection warnings align their continuation lines, sorted to the bottom of the warning list.
 
-Three releases since 12.0.0, all shipped:
-
-- **`hm test`** - build and run every config marked `Test: true`. Per-test timing, exit code 1 on any failure. CI-ready.
-- **`--watch` mode** - `hm -b -w` rebuilds on save; `hm -b -w -r` is the full edit → build → run loop.
-- **Platform conditionals** - prefix any line with `win:`, `linux:`, `mac:`, `unix:`, `x64:`, `arm64:`, `!tag:`. One file, every OS.
-- **Response files** - projects with 300+ files no longer hit Windows's 32K command-line limit. Handled transparently.
-- **CMake generator parity** - `hm --gen cmake` now emits FetchContent, C++20 modules, PreBuild, PostBuild, and Copy.
-- **Clang modules** - `.ixx`, `.mpp`, `.module`, `.cppm` all work; `.pcm` cache, parallel ordering, stale rebuilds all handled.
-- **MSVC modules** - `.ixx`, `.cppm` or anything else.
-- **Dependency Locking** - `hm --update-lock` records exact Git revisions for Fetch { } and Dependencies; build with `--frozen` to use those revisions.
-- **Dry Run** - `--dry-run` Outputs all commands whitout executing them.
-
-[Full changelog →](docs/10-changelog.md)
+[Full changelog →](docs/Change_Logs.md)
 
 ## Features
+
+### Zero-config builds
+
+Run `hm -b` in a directory with no `HelpMake.txt` and HelpMake:
+
+- Probes `gcc`, `clang`, `cl`, `g++`, `clang++`, `zig c++`, `zig cc`, `zig`, `go`, `rustc`, `python3` (based on source extensions) and picks the first one on `PATH`
+- Runs `<compiler> -dumpversion` and selects the newest standard it supports
+- Walks `src/`, `source/`, `code/`, `app/` (or `.` if none exist), skipping `.git/`, `build/`, `node_modules/`, `vendor/`, `test/`, etc.
+- Follows `#include "x.hpp"` to find `x.cpp` companions anywhere in the tree
+- Scans for `main(` and picks `Kind: executable` or `Kind: static`
+- Finds `include/`, `inc/`, `headers/`, `api/`, or `public/` directories
+- Reads `#include <...>` for `-pthread`, `-lm`, `-ldl`, `-lz`, `-lcurl`, `-lssl -lcrypto`
+- Infers `Output:` from the twelve manifest formats above
+- Reports every detected value under `Info:` so you can see exactly what was inferred
+
+Every field can still be pinned explicitly - user-specified values always win.
 
 ### Language-agnostic
 
@@ -167,6 +187,15 @@ Compiles C, C++, Zig, Go, Assembly, Rust, or anything with a CLI compiler. Built
 - ~50 KB binary - no runtime, no dependencies.
 
 ## Quick Start
+
+### Zero-config (no file)
+
+```bash
+cd your-existing-project
+hm -b
+```
+
+### Minimal config
 
 ```txt
 Compiler: g++
@@ -269,16 +298,18 @@ Full documentation lives in [`docs/`](docs/).
 
 ### Scalar fields
 
+Every field is **optional** - HelpMake auto-detects it when omitted. See [Auto-detection](docs/11-auto-detection.md).
+
 ```txt
-Compiler: g++           # Any compiler name or path
-Version: std=c++20      # Standard passed as -std=...
-Output: build/app       # Output path
-Kind: static            # executable (default) or static
-Run: true               # Run after build
-PCH: include/pch.hpp    # Precompiled header
-Jobs: 8                 # Parallel jobs (default: all cores)
-Test: true              # Mark as a test target (hm test)
-Depends: raylib, lua    # Comma-separated dependency names
+Compiler: g++           # auto-detected from source extensions
+Version: std=c++20      # auto-detected from compiler -dumpversion
+Output: build/app       # auto-detected from manifests, main.*, or dir name
+Kind: static            # auto-detected from presence of main(
+Run: true               # never auto-detected
+PCH: include/pch.hpp    # never auto-detected
+Jobs: 8                 # default: all cores
+Test: true              # mark as a test target (hm test)
+Depends: raylib, lua    # comma-separated dependency names
 ```
 
 Inline forms work too: `Flags: -Wall -O2`, `Includes: include external/glfw`.
@@ -336,12 +367,13 @@ Full toolchain notes: [`docs/04-toolchains.md`](docs/04-toolchains.md).
 - [CLI reference](docs/03-cli-reference.md)
 - [Supported toolchains](docs/04-toolchains.md)
 - [Variables](docs/05-variables.md)
-- [Precompiled headers](docs/06-precompiled-headers.md)
+- [Precompiled headers](docs/06-pch.md)
 - [C++20 modules](docs/07-modules.md)
-- [Static libraries](docs/08-static-libraries.md)
-- [Build directory layout](docs/09-build-layout.md)
-- [FAQ](docs/11-faq.md)
-- [Changelog](docs/10-changelog.md)
+- [Static libraries](docs/08-static-libs.md)
+- [Build directory layout](docs/09-build-directory.md)
+- [FAQ](docs/10-faq.md)
+- [Auto-detection](docs/11-auto-detection.md)
+- [Changelog](docs/Change_Logs.md)
 
 ## Contributing
 
