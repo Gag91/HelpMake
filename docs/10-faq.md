@@ -347,6 +347,77 @@ rm build/HelpMake/<comp>/.buildid
 hm -b
 ```
 
+## Can I build a project with no config file?
+
+Yes. `hm -b` in a directory with no `HelpMake.txt` still builds. Every field is inferred:
+
+```bash
+cd your-project
+hm -b
+```
+
+HelpMake detects the compiler from source extensions, runs `<compiler> -dumpversion` for the standard, walks `src/` (or `.`) for sources, follows `#include "..."` for companion `.cpp` files, scans `<...>` includes for link flags, checks for `main(` to decide `executable` vs `static`, and reads `Cargo.toml` / `go.mod` / `package.json` / `CMakeLists.txt` / `main.*` / directory name for the output.
+
+Every detection warns under `Info:` so you can see exactly what was inferred. See [Auto-detection](11-auto-detection.md).
+
+## Why did HelpMake add `-pthread` automatically?
+
+You have `#include <thread>`, `<mutex>`, `<atomic>`, `<condition_variable>`, or `<pthread.h>` somewhere in your sources. The link flag detection reads every `#include <...>` line and adds the corresponding flag:
+
+| Header | Flag |
+|---|---|
+| `<thread>` / `<mutex>` / `<atomic>` / `<condition_variable>` | `-pthread` |
+| `<cmath>` / `<math.h>` | `-lm` |
+| `<dlfcn.h>` | `-ldl` |
+| `<zlib.h>` | `-lz` |
+| `<curl/curl.h>` | `-lcurl` |
+| `<openssl/ssl.h>` | `-lssl -lcrypto` |
+
+On MSVC, POSIX-only flags are skipped; only `zlib.lib`, `libcurl.lib`, and OpenSSL's `.lib` files are added. Existing flags are never duplicated.
+
+To disable it, pin the flags explicitly: `Flags { -Wall -O2 }`. Anything you write wins over auto-detection.
+
+## Why did HelpMake mark my library as executable?
+
+`autoKind` scans every C-family source for `main(`. If no source has a valid `main` declaration, HelpMake picks `Kind: static` and warns.
+
+If your project has a `main` that the scanner missed (e.g. in a source excluded by `InputFiles { }`), pin the kind explicitly:
+
+```txt
+Kind: static
+```
+
+Non-C-family projects (Zig, Go, Rust, Python) always default to `executable` — those languages don't have the static/executable distinction in the C sense.
+
+## How do I disable auto-detection?
+
+Three ways:
+
+**1. Pin every field** in `HelpMake.txt`. Anything you write wins over auto-detection.
+
+**2. Use `--nofile`** to build from CLI arguments only:
+
+```bash
+hm -b --nofile -C=g++ -V=std=c++20 -o app src/main.cpp
+```
+
+**3. Use `--quiet`** to suppress the warnings if you trust the detection and don't want to see the `Info:` block.
+
+## Why did HelpMake add `foo.cpp` to my build automatically?
+
+You have `#include "foo.hpp"` in one of your sources, and `foo.cpp` exists somewhere in the tree but wasn't listed in `InputFiles { }`. Companion source detection adds it automatically so you don't have to maintain both a header list and a source list.
+
+To disable, list your sources explicitly:
+
+```txt
+InputFiles {
+    src/*.cpp
+    tools/*.cpp
+}
+```
+
+User-specified `InputFiles { }` is never modified by companion detection.
+
 ## How do I report a bug?
 Open an issue on GitHub with:
 
