@@ -129,6 +129,12 @@ int Parser::parse() {
             return rc;
     }
 
+    if (cfg.v_Flags.empty()) {
+        int rc = autoLinkFlags(cfg, "[HelpMake]");
+        if (rc != 0)
+            return rc;
+    }
+
     if (cfg.kind.empty()) {
         int rc = autoKind(cfg, "[HelpMake]");
         if (rc != 0)

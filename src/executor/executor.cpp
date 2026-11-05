@@ -726,9 +726,50 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 if (v.empty())
                     return;
                 std::cout << '\n';
-                for (const auto *el : v)
-                    hp::printlnCl("  " + sym + "  " + el->first, el->second);
+
+                std::string prefix = "  " + sym + "  ";
+                std::string indent = "     ";
+
+                for (const auto *el : v) {
+                    std::string text = el->first;
+                    while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
+                        text.pop_back();
+
+                    std::string out;
+                    std::size_t start = 0;
+                    bool first = true;
+                    while (true) {
+                        std::size_t nl = text.find('\n', start);
+                        std::string segment = text.substr(start, nl == std::string::npos ? nl : nl - start);
+                        if (!first)
+                            while (!segment.empty() && segment.front() == ' ')
+                                segment.erase(segment.begin());
+
+                        out += (first ? prefix : indent) + segment;
+                        if (nl == std::string::npos)
+                            break;
+
+                        out += '\n';
+                        start = nl + 1;
+                        first = false;
+                    }
+                    hp::printlnCl(out, el->second);
+                }
             };
+
+            auto sortNL = [](auto &v) {
+                std::stable_sort(v.begin(), v.end(), [](const auto *a, const auto *b) {
+                    bool aNL = a->first.find('\n') != std::string::npos;
+                    bool bNL = b->first.find('\n') != std::string::npos;
+                    return aNL < bNL;
+                });
+            };
+
+            sortNL(errors);
+            sortNL(warnings);
+            sortNL(successes);
+            sortNL(infos);
+            sortNL(debugs);
 
             if (!errors.empty())
                 dump(errors, "✘");
@@ -792,9 +833,50 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             if (v.empty())
                 return;
             std::cout << '\n';
-            for (const auto *el : v)
-                hp::printlnCl("  " + sym + "  " + el->first, el->second);
+
+            std::string prefix = "  " + sym + "  ";
+            std::string indent = "     ";
+
+            for (const auto *el : v) {
+                std::string text = el->first;
+                while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
+                    text.pop_back();
+
+                std::string out;
+                std::size_t start = 0;
+                bool first = true;
+                while (true) {
+                    std::size_t nl = text.find('\n', start);
+                    std::string segment = text.substr(start, nl == std::string::npos ? nl : nl - start);
+                    if (!first)
+                        while (!segment.empty() && segment.front() == ' ')
+                            segment.erase(segment.begin());
+
+                    out += (first ? prefix : indent) + segment;
+                    if (nl == std::string::npos)
+                        break;
+
+                    out += '\n';
+                    start = nl + 1;
+                    first = false;
+                }
+                hp::printlnCl(out, el->second);
+            }
         };
+
+        auto sortNL = [](auto &v) {
+            std::stable_sort(v.begin(), v.end(), [](const auto *a, const auto *b) {
+                bool aNL = a->first.find('\n') != std::string::npos;
+                bool bNL = b->first.find('\n') != std::string::npos;
+                return aNL < bNL;
+            });
+        };
+
+        sortNL(errors);
+        sortNL(warnings);
+        sortNL(successes);
+        sortNL(infos);
+        sortNL(debugs);
 
         if (!errors.empty())
             dump(errors, "✘");
@@ -1221,7 +1303,7 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
         {{"python3", "python"}, {".py"}},
     };
 
-    static constexpr std::array<std::string_view, 5> srcDirs{
+    static constexpr std::array<std::string_view, 4> srcDirs{
         "src",
         "source",
         "code",
@@ -1266,10 +1348,8 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
     auto isSource = [&](const std::filesystem::path &p) {
         const auto ext = p.extension().string();
         return std::any_of(sourceExts.begin(), sourceExts.end(), [&](const SourceEntry &entry) {
-            const bool compilerMatches =
-                std::find(entry.compilers.begin(), entry.compilers.end(), c.compiler) != entry.compilers.end();
-            const bool extensionMatches =
-                std::find(entry.extensions.begin(), entry.extensions.end(), ext) != entry.extensions.end();
+            const bool compilerMatches = std::find(entry.compilers.begin(), entry.compilers.end(), c.compiler) != entry.compilers.end();
+            const bool extensionMatches = std::find(entry.extensions.begin(), entry.extensions.end(), ext) != entry.extensions.end();
             return compilerMatches && extensionMatches;
         });
     };
@@ -1287,12 +1367,14 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
             c.v_inputFiles.push_back(p.generic_string());
     };
 
-    if (std::any_of(srcDirs.begin(), srcDirs.end(), [](const std::filesystem::path &dir) -> bool {
-            return std::filesystem::exists(dir) && std::filesystem::is_directory(dir);
+    if (std::any_of(srcDirs.begin(), srcDirs.end(), [](std::string_view dir) -> bool {
+            return !dir.empty() && std::filesystem::exists(dir) && std::filesystem::is_directory(dir);
         })) {
 
         std::error_code ec;
         for (const auto dirSrc : srcDirs) {
+            if (dirSrc.empty())
+                continue;
             for (auto it = std::filesystem::recursive_directory_iterator(dirSrc, std::filesystem::directory_options::skip_permission_denied, ec);
                  it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
                 if (ec)
@@ -1324,6 +1406,69 @@ int Parser::autoInputFiles(Config &c, const std::string &tag) {
             }
             if (it->is_regular_file())
                 addFile(it->path());
+        }
+    }
+
+    if (!c.v_inputFiles.empty()) {
+        std::vector<std::string> stems;
+        for (const auto &f : c.v_inputFiles) {
+            std::ifstream in(f);
+            if (!in)
+                continue;
+            std::string line;
+            while (std::getline(in, line)) {
+                std::size_t pos = line.find("#include");
+                if (pos == std::string::npos)
+                    continue;
+
+                std::size_t angleOpen = line.find('<', pos);
+                std::size_t quoteOpen = line.find('"', pos);
+
+                if (quoteOpen == std::string::npos)
+                    continue;
+                if (angleOpen != std::string::npos && angleOpen < quoteOpen)
+                    continue;
+
+                std::size_t q2 = line.find('"', quoteOpen + 1);
+                if (q2 == std::string::npos)
+                    continue;
+                stems.push_back(std::filesystem::path(line.substr(quoteOpen + 1, q2 - quoteOpen - 1)).stem().string());
+            }
+        }
+        hp::remove::duplicates(stems);
+
+        if (!stems.empty()) {
+            std::vector<std::string> original = c.v_inputFiles;
+            std::error_code ec;
+            for (auto it = std::filesystem::recursive_directory_iterator(".", std::filesystem::directory_options::skip_permission_denied, ec);
+                 it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+                if (ec)
+                    break;
+                if (it->is_directory() && isExcluded(it->path())) {
+                    it.disable_recursion_pending();
+                    continue;
+                }
+                if (!it->is_regular_file())
+                    continue;
+                if (!isSource(it->path()))
+                    continue;
+                if (std::ranges::find(stems, it->path().stem().string()) == stems.end())
+                    continue;
+                c.v_inputFiles.push_back(it->path().lexically_normal().generic_string());
+            }
+            hp::remove::duplicates(c.v_inputFiles);
+
+            std::vector<std::string> added;
+            for (const auto &f : c.v_inputFiles)
+                if (std::ranges::find(original, f) == original.end())
+                    added.push_back(f);
+
+            if (!added.empty() && !c.quiet) {
+                std::string msg = std::format("{} Warning: Auto-added companion sources:\n", tag);
+                for (const auto &a : added)
+                    msg += a;
+                c.v_Info[msg] = hp::YELLOW;
+            }
         }
     }
 
@@ -1441,7 +1586,7 @@ int Parser::collectFiles(Config &c, const std::string &folderPath) {
             (ext == ".c" || ext == ".cpp" || ext == ".cxx" || ext == ".cc"))
             continue;
 
-        c.v_Info[std::format("[HelpMake] Warning: Found {} '{}' file{} alongside {} '{}' file{}. Compiling only '{}'.\n     Use 'InputFiles {{ }}' to include specific files.",
+        c.v_Info[std::format("[HelpMake] Warning: Found {} '{}' file{} alongside {} '{}' file{}. Compiling only '{}'. Use 'InputFiles {{ }}' to include specific files.",
                              files.size(), ext, files.size() == 1 ? "" : "s", dominantCount, dominantExt, dominantCount == 1 ? "" : "s",
                              dominantExt)] = hp::YELLOW;
     }
@@ -1566,10 +1711,98 @@ int Parser::autoIncludes(Config &c, const std::string &tag) {
 
     std::string info = std::format("{} Warning: Include dirs not specified. Auto-detected include dirs:\n", tag);
     for (const auto &dir : c.includeFiles)
-        info += std::format("    - {}\n", dir);
+        info += dir;
 
     c.v_Info[info] = hp::YELLOW;
 
+    return 0;
+}
+
+int Parser::autoLinkFlags(Config &c, const std::string &tag) {
+    auto comp = hm::makeCompiler(c.compiler);
+    if (!comp)
+        return 0;
+
+    bool useMsvc = comp->isMSVC();
+
+    struct LinkEntry {
+        std::string_view header;
+        std::string_view gccFlag;
+        std::string_view msvcFlag;
+    };
+
+    static constexpr std::array<LinkEntry, 11> linkTable = {{
+        {"pthread.h", "-pthread", ""},
+        {"thread", "-pthread", ""},
+        {"mutex", "-pthread", ""},
+        {"atomic", "-pthread", ""},
+        {"condition_variable", "-pthread", ""},
+        {"cmath", "-lm", ""},
+        {"math.h", "-lm", ""},
+        {"dlfcn.h", "-ldl", ""},
+        {"zlib.h", "-lz", "zlib.lib"},
+        {"curl/curl.h", "-lcurl", "libcurl.lib"},
+        {"openssl/ssl.h", "-lssl -lcrypto", "libssl.lib libcrypto.lib"},
+    }};
+
+    if (c.v_inputFiles.empty())
+        return 0;
+
+    std::vector<std::string> newFlags;
+    for (const auto &f : c.v_inputFiles) {
+        std::ifstream in(f);
+        if (!in)
+            continue;
+        std::string line;
+        while (std::getline(in, line)) {
+            std::size_t pos = line.find("#include");
+            if (pos == std::string::npos)
+                continue;
+
+            std::size_t angleOpen = line.find('<', pos);
+            std::size_t quoteOpen = line.find('"', pos);
+
+            if (angleOpen == std::string::npos)
+                continue;
+            if (quoteOpen != std::string::npos && quoteOpen < angleOpen)
+                continue;
+
+            std::size_t angleClose = line.find('>', angleOpen + 1);
+            if (angleClose == std::string::npos)
+                continue;
+
+            std::string value = line.substr(angleOpen + 1, angleClose - angleOpen - 1);
+            for (const auto &e : linkTable) {
+                if (e.header != value)
+                    continue;
+                std::string_view flag = useMsvc ? e.msvcFlag : e.gccFlag;
+                if (flag.empty())
+                    break;
+                newFlags.push_back(std::string(flag));
+                break;
+            }
+        }
+    }
+
+    hp::remove::duplicates(newFlags);
+
+    std::vector<std::string> actuallyAdded;
+    for (const auto &f : newFlags) {
+        if (c.flags.find(f) != std::string::npos)
+            continue;
+        if (!c.flags.empty())
+            c.flags += ' ';
+        c.flags += f;
+        c.v_Flags.push_back(f);
+        actuallyAdded.push_back(f);
+    }
+
+    if (!actuallyAdded.empty() && !c.quiet) {
+        std::string msg = std::format("{} Warning: Auto-added link flags:\n", tag);
+        for (const auto &f : actuallyAdded)
+            msg += f;
+        c.v_Info[msg] = hp::YELLOW;
+    }
     return 0;
 }
 
@@ -1616,6 +1849,8 @@ int Parser::autoKind(Config &c, const std::string &tag) {
         hasCFamily = true;
 
         std::ifstream src(file);
+        if (!src)
+            continue;
         std::string line;
         while (std::getline(src, line)) {
             if (line.find("//") != std::string::npos)

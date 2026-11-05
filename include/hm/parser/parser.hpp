@@ -126,6 +126,7 @@ class Parser {
     int autoIncludes(Config &c, const std::string &tag);
     int autoKind(Config &c, const std::string &tag);
     int autoOutput(Config &c, const std::string &tag);
+    int autoLinkFlags(Config &c, const std::string &tag);
     int collectFiles(Config &c, const std::string &folderPath);
 
     void install();

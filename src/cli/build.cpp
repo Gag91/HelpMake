@@ -380,6 +380,8 @@ namespace hm::cli {
                 return 1;
             if (config.output.empty() && Rawparser.autoOutput(config, "[HelpMake]") != 0)
                 return 1;
+            if (config.v_Flags.empty() && Rawparser.autoLinkFlags(config, "[HelpMake]") != 0)
+                return 1;
 
             if (!config.v_Errors.empty()) {
                 for (const auto &e : config.v_Errors)
