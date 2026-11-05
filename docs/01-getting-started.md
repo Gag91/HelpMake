@@ -123,7 +123,38 @@ hm -b --watch --run
 
 Edit → save → rebuild → run. No manual steps in between.
 
-## 8. What just happened
+## 8. Auto-detection
+
+Every field is **optional**. When you omit one, HelpMake infers it at build time — a project with no `HelpMake.txt` at all still builds. See [Auto-detection](11-auto-detection.md) for the detection order per field.
+
+A user-specified value always wins over auto-detection. To pin a value, just write it.
+
+The fields with auto-detection are:
+
+| Field | When omitted |
+|---|---|
+| `Compiler:` | detected from source extensions and `PATH` |
+| `Version:` | detected from `<compiler> -dumpversion` |
+| `InputFiles { }` | walks `src/` (or `.`), follows includes for companion sources |
+| `Kind:` | detected from presence of `main(` |
+| `Includes { }` | finds `include/`, `inc/`, `headers/`, `api/`, `public/` |
+| *(link flags)* | read from `#include <...>` lines |
+| `Output:` | read from manifests, `main.*`, or directory name |
+
+Every auto-detected value warns in the `Info:` block so you can see exactly what was inferred.
+
+| Field | Type | Auto-detected / default | Description |
+|---|---|---|---|
+| `Compiler:` | string | probed from extensions | Any compiler name or path. See [Toolchains](04-toolchains.md). |
+| `Version:` | string | `<compiler> -dumpversion` | Standard flag passed as `-<value>`. Example: `std=c++20` becomes `-std=c++20`. |
+| `Output:` | string | manifest / `main.*` / dir name / `a.out` | Path to the final binary or archive. |
+| `Kind:` | `executable` or `static` | `main(` presence | See [Static libraries](08-static-libs.md). |
+| `Run:` | bool | `false` | If true, run the binary after a successful build. |
+| `PCH:` | string | *(empty)* | Path to a precompiled header. See [PCH](06-pch.md). |
+| `Jobs:` | integer | `0` (all cores) | Number of parallel compile jobs. |
+| `Depends:` | list | *(empty)* | Comma-separated dependency names. |
+
+## 9. What just happened
 
 HelpMake created a build cache folder:
 
