@@ -2,6 +2,34 @@
 
 All notable changes to HelpMake.
 
+## [12.4.0] - 2026-11-05
+
+### Added
+
+- **Zero-config builds** - `hm -b` now builds a project with **no `HelpMake.txt` at all**. Every field is inferred at parse time; user-specified values always win. See [Auto-detection](11-auto-detection.md).
+- **`autoLinkFlags`** - scans `#include <...>` lines and adds the right link flags automatically:
+  - `<thread>`, `<mutex>`, `<atomic>`, `<condition_variable>`, `<pthread.h>` → `-pthread`
+  - `<cmath>`, `<math.h>` → `-lm`
+  - `<dlfcn.h>` → `-ldl`
+  - `<zlib.h>` → `-lz` / `zlib.lib` (MSVC)
+  - `<curl/curl.h>` → `-lcurl` / `libcurl.lib` (MSVC)
+  - `<openssl/ssl.h>` → `-lssl -lcrypto` / `libssl.lib libcrypto.lib` (MSVC)
+  - POSIX-only flags are skipped on MSVC. Existing flags are never duplicated.
+- **`autoKind`** - scans every source for a valid `main(` declaration (`main()`, `main(int argc, char** argv)`, `main(void)`, `int main (int argc , ...)`) with word-boundary checks (rejects `domain(`, `mainHelper(`, `main_loop(`) and picks `Kind: executable` or `Kind: static` accordingly. Falls back to `executable` for non-C-family projects (Zig, Go, Rust, Python, etc.).
+- **`autoOutput`** - infers `Output:` from twelve different sources, in priority order: `Cargo.toml`, `go.mod`, `package.json`, `pyproject.toml`, `setup.py`, `build.zig`, `meson.build`, `CMakeLists.txt`, `pom.xml`, `build.gradle` / `build.gradle.kts`, `*.csproj` / `*.fsproj` / `*.vbproj`, `main.*` source file, then the directory name. Falls back to `a.out` / `a.exe` with a warning.
+- **Companion source detection** - when a source includes `"foo.hpp"` and `foo.cpp` exists anywhere in the tree but isn't in `InputFiles { }`, `foo.cpp` is added automatically. Zero extra cost for projects that already list all sources.
+
+### Changed
+
+- **`Info:` block formatting** - multi-line warnings (`Auto-added link flags:`, `Auto-detected include dirs:`, `Auto-added companion sources:`) sort to the bottom of their category so single-line warnings aren't interleaved; continuation lines align under the warning text instead of flush-left.
+
+### Fixed
+
+- **`autoIncludes` never emitted `-I` flags** - the function detected include directories correctly but only stored them in `includeFiles`, never appended `-I<dir>` to `flags`. Auto-detected projects failed with `fatal error: hm/parser/parser.hpp: No such file or directory` even though the warning claimed the includes were found. Both `flags` and `includeFiles` are now populated.
+- **`autoIncludes` over-included header parents** - every directory containing a header was added as an include root, producing dozens of useless entries like `./include/hm/parser` and `./include/hm/cli`. Recursion now stops at the first `include/`, `inc/`, `headers/`, `api/`, or `public/` directory found. Header parents remain the fallback only when no named include dir exists.
+- **`collectFiles` had an uninitialized `bool haveMain;`** (UB) and only checked `line.find("main()")`, missing `main(int argc, char** argv)` and `main(void)` — the two most common real-world signatures. Replaced by `autoKind` with proper word-boundary scanning.
+- **`autoIncludes` had a leftover debug print** (`std::cout << "reachedddddddddddd"`) on the failure path. Removed.
+  
 ## [12.3.0] - 2026-10-30
 
 ### Added
