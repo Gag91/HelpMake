@@ -25,9 +25,18 @@ When you do want control, one file describes the whole build:
 Compiler: g++
 Version: std=c++20
 Output: build/app.exe
-InputFiles { src/**/*.cpp }
-Includes { include }
-Flags { -Wall -O2 linux: -pthread win: /W4 }
+InputFiles {
+  src/**/*.cpp 
+}
+Includes {
+  include 
+}
+Flags {
+  -Wall
+  -O2
+  linux: -pthread
+  win: /W4 
+}
 ```
 
 ```bash
@@ -351,7 +360,7 @@ Run `hm --help` for the full list, or see [`docs/03-cli-reference.md`](docs/03-c
 |---|---|---|---|---|---|
 | GCC | `g++` / `gcc` | ✅ | ✅ | ✅ | ✅ |
 | Clang | `clang++` / `clang` | ✅ | ✅ | ✅ | ✅ |
-| MSVC | `cl.exe` | ✅ | - | ✅ | ✅ |
+| MSVC | `cl.exe` | ✅ | ✅ | ✅ | ✅ |
 | Zig C++ | `zig c++` | ✅ | - | ✅ | ✅ |
 | Zig CC | `zig cc` | ✅ | - | ✅ | ✅ |
 | Zig | `zig` | - | - | - | ✅ |
@@ -361,7 +370,7 @@ Run `hm --help` for the full list, or see [`docs/03-cli-reference.md`](docs/03-c
 Full toolchain notes: [`docs/04-toolchains.md`](docs/04-toolchains.md).
 
 ## Documentation
-
+The [Docs](https://gag91.github.io/HelpMake/)
 - [Getting started](docs/01-getting-started.md)
 - [HelpMake.txt reference](docs/02-helpmake-reference.md)
 - [CLI reference](docs/03-cli-reference.md)
@@ -374,6 +383,7 @@ Full toolchain notes: [`docs/04-toolchains.md`](docs/04-toolchains.md).
 - [FAQ](docs/10-faq.md)
 - [Auto-detection](docs/11-auto-detection.md)
 - [Changelog](docs/Change_Logs.md)
+
 
 ## Contributing
 

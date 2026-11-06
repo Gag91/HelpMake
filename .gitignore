@@ -73,3 +73,8 @@ gcm.cache/
 
 # clangd
 .clangd
+
+# Node.js / VitePress
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
