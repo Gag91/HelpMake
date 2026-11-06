@@ -5,6 +5,9 @@ hero:
   name: HelpMake
   text: A C/C++ build system that needs no config file
   tagline: Point hm -b at any project. It figures out the rest.
+  image:
+    src: /logo.png
+    alt: HelpMake Logo
   actions:
     - theme: brand
       text: Getting started
