@@ -1,0 +1,11 @@
+
+.VPHero .image-src {
+  max-width: none !important;
+  max-height: none !important;
+  width: 350px !important;
+  height: auto !important;
+}
+
+.VPHero .image-bg {
+  display: none !important;
+}
