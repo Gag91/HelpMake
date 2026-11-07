@@ -128,7 +128,7 @@ Includes {
     .
 }
 ```
-Each entry is translated to -I<path> (or /I<path> on MSVC) in every compile command. The . entry adds the current directory.
+Each entry is translated to `-I<path>` (or `/I<path>` on MSVC) in every compile command. The . entry adds the current directory.
 
 `Flags { }`
 Additional flags passed to both compile and link commands.
@@ -165,8 +165,8 @@ Fetch {
 ```
 Left side: the clone URL
 Right side: the subdirectory inside the cloned repo that should be added to the include path
-Repos clone into build/HelpMake/dep/<repo-name>/
-HelpMake adds -I<cloned-path>/<subdir> to the compile flags automatically
+Repos clone into `build/HelpMake/dep/<repo-name>/`
+HelpMake adds `-I<cloned-path>/<subdir>` to the compile flags automatically
 Requires git on PATH. Failing to find git is a fatal error.
 **For dependencies that need to be built or linked, use [`Dependency: name { }`](#dependency-blocks) instead.**
 

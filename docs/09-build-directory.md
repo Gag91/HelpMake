@@ -132,7 +132,7 @@ build/HelpMake/dep/<name>/
 ```
 Cache logic: first build clones and builds. Subsequent builds compare .buildid to current Build: commands — match skips, mismatch rebuilds.
 
-Force rebuild: rm -rf build/HelpMake/dep/<name> or hm --clean.
+Force rebuild: rm -rf `build/HelpMake/dep/<name>` or hm --clean.
 
 ## Ninja generator output
 

@@ -31,6 +31,15 @@ features:
     details: ~50KB binary. No runtime, no dependencies, no generator step.
 ---
 
+<div style="text-align: center; margin-top: 50px; margin-bottom: 60px;">
+  <h3 style="margin-bottom: 24px; font-size: 20px; font-weight: 600; color: var(--vp-c-text-1);">Download HelpMake for your OS</h3>
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;">
+    <a href="https://github.com/Gag91/Help_Make/releases/latest/download/hm-windows-x86_64.zip" style="display: inline-block; padding: 14px 32px; border-radius: 28px; font-size: 16px; font-weight: 600; text-decoration: none; background-color: var(--vp-button-brand-bg); color: var(--vp-button-brand-text);">Download for Windows</a>
+    <a href="https://github.com/Gag91/Help_Make/releases/latest/download/hm-linux-x86_64.tar.gz" style="display: inline-block; padding: 14px 32px; border-radius: 28px; font-size: 16px; font-weight: 600; text-decoration: none; background-color: var(--vp-button-brand-bg); color: var(--vp-button-brand-text);">Download for Linux</a>
+    <a href="https://github.com/Gag91/Help_Make/releases/latest/download/hm-macos-x86_64.tar.gz" style="display: inline-block; padding: 14px 32px; border-radius: 28px; font-size: 16px; font-weight: 600; text-decoration: none; background-color: var(--vp-button-brand-bg); color: var(--vp-button-brand-text);">Download for macOS</a>
+  </div>
+</div>
+
 
 ![HelpMake Demo](/HelpMake.gif)
 

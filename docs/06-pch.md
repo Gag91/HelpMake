@@ -89,7 +89,7 @@ fatal error C1010: unexpected end of file while looking for precompiled header
 ```
 HelpMake generates a synthetic `build/HelpMake/headers/msvc/pch.cpp` that includes the header, and passes `/Yc` + `/Yu` correctly - but the first-include rule is on your sources, not on HelpMake.
 
-### GCC uses -include <header>, not -include-pch <pch>
+### GCC uses -include `<header>`, not -include-pch `<pch>`
 For GCC, `-include-pch` doesn't exist. Instead:
 
 - PCH is compiled to `pch.hpp.gch` next to `pch.hpp`
