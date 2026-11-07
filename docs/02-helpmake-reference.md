@@ -200,7 +200,7 @@ Copy {
     README.md -> build/
 }
 ```
-Syntax: <source> -> <destination>. Supports:
+Syntax: source -> destination. Supports:
 Single files: src -> dest - copied into dest/ if it's a directory
 Directories: src/ -> dest/ - recursive copy
 Globs: *.json -> dest/ - every matching file in the source directory

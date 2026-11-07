@@ -20,7 +20,7 @@ export default defineConfig({
     ],
 
     markdown : {
-        html : false
+        html : true
     },
 
     themeConfig : {
