@@ -2,6 +2,75 @@
 
 Complete list of `hm` command-line flags.
 
+## Command Formats
+
+HelpMake accepts flags in three flexible formats:
+
+1. **Long flags:** `hm --build`
+2. **Long flags with values:** `hm --verbose=true` or `hm --quiet=false`
+3. **Short flags (Grouped):** `hm -br` (build and rebuild) or `hm -bC=g++` (build with GCC)
+
+### Flag Grouping
+You can combine multiple boolean short flags into a single argument to save keystrokes. For example, `hm -bvw` is equivalent to `hm -b -v -w` (build, verbose, watch). 
+
+If you need to pass a value (like a compiler or output name) in a group, it **must be the last flag** in the group, followed immediately by the value, and it **must be uppercase**:
+*   `hm -bC=clang++` (build with Clang)
+*   `hm -bO app.exe` (build and set output to app.exe)
+*   `hm -bJ4` (build with 4 jobs)
+
+*Rule of thumb:* Lowercase short flags are toggles (`-v`, `-d`, `-q`). Uppercase short flags take values (`-C`, `-V`, `-O`, `-J`).
+
+### Grouped Short Flags (used with `-b`)
+
+When building, you can chain these lowercase boolean flags together. 
+For example, `hm -bvd` means "build, verbose, debug". `hm -brq` means "build, rebuild, quiet".
+
+| Short Flag | Long Flag | Description |
+| :--- | :--- | :--- |
+| `-v` | `--verbose` | Show detailed build output |
+| `-d` | `--debug` | Show debug information (parser trace, flags) |
+| `-q` | `--quiet` | Suppress warnings |
+| `-r` | `--rebuild` | Force full rebuild (ignore timestamps) |
+| `-w` | `--watch` | Watch for file changes and rebuild |
+| `-j` | `--json` | Generate `compile_commands.json` |
+| `-t` | `--time` | Print total build time |
+| `-n` | `--notify` | Desktop notification on completion |
+| `-y` | `--dry-run` | Preview commands without executing |
+| `-c` | `--create` | Generate HelpMake.txt from arguments |
+| `-x` | `--nofile` | Build from CLI only (no config file) |
+| `-a` | `--config-all` | Build every config in the file |
+| `-z` | `--frozen` | Require Git revisions from HelpMake.lock |
+
+### Grouped Value Flags (Uppercase)
+
+If you need to pass a value inside a group, use the uppercase letter at the end of the group, followed by the value.
+
+| Short Flag | Long Flag | Example | Description |
+| :--- | :--- | :--- | :--- |
+| `-C` | `--compiler` | `hm -bC=clang++` | Set the compiler |
+| `-V` | `--version` | `hm -bV=std=c++20` | Set the standard/version |
+| `-O` | `--output` | `hm -bO=app.exe` | Set the output filename |
+| `-J` | `--jobs` | `hm -bJ4` | Set the number of parallel jobs |
+| `-K` | `--kind` | `hm -bK=static` | Set target kind (executable/static) |
+| `-I` | `-I<path>` | `hm -bI=include` | Add an include directory |
+| `-L` | `-L<path>` | `hm -bL=lib` | Add a library search path |
+| `-F` | `-F<flag>` | `hm -bF=-O3` | Add a raw compiler flag |
+
+### Subcommands vs Flags
+HelpMake supports both subcommands and flags to fit different workflows:
+
+| Action | Short Flag | Long Flag |
+| :--- | :--- | :--- |
+| Build | `hm -b` | `hm --build` |
+| Test | `hm -t` | `hm --test` |
+| Clean | `hm -c` | `hm --clean` |
+| Watch | `hm -w` | `hm --watch` |
+| Help | `hm -h` | `hm --help` |
+| Version | `hm -v` | `hm --version` |
+| License | `hm -l` | `hm --license` |
+
+*Tip: Use long flags or subcommands in CI/CD scripts for readability, and short flags in your terminal for speed.*
+
 ## Commands
 
 | Flag | Description |

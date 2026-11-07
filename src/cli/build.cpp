@@ -58,12 +58,56 @@ namespace hm::cli {
         {"frozen", &Config::frozen},
     }};
 
+    struct ShortBoolFlag {
+        char name;
+        bool Config::*field;
+    };
+
+    static constexpr std::array<ShortBoolFlag, 13> shortBoolFlags = {{
+        {'v', &Config::verbose},
+        {'d', &Config::debug},
+        {'q', &Config::quiet},
+        {'r', &Config::rebuild},
+        {'w', &Config::watch},
+        {'j', &Config::json},
+        {'t', &Config::time},
+        {'n', &Config::notify},
+        {'y', &Config::dryRun},
+        {'c', &Config::create},
+        {'x', &Config::n_file},
+        {'a', &Config::allCfgs},
+        {'z', &Config::frozen},
+    }};
+
+    struct ShortStringFlag {
+        char name;
+        std::string Config::*field;
+    };
+
+    static constexpr std::array<ShortStringFlag, 9> shortStringFlags = {{
+        {'C', &Config::compiler},
+        {'V', &Config::version},
+        {'O', &Config::output},
+        {'K', &Config::kind},
+        {'M', &Config::modules},
+        {'P', &Config::inputFile},
+        {'E', &Config::Precmd},
+        {'A', &Config::Postcmd},
+        {'H', &Config::pch},
+    }};
+
     int build(int argc, char **argv, Config &config, const std::filesystem::path &filename) {
         std::vector<std::string> selectedConfigs;
 
+        int startIdx = 2;
+        std::string_view firstArg = argv[1];
+        if (firstArg.length() > 2 && firstArg[0] == '-' && firstArg[1] != '-' && firstArg.find('b') != std::string_view::npos) {
+            startIdx = 1;
+        }
+
         bool dryRunRequested = false;
         bool watchRequested = config.watch;
-        for (int i = 2; i < argc; ++i) {
+        for (int i = startIdx; i < argc; ++i) {
             std::string_view arg = argv[i];
             dryRunRequested = dryRunRequested || arg == "--dry-run";
             watchRequested = watchRequested || arg == "--watch";
@@ -73,7 +117,7 @@ namespace hm::cli {
             return 1;
         }
 
-        for (int i = 2; i < argc; i++) {
+        for (int i = startIdx; i < argc; i++) {
             std::string_view arg = argv[i];
             bool handled = false;
 
@@ -327,6 +371,114 @@ namespace hm::cli {
                 parse.parse();
                 parse.execute();
                 parse.watch();
+            } else if (arg.length() > 2 && arg[0] == '-' && arg[1] != '-') {
+                bool isGroup = true;
+                for (std::size_t j = 1; j < arg.length(); ++j) {
+                    char c = arg[j];
+
+                    if (c == 'b') {
+                        continue;
+                    }
+
+                    bool isBool = false;
+                    for (const auto &f : shortBoolFlags) {
+                        if (f.name == c) {
+                            config.*f.field = true;
+                            isBool = true;
+                            break;
+                        }
+                    }
+                    if (isBool) {
+                        continue;
+                    }
+
+                    bool isString = false;
+                    for (const auto &f : shortStringFlags) {
+                        if (f.name == c) {
+                            std::string value = std::string(arg.substr(j + 1));
+                            if (!value.empty() && value[0] == '=')
+                                value.erase(0, 1);
+
+                            if (value.empty()) {
+                                hp::printlnCl(std::format("[HelpMake] Error: value required after '-{}' in group '{}'", c, arg), hp::RED);
+                                return 1;
+                            }
+
+                            if (c == 'K') {
+                                config.kind = to_lower(value);
+                            } else {
+                                config.*f.field = value;
+                            }
+                            isString = true;
+                            break;
+                        }
+                    }
+                    if (isString) {
+                        break;
+                    }
+
+                    if (c == 'J') {
+                        std::string value = std::string(arg.substr(j + 1));
+                        if (!value.empty() && value[0] == '=')
+                            value.erase(0, 1);
+
+                        if (value.empty()) {
+                            hp::printlnCl(std::format("[HelpMake] Error: value required after '-J' in group '{}'", arg), hp::RED);
+                            return 1;
+                        }
+
+                        try {
+                            config.jobs = std::stoi(value);
+                        } catch (...) {
+                            hp::printlnCl(std::format("[HelpMake] Error: Invalid value for '-J{}'", value), hp::RED);
+                            return 1;
+                        }
+                        break;
+                    } else if (c == 'I') {
+                        std::string value = std::string(arg.substr(j + 1));
+                        if (!value.empty() && value[0] == '=')
+                            value.erase(0, 1);
+                        if (value.empty()) {
+                            hp::printlnCl(std::format("[HelpMake] Error: value required after '-I' in group '{}'", arg), hp::RED);
+                            return 1;
+                        }
+                        if (!config.flags.empty())
+                            config.flags += " ";
+                        config.flags += "-I" + value;
+                        config.includeFiles.push_back(value);
+                        break;
+                    } else if (c == 'L') {
+                        std::string value = std::string(arg.substr(j + 1));
+                        if (!value.empty() && value[0] == '=')
+                            value.erase(0, 1);
+                        if (value.empty()) {
+                            hp::printlnCl(std::format("[HelpMake] Error: value required after '-L' in group '{}'", arg), hp::RED);
+                            return 1;
+                        }
+                        if (!config.flags.empty())
+                            config.flags += " ";
+                        config.flags += "-L" + value;
+                        break;
+                    } else if (c == 'F') {
+                        std::string value = std::string(arg.substr(j + 1));
+                        if (!value.empty() && value[0] == '=')
+                            value.erase(0, 1);
+                        if (value.empty()) {
+                            hp::printlnCl(std::format("[HelpMake] Error: value required after '-F' in group '{}'", arg), hp::RED);
+                            return 1;
+                        }
+                        if (!config.flags.empty())
+                            config.flags += " ";
+                        config.flags += value;
+                        config.v_Flags.push_back(value);
+                        break;
+                    }
+
+                    isGroup = false;
+                    break;
+                }
+                if (isGroup)
+                    continue;
             } else if (!arg.empty() && (arg.back() == '/' || arg.back() == '\\')) {
                 const_cast<std::filesystem::path &>(filename) = std::string(arg) + "HelpMake.txt";
                 if (config.verbose)

@@ -90,11 +90,18 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
                 c.flags += " -L" + depRoot + "/" + ld;
         }
 
+        std::string depLinkFlags;
         for (const auto &lf : dep.linkFlags)
-            c.flags += " " + lf;
+            depLinkFlags += " " + lf;
 
         for (const auto &ln : dep.links)
-            c.flags += " " + depRoot + "/" + ln;
+            depLinkFlags += " " + depRoot + "/" + ln;
+
+        if (!comp->isMSVC() && !depLinkFlags.empty()) {
+            c.flags += " -Wl,--start-group " + depLinkFlags + " -Wl,--end-group";
+        } else {
+            c.flags += depLinkFlags;
+        }
 
         c.v_Info[std::format("{} {} dependency '{}' from '{}'", tag, c.dryRun ? "Would link" : "Linked", depName, depRoot)] = hp::GREEN;
     }

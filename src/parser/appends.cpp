@@ -85,7 +85,7 @@ void Parser::setKind(Config &c, const std::string &rawValue, std::size_t lineNo)
 
 void Parser::setJobs(Config &c, const std::string &rawValue, std::size_t lineNo) {
     try {
-        c.jobs = std::stoul(rawValue);
+        c.jobs = std::stoi(rawValue);
     } catch (const std::invalid_argument &) {
         cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: '{}' is not a valid number for 'jobs'", filename.string(), lineNo, rawValue));
     } catch (const std::out_of_range &) {

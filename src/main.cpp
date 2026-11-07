@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
         init.run();
     } else if (argument == "--show") {
         hm::cli::show(filename, config);
-    } else if (argument == "--watch") {
+    } else if (argument == "--watch" || argument == "-w") {
         config.watch = true;
         return hm::cli::build(argc, argv, config, filename);
     } else if (argument == "--gen" || argument == "--generate") {
@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
 
         hp::printlnCl("[HelpMake] ✓ HelpMake.txt is valid", hp::GREEN);
         return 0;
-    } else if (argument == "--test") {
+    } else if (argument == "--test" || argument == "-t") {
         for (int i = 2; i < argc; ++i) {
             std::string_view arg = argv[i];
             if (arg == "--frozen") {
@@ -237,7 +237,7 @@ int main(int argc, char *argv[]) {
                 config.verbose = true;
             } else if (arg == "-f" || arg == "--file") {
                 if (i + 1 >= argc || argv[i + 1][0] == '-') {
-                    hp::printlnCl("[HelpMake] Error: filename not specified after '--file'.", hp::RED);
+                    hp::printlnCl(std::format("[HelpMake] Error: filename not specified after '{}'.", arg), hp::RED);
                     return 1;
                 }
                 filename = argv[++i];
@@ -331,7 +331,8 @@ int main(int argc, char *argv[]) {
         }
 
         return (failed == 0) ? 0 : 1;
-    } else if (argument == "--build" || argument == "-b") {
+    } else if (argument == "--build" || argument == "-b" ||
+               (argument.size() > 1 && argument[0] == '-' && argument[1] != '-' && argument.find('b') != std::string_view::npos)) {
         return hm::cli::build(argc, argv, config, filename);
     } else {
         hp::printlnCl("[HelpMake] Error: Invalid command. Use \"--help\" for available commands.", hp::RED);

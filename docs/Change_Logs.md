@@ -2,6 +2,24 @@
 
 All notable changes to HelpMake.
 
+## [12.4.1] - 2026-11-07
+
+### Added
+
+- **Flag grouping** - Short flags can now be combined. `hm -bvd` is parsed as `-b -v -d`. Value flags like `-bC=clang++` are supported.
+- **`--flag=value` syntax** - Long boolean flags now explicitly accept values, e.g., `--verbose=true` or `--quiet=false`.
+- **`-t` / `--test`** - Testing is now a standard flag to match `-b` / `--build`.
+- **`-c` / `--clean`** - Cleaning is now a standard flag.
+
+### Changed
+
+- **Short flag convention** - Lowercase short flags are strictly for booleans (`-v`, `-d`, `-r`), while uppercase short flags are for values (`-C`, `-V`, `-O`, `-J`). The `-r` short flag now means `rebuild` (use `--run` to run the output).
+
+### Fixed
+
+- **Linker dependency ordering** - `Depends: libpng, zlib` no longer fails if the user writes them in the wrong order. HelpMake now wraps generated link flags in `-Wl,--start-group` and `-Wl,--end-group` for GCC/Clang to force the linker to resolve circular dependencies.
+- **CLI Inconsistency** - Previously, building was a flag (`-b`) but testing was a subcommand (`test`). The CLI is now fully consistent, using flags for all major actions (`-b`, `-t`, `-c`).
+
 ## [12.4.0] - 2026-11-05
 
 ### Added

@@ -272,6 +272,14 @@ Kind: exectuable   # Error: Invalid Kind 'exectuable'. Did you mean executable ?
 ```
 The check runs at line granularity - one bad line never masks another.
 
+### Dependency Linker Ordering
+
+When linking against multiple external libraries, traditional C/C++ linkers (like GNU `ld` and `lld`) read libraries from left to right and discard them if they don't resolve a symbol immediately. This means `libpng` must come *before* `zlib` if `libpng` depends on `zlib`.
+
+HelpMake handles this automatically. When you use `Depends: libpng, zlib`, HelpMake wraps the generated link flags in `-Wl,--start-group` and `-Wl,--end-group` (for GCC/Clang). This tells the linker to repeatedly scan the libraries until all symbols are resolved, making the order you write them in completely irrelevant.
+
+*(Note: MSVC on Windows does not require this, so HelpMake skips the grouping there).*
+
 ### Common gotchas
 - src/\*.cpp is not recursive. Use src/**/*.cpp for recursive.
 - Empty blocks are fine. Flags { } on one line or empty on two lines does nothing.

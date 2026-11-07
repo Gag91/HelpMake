@@ -9,21 +9,34 @@ namespace hm::cli {
         constexpr std::string_view help = R"HELP(Help_Make (hm) - Build System
 Use : hm [options]
 
-Options:
+Commands:
   -h, --help     Output this help message
   -v, --version  Output the program version
   -b, --build    Build using HelpMake.txt
+  -t, --test     Build and run configs marked Test: true
+  -c, --clean    Delete build artifacts (build/HelpMake)
   -l, --license  Output the license information
   -f, --file     Specify a custom HelpMake file
       --show     Show current configuration
       --dump     Print raw HelpMake.txt contents
       --create   Generate HelpMake.txt from build arguments
-      --clean    Delete build artifacts
   --update-lock  Resolve Git dependencies and write HelpMake.lock
   --gen <name> [--config <name>] Emit a build/config file for another tool.
         --config selects which config to emit for.
         Without --config, emits for the root config.
         Available: ninja, cmake, json/compile_commands, .clangd
+
+Flag Grouping & Shortcuts:
+  You can combine short boolean flags: -bvd (build, verbose, debug)
+  Value flags must be at the end and use UPPERCASE: -bC=clang++ (build with clang++)
+
+  Lowercase booleans: -v (verbose), -d (debug), -q (quiet), -f (rebuild), 
+                      -w (watch), -j (json), -t (time), -n (notify), 
+                      -y (dry-run), -c (create), -x (nofile), -a (config-all), 
+                      -z (frozen)
+  Uppercase values:   -C (compiler), -V (version), -O (output), -K (kind), 
+                      -M (modules), -P (input), -E (pre), -A (post), -H (pch),
+                      -J (jobs)
 
 Build Options (use with -b):
   -Gcc           Use GNU Compiler Collection
@@ -42,9 +55,8 @@ Build Flags:
   -I<path>       Include a specified directory
   -L<path>       Link a specified library path
   -F<flags>      Add specified compiler flags
-  -o<file>       Set output filename
-  -r, --run      Run output file after compilation
-  -j, --jobs N   Compile N files in parallel (default: all cores)
+  -O<file>       Set output filename (or use -o<file>)
+  -J<N>          Compile N files in parallel (default: all cores)
       --config   Build a specific config from HelpMake.txt
       --nofile   Build from command line only (no config file)
       --verbose  Show detailed build output
@@ -55,8 +67,8 @@ Build Flags:
       --json     Generate compile_commands.json
       --no-sep   Disable incremental build (one-shot compile)
       --notify   Desktop notification when the build finishes
+      --run      Run the output binary after a successful build
       --quiet    Suppress warnings
-      --clean    Clean build (delete build/HelpMake directory)
 )HELP";
 
         std::cout << help << "\n";
