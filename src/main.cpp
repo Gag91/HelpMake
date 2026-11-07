@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
 
         hp::printlnCl("[HelpMake] ✓ HelpMake.txt is valid", hp::GREEN);
         return 0;
-    } else if (argument == "test" || argument == "--test") {
+    } else if (argument == "--test") {
         for (int i = 2; i < argc; ++i) {
             std::string_view arg = argv[i];
             if (arg == "--frozen") {

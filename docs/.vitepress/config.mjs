@@ -11,7 +11,12 @@ export default defineConfig({
     },
 
     head : [
-        [ 'meta', {name : 'google-site-verification', content : 'i5PX85IQ7kcRa66R_Kjmevuu-Q4CnOGZWaPY5NoohAU'} ]
+        [ 'link', {rel : 'icon', type : 'image/png', href : '/HelpMake/logo.png'} ],
+        [ 'meta', {name : 'google-site-verification', content : 'i5PX85IQ7kcRa66R_Kjmevuu-Q4CnOGZWaPY5NoohAU'} ],
+        [ 'meta', {property : 'og:type', content : 'website'} ],
+        [ 'meta', {property : 'og:title', content : 'HelpMake'} ],
+        [ 'meta', {property : 'og:description', content : 'A C/C++ build system that needs no config file.'} ],
+        [ 'meta', {property : 'og:image', content : 'https://Gag91.github.io/HelpMake/logo.png'} ]
     ],
 
     markdown : {

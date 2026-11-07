@@ -167,7 +167,7 @@ Compiles C, C++, Zig, Go, Assembly, Rust, or anything with a CLI compiler. Built
 
 - Color-coded output - raw and clean logs, per-file timings.
 - Typo detection - `Compilr:` → "Did you mean `Compiler`?"
-- Self-hosting - builds itself with itself.
+- Self-compiled - builds itself with itself.
 - ~50 KB binary - no runtime, no dependencies.
 
 ## Quick Start
