@@ -1,0 +1,65 @@
+name: Build and Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: hm-linux-x86_64.tar.gz
+            binary_name: hm
+          - os: windows-latest
+            artifact_name: hm-windows-x86_64.zip
+            binary_name: hm.exe
+          - os: macos-latest
+            artifact_name: hm-macos-x86_64.tar.gz
+            binary_name: hm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSYS2 (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Compile HelpMake (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp src/generator/*.cpp src/getters/*.cpp src/init/*.cpp src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp src/main.cpp -o ${{ matrix.binary_name }} -Iinclude
+
+      - name: Compile HelpMake (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: msys2 {0}
+        run: |
+          g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp src/generator/*.cpp src/getters/*.cpp src/init/*.cpp src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp src/main.cpp -o ${{ matrix.binary_name }} -Iinclude
+
+      - name: Package Binary (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          tar -czvf ${{ matrix.artifact_name }} ${{ matrix.binary_name }}
+
+      - name: Package Binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          powershell Compress-Archive -Path ${{ matrix.binary_name }} -DestinationPath ${{ matrix.artifact_name }}
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

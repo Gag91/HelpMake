@@ -1,41 +1,28 @@
-## HelpMake Installation
+# Installation
 
-**Prerequisites:** `git` and a C++20 compiler (`g++ 11+`, `clang++ 11+`, or `MSVC 19.30+`).
+## Download Precompiled Binaries
 
-### Linux / macOS / WSL:
+The fastest way to get started is to download the precompiled binary for your operating system. Extract the archive, and move the `hm` (or `hm.exe`) file to a directory in your `PATH`.
+
+<div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+  <a href="https://github.com/Gag91/Help_Make/releases/latest/download/hm-windows-x86_64.zip" style="display: inline-block; padding: 10px 20px; background-color: var(--vp-c-brand); color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">Download for Windows</a>
+  
+  <a href="https://github.com/Gag91/Help_Make/releases/latest/download/hm-linux-x86_64.tar.gz" style="display: inline-block; padding: 10px 20px; background-color: var(--vp-c-brand); color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">Download for Linux</a>
+  
+  <a href="https://github.com/Gag91/Help_Make/releases/latest/download/hm-macos-x86_64.tar.gz" style="display: inline-block; padding: 10px 20px; background-color: var(--vp-c-brand); color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">Download for macOS</a>
+</div>
+
+<br>
+
+## Install via Script (Automated)
+
+If you want HelpMake to automatically download, build, and add itself to your `PATH`, use our install scripts:
+
+[Linux]
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Gag91/Help_Make/main/install.sh | bash
 ```
-
-### Windows (cmd or PowerShell):
-```cmd
-curl -fsSL -o install.bat https://raw.githubusercontent.com/Gag91/Help_Make/main/install.bat && install.bat
+[Windows]
+```bash [Windows]
+curl -fsSL -o install.bat https://raw.githubusercontent.com/Gag91/Help_Make/main/install.bat && .\install.bat
 ```
-
-Both scripts clone to `~/.local/share/HelpMake` (`%USERPROFILE%\HelpMake` on Windows), build `hm` with your system compiler, and add it to your user `PATH`. Restart your terminal after they finish.
-
-### Manual build (if you'd rather do it yourself):
-```bash
-git clone https://github.com/Gag91/Help_Make
-cd Help_Make
-g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp \
-src/generator/*.cpp src/getters/*.cpp src/init/*.cpp \
-src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp \
-src/main.cpp -o hm -Iinclude
-```
-Then put `hm` on your `PATH` manually.
-
-### Custom install location:
-**Linux / macOS / WSL:**
-```bash
-HELPMAKE_DIR=/opt/HelpMake bash install.sh
-```
-
-**Windows:**
-```cmd
-set HELPMAKE_DIR=D:\Dev\HelpMake
-install.bat
-```
-
-### Uninstall:
-Delete `~/.local/share/HelpMake` (or `%USERPROFILE%\HelpMake`), remove `hm` from `~/.local/bin` (or `%USERPROFILE%\.local\bin`), and remove the corresponding line from your shell profile or user `PATH`.
