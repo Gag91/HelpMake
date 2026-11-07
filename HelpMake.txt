@@ -70,6 +70,14 @@ Config: debug {
 # Test configurations - hm test
 # ============================================================
 
+# ---------- All Test --------------------
+Config: test {
+    Test: true
+    Depends: test-gcc-modules
+    Depends: test-clang-modules
+    Depends: test-math-app
+}
+
 # ---------- C++20 modules, GCC ----------
 Config: test-gcc-modules {
     Test: true
@@ -138,11 +146,9 @@ Config: test-math-lib {
 }
 
 # ---------- Static library consumer ----------
-# Not marked Test: true because it depends on test-math-lib being built first.
-# Build both manually in order:
-#   hm -b --config test-math-lib
-#   hm -b --config test-math-app -r
 Config: test-math-app {
+    Test: true
+    Depends: test-math-lib
     Output: build/test-math-app.exe
     InputFiles {
         test/lib/main.cpp

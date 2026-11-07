@@ -7,6 +7,7 @@
 #include "hp/other/other.hpp"
 
 int Parser::execute() {
+    builtConfigs.clear();
     Config local = cfg;
     if (resolveDependencies(local, "[HelpMake]") != 0)
         return 1;
@@ -52,6 +53,9 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
 
     for (const auto &depName : c.v_Depends) {
         auto it = dependencies.find(depName);
+        auto c_it = configs.find(depName);
+        if (c_it != configs.end())
+            continue;
         if (it == dependencies.end()) {
             hp::printlnCl(std::format("{} Error: Undefined dependency '{}' referenced by 'Depends:'", tag, depName), hp::RED);
             return 1;
@@ -109,6 +113,30 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
 }
 
 int Parser::executeConfig(const Config &c, const std::string &name) {
+    for (const auto &depName : c.v_Depends) {
+        if (configs.contains(depName)) {
+            if (depName == name) {
+                hp::printlnCl(std::format("Error: Config '{}' cannot depend on itself.", name), hp::RED);
+                return 1;
+            }
+
+            if (std::find(builtConfigs.begin(), builtConfigs.end(), depName) != builtConfigs.end())
+                continue;
+
+            builtConfigs.push_back(depName);
+
+            if (!cfg.quiet)
+                hp::printlnCl(std::format("[HelpMake] Building dependency config '{}' for '{}'...", depName, name), hp::CYAN);
+
+            Config depCfg = inheritConfig(configs[depName]);
+
+            if (executeConfig(depCfg, depName) != 0) {
+                hp::printlnCl(std::format("Error: Failed to build dependency config '{}'.", depName), hp::RED);
+                return 1;
+            }
+        }
+    }
+
     auto t0 = hp::startTimer();
     v_DepFiles.clear();
     auto comp = hm::makeCompiler(c.compiler);
@@ -1066,6 +1094,7 @@ Config Parser::inheritConfig(const Config &child) {
 }
 
 int Parser::executeConfigs(const std::vector<std::string> &names) {
+    builtConfigs.clear();
     int rc = 0;
     for (const auto &name : names) {
         auto it = configs.find(name);

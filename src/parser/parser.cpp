@@ -98,6 +98,11 @@ int Parser::parse() {
         if (sec.configName.empty()) {
             parseSection(sec, cfg, true);
         } else {
+            if (configs.contains(sec.configName)) {
+                cfg.v_Errors.push_back(std::format("[HelpMake] Error: Duplicate config name '{}' found. Config names must be unique.", sec.configName));
+                continue;
+            }
+
             Config c;
             c.name = sec.configName;
             parseSection(sec, c, false);

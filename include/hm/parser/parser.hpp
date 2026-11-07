@@ -63,6 +63,7 @@ class Parser {
     Config currentConfig;
     std::map<std::string, Config> configs;
     std::map<std::string, std::string> fetchRoots;
+    std::vector<std::string> builtConfigs;
     int configBraceDepth = 1;
     static std::vector<std::string> splitArgs(const std::string &args);
     bool isGitCheckout(const std::string &path, const std::string &url) const;

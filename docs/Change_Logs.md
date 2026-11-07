@@ -20,6 +20,9 @@ All notable changes to HelpMake.
 - **Linker dependency ordering** - `Depends: libpng, zlib` no longer fails if the user writes them in the wrong order. HelpMake now wraps generated link flags in `-Wl,--start-group` and `-Wl,--end-group` for GCC/Clang to force the linker to resolve circular dependencies.
 - **CLI Inconsistency** - Previously, building was a flag (`-b`) but testing was a subcommand (`test`). The CLI is now fully consistent, using flags for all major actions (`-b`, `-t`, `-c`).
 
+- **Config-to-Config dependencies** - `Depends:` can now reference internal `Config:` blocks. HelpMake automatically resolves the build order, detects circular dependencies, and builds the dependencies first.
+- **Duplicate Config names** - HelpMake now throws a parse error if two configs share the same name.
+
 ## [12.4.0] - 2026-11-05
 
 ### Added
