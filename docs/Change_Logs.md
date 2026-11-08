@@ -16,7 +16,7 @@ All notable changes to HelpMake.
 
 - **Linker flags leaking into compile step** - Flags like `-Wl,--start-group` and `-L` are now correctly separated and only passed to the linker, not the compiler.
 
-## [12.4.1] - 2026-11-07
+## [12.4.2] - 2026-11-07
 - **Binaries** - Download HelpMake for [Windows](https://github.com/Gag91/Help_Make/releases/latest/download/hm-windows-x86_64.zip), [Linux](https://github.com/Gag91/Help_Make/releases/latest/download/hm-linux-x86_64.tar.gz) or [MacOs](https://github.com/Gag91/Help_Make/releases/latest/download/hm-macos-x86_64.tar.gz).
 ## [12.4.1] - 2026-11-07
 
