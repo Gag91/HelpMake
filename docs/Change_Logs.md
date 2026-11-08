@@ -6,6 +6,7 @@ All notable changes to HelpMake.
 
 ### Added
 
+- **VS Code Extension** - Official syntax highlighting for `HelpMake.txt` and `.helpmake` files. [Available on the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Xavi99.helpmake) inside the website.
 - **Workspaces (Subsets)** - You can now make multi-project builds from a single root `HelpMake.txt` using the `Subset { }` block or `Subset: <path>` field. HelpMake will automatically build the config file that's in the subset directory. It supports directories (looking for `HelpMake.txt` or using zero-config) and specific file paths (using `-f`).
 - **Output Normalization** - HelpMake now respects platform-specific naming conventions for `Output:` if you omit the file extension.
   - Executables automatically get `.exe` on Windows and no extension on Linux/macOS.
@@ -18,6 +19,7 @@ All notable changes to HelpMake.
 
 ## [12.4.2] - 2026-11-07
 - **Binaries** - Download HelpMake for [Windows](https://github.com/Gag91/Help_Make/releases/latest/download/hm-windows-x86_64.zip), [Linux](https://github.com/Gag91/Help_Make/releases/latest/download/hm-linux-x86_64.tar.gz) or [MacOs](https://github.com/Gag91/Help_Make/releases/latest/download/hm-macos-x86_64.tar.gz).
+
 ## [12.4.1] - 2026-11-07
 
 ### Added

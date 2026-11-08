@@ -41,6 +41,8 @@ features:
 </div>
 
 
+> **Editor Support:** Get syntax highlighting for `HelpMake.txt` in VS Code. [Install the HelpMake extension](https://marketplace.visualstudio.com/items?itemName=Xavi99.helpmake)
+
 ![HelpMake Demo](/HelpMake.gif)
 
 # HelpMake (hm)

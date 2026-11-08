@@ -35,7 +35,6 @@ export default defineConfig({
 
         sidebar : [
             {
-
                 text : 'Guide',
                 items : [
                     {text : 'Installation', link : '/install'},
@@ -43,7 +42,6 @@ export default defineConfig({
                     {text : 'Auto-detection', link : '/11-auto-detection'},
                     {text : 'Variables', link : '/05-variables'},
                 ]
-
             },
             {
                 text : 'Reference',
@@ -60,6 +58,7 @@ export default defineConfig({
                     {text : 'Precompiled headers', link : '/06-pch'},
                     {text : 'C++20 modules', link : '/07-modules'},
                     {text : 'Static libraries', link : '/08-static-libs'},
+                    {text : 'VS Code Extension', link : '/12-vscode-extension'},
                 ]
             },
             {
