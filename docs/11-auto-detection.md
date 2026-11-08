@@ -32,7 +32,7 @@ Every detected value is listed under `Info:` so you know exactly what was inferr
 
 | Field | Detection strategy | Fallback |
 | :--- | :--- | :--- |
-| **Compiler:** | probes candidates by source extension | error |
+| **Compiler:** | `CXX`/`CC`/`CROSS_COMPILE` env, then probe candidates by source extension | error |
 | **Version:** | runs `<compiler> -dumpversion` | empty |
 | **InputFiles { }** | walks `src/` (or `.`) recursively + follows includes | error |
 | **Kind:** | scans sources for `main(` | executable |
@@ -43,6 +43,26 @@ Every detected value is listed under `Info:` so you know exactly what was inferr
 ## Per-field details
 
 ### Compiler
+
+Resolution order (highest priority first):
+
+1. **`Compiler:` field** in `HelpMake.txt`, or `-C=<name>` on the CLI - if set, none of the below runs.
+2. **`CXX`** env var (C++ sources) / **`CC`** env var (C sources).
+3. **`CROSS_COMPILE`** env var - prefixed to the default binary (`${CROSS_COMPILE}g++` / `${CROSS_COMPILE}gcc`).
+4. **Probe** for a candidate on `PATH`, by source extension.
+
+Examples:
+
+```bash
+CXX=clang++ hm -b                     # picks clang++ for .cpp sources
+CC=gcc-14 hm -b                       # picks gcc-14 for .c sources
+CROSS_COMPILE=arm-none-eabi- hm -b    # picks arm-none-eabi-g++ / -gcc
+```
+
+If both `CXX` and `CROSS_COMPILE` are set, `CXX` wins. If neither is set, HelpMake probes the table below.
+
+Because env vars are checked per source extension, a project with both `.c` and `.cpp` files will resolve each independently - but `autoCompiler` returns on the first file it inspects. For mixed-language projects, set `Compiler:` explicitly.
+
 Scans `InputFiles { }` (or auto-detected sources) for extensions, then probes candidates for that language group:
 
 | Extension | Probe order |
@@ -114,9 +134,26 @@ Sources are filtered by the detected compiler's language group - a `g++` build o
 **Companion sources.** After the initial scan, HelpMake reads every `#include "..."` from each source and searches the tree for a matching `X.cpp` (or `.cc`, `.cxx`, `.c`, `.cppm`). If found and not already listed, it's added. *Example:* `src/main.cpp` includes `"utils.hpp"`, and `tools/utils.cpp` exists - `tools/utils.cpp` is added to the build.
 
 ### Kind
-Scans every C-family source for a valid `main(` declaration, with word-boundary checks (`domain(`, `mainHelper(`, `main_loop(` are rejected). Accepts `main()`, `main(int argc, char** argv)`, `main(void)`, `int main ( int argc , ... )`.
 
-If found: `Kind: executable`. If not: `Kind: static`, with a warning. Non-C-family projects (Zig, Go, Rust, Python) always default to `executable`.
+Scans every C-family source for a valid entry-point function. Recognized names:
+
+- `main` - standard C/C++ entry point
+- `WinMain` - Windows GUI entry point (`int WINAPI WinMain(...)`)
+- `wmain` - wide-character main (`int wmain(int, wchar_t**)`)
+- `_tmain` - MSVC TCHAR main
+
+Word boundaries are enforced (`domain(`, `mainHelper(`, `main_loop(` are rejected). Whitespace between the name and `(` is allowed, and multi-line signatures work (`int main\n(int, char**)` is detected).
+
+Before scanning, source text is passed through a state machine that blanks out:
+
+- `// line comments`
+- `/* block comments */`
+- `"string literals"`
+- `'char literals'`
+
+so a `// int main()` comment or a `std::string s = "main("` literal can never falsely trigger `executable`.
+
+If an entry point is found: `Kind: executable`. If not: `Kind: static`, with a warning. Non-C-family projects (Zig, Go, Rust, Python) always default to `executable`.
 
 ### Includes
 Scans recursively for directories named `include`, `includes`, `inc`, `headers`, `api`, or `public`. Reason-based recursion stops at the first match per branch, so `include/hm/parser/` and `include/hm/cli/` are not added as separate include roots.
@@ -124,16 +161,27 @@ Scans recursively for directories named `include`, `includes`, `inc`, `headers`,
 If no named include dir exists, falls back to adding the parent directory of every header file (`.h`, `.hpp`, `.hxx`, `.hh`, `.inl`, `.inc`, `.ixx`, `.cppm`, `.tpp`). This is the *"I have headers in src/"* case.
 
 ### Link flags
-Reads every `#include <...>` line in every source and adds the corresponding flag:
+
+Reads every **angle-bracket** `#include <...>` line in every source and adds the corresponding flag. Quoted includes (`#include "foo.h"`) are ignored - they refer to local headers, not system libs. Comments are stripped first, so `/* #include <pthread.h> */` and `// #include <cmath>` never trigger.
 
 | Header | GCC/Clang | MSVC |
 | :--- | :--- | :--- |
-| `<thread>`, `<mutex>`, `<atomic>`, `<condition_variable>`, `<pthread.h>` | `-pthread` | *(skip - CRT built-in)* |
+| `<pthread.h>`, `<thread>`, `<mutex>`, `<atomic>`, `<condition_variable>`, `<future>` | `-pthread` | *(skip - CRT built-in)* |
 | `<cmath>`, `<math.h>` | `-lm` | *(skip - CRT built-in)* |
 | `<dlfcn.h>` | `-ldl` | *(skip - POSIX-only)* |
-| `<zlib.h>` | `-lz` | - |
-| `<curl/curl.h>` | `-lcurl` | - |
-| `<openssl/ssl.h>` | `-lssl -lcrypto` | - |
+| `<zlib.h>` | `-lz` | `zlib.lib` |
+| `<curl/curl.h>` | `-lcurl` | `libcurl.lib` |
+| `<openssl/ssl.h>` | `-lssl -lcrypto` | `libssl.lib libcrypto.lib` |
+| `<SDL2/SDL.h>` | `-lSDL2` | `SDL2.lib` |
+| `<GLFW/glfw3.h>` | `-lglfw` | `glfw3.lib` |
+| `<GL/gl.h>` | `-lGL` | `opengl32.lib` |
+| `<GL/glew.h>` | `-lGLEW` | `glew32.lib` |
+| `<gtest/gtest.h>` | `-lgtest -lgtest_main` | `gtest.lib` |
+| `<fmt/core.h>` | `-lfmt` | `fmt.lib` |
+| `<sqlite3.h>` | `-lsqlite3` | `sqlite3.lib` |
+| `<expat.h>` | `-lexpat` | `expat.lib` |
+
+Malformed lines are skipped: `#includefoo` (no space), `#include_next <...>` (GCC extension), and quoted variants are ignored.
 
 Existing flags are never duplicated. Only the discovered flags appear under `Warning: Auto-added link flags:`.
 
@@ -153,7 +201,7 @@ Reads in priority order:
 10. `build.gradle` / `build.gradle.kts` - `rootProject.name = "..."`
 11. `*.csproj` / `*.fsproj` / `*.vbproj` - file stem
 12. `main.*` in `InputFiles { }` - uses `main`
-13. **Directory name** - the current directory's basename
+13. **Directory name** - the current directory's basename, **unless** it is a generic name (`build`, `out`, `dist`, `bin`, `tmp`, `temp`, `src`). Running `hm -b` from inside `build/` will not produce `build.exe`.
 14. **Fallback** - `a.out` (Unix) or `a.exe` (Windows)
 
 On Windows, `.exe` is appended. Output is placed in the current directory; use `Output: build/...` to change that.
@@ -201,6 +249,25 @@ Info:
 Multi-line warnings (`Auto-added link flags:`, `Auto-detected include dirs:`, `Auto-added companion sources:`) sort to the bottom of the warning group. Continuation lines align under the message text.
 
 Use `--quiet` to suppress everything except errors. Use `--verbose` to also see detected successes.
+
+## Disabling auto-detection entirely
+
+Run with `--nofile`:
+
+```bash
+hm -b --nofile -C=g++ -V=std=c++20 -o app src/main.cpp
+```
+
+`--nofile` skips the config file **and** the auto-detection chain. Only what you pass on the CLI is used - HelpMake will not scan the current directory for sources, include dirs, headers, or link flags.
+
+Because nothing is inferred, `--nofile` requires at least:
+
+- `-C=<compiler>` (or `--compiler=<name>`)
+- One or more input files on the command line
+
+If either is missing, `hm` prints an error and exits with code 1.
+
+`-o=<output>` defaults to `a.exe` (Windows) or `a.out` (elsewhere) if omitted. `Kind:` defaults to `executable`. Both are defaults, not detections - they never touch the filesystem.
 
 ## When auto-detection fails
 

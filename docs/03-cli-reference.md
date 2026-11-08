@@ -103,7 +103,7 @@ hm test --verbose
 hm test --frozen
 ```
 
-Configs are discovered via the `Test: true` field — a name match (`test-*`) is not how membership is decided. Add `Test: true` to any `Config: { }` block to include it:
+Configs are discovered via the `Test: true` field - a name match (`test-*`) is not how membership is decided. Add `Test: true` to any `Config: { }` block to include it:
 
 ```txt
 Config: smoke {
@@ -154,7 +154,7 @@ Exit code is `0` on success, `1` if any path couldn't be removed (locked file, p
 
 ## Response files
 
-When a link command exceeds 30,000 characters (Windows caps `CreateProcessA` at 32,767), `hm` writes arguments to `build/HelpMake/<comp>/<baseName>.rsp` and passes `@file.rsp` to the compiler. This is transparent — nothing in your `HelpMake.txt` needs to change. Under `--verbose`, `hm` prints:
+When a link command exceeds 30,000 characters (Windows caps `CreateProcessA` at 32,767), `hm` writes arguments to `build/HelpMake/<comp>/<baseName>.rsp` and passes `@file.rsp` to the compiler. This is transparent - nothing in your `HelpMake.txt` needs to change. Under `--verbose`, `hm` prints:
 
 ```text
 [HelpMake] Link command too long (32450 chars); using response file: build/HelpMake/gcc/app.rsp
@@ -204,7 +204,7 @@ hm -b -C="zig cc"
 | `-j`, `--jobs N` | Parallel compilation with N jobs. `-j` alone uses all cores. |
 | `--config <name>` | Build only that config. May be repeated. |
 | `--config-all` | Build every config in the file. |
-| `--nofile` | Build from command-line arguments only, no config file required. |
+| `--nofile` | Strict CLI-only build. Skips the config file **and** the auto-detection chain. Requires `-C=<compiler>` and at least one input file on the command line. |
 | `-r`, `--run` | Run the output binary after a successful build. |
 | `--verbose` | Show the actual command lines and per-file timings. |
 | `--debug` | Show parser trace plus every command (implies `--verbose` output). |
@@ -315,7 +315,7 @@ argument) lists available generators.
 | Fetch | ⚠️ skipped |
 | MSVC | ⚠️ skipped |
 
-Regenerate after any `HelpMake.txt` change — the file is a snapshot, not
+Regenerate after any `HelpMake.txt` change - the file is a snapshot, not
 a live view.
 
 ## Exit codes
@@ -329,7 +329,17 @@ Scripts can use `if hm -b; then …; fi` safely.
 
 ## Environment
 
-HelpMake does not read any environment variables for its behavior - everything is on the command line or in `HelpMake.txt`. The compilers and tools it invokes may read their own (`CXXFLAGS`, `CC`, etc.), but HelpMake itself doesn't.
+HelpMake reads three environment variables, all used by auto-detection:
+
+| Variable | Effect |
+|---|---|
+| `CXX` | Compiler for C++ sources when `Compiler:` is unset. Example: `CXX=clang++ hm -b`. |
+| `CC` | Compiler for C sources when `Compiler:` is unset. Example: `CC=gcc-14 hm -b`. |
+| `CROSS_COMPILE` | Prefix applied to the default compiler when `CXX`/`CC` aren't set. Example: `CROSS_COMPILE=arm-none-eabi- hm -b` → `arm-none-eabi-g++` / `arm-none-eabi-gcc`. |
+
+Priority is **`Compiler:` field / `-C=` > `CXX`/`CC` > `CROSS_COMPILE` > probe**. Explicit config and CLI always win.
+
+Everything else is on the command line or in `HelpMake.txt`. HelpMake does not read `CXXFLAGS`, `LDFLAGS`, `CPPFLAGS`, or any variable not listed above. The compilers and tools it invokes may read their own - that's outside HelpMake's control.
 
 ## Aliases in Compiler:
 

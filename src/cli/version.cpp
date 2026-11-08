@@ -7,7 +7,7 @@ namespace hm::cli {
 
     int version() {
         constexpr std::string_view version = R"(Help_Make (hm) - Build System
-Version: 12.4.3
+Version: 12.4.4
 Author : Xavi99
 Website: https://gag91.github.io/HelpMake/
 This program is licensed under the MIT License. See "--license" for details.
@@ -17,7 +17,7 @@ This program is licensed under the MIT License. See "--license" for details.
     }
 
     int Dumpversion() {
-        constexpr std::string_view dumpversion = "12.4.3";
+        constexpr std::string_view dumpversion = "12.4.4";
         std::cout << dumpversion;
         return 0;
     }

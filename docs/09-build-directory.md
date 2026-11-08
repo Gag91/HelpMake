@@ -130,7 +130,7 @@ build/HelpMake/dep/<name>/
 ├── <Build: output>
 └── <Link: target>
 ```
-Cache logic: first build clones and builds. Subsequent builds compare .buildid to current Build: commands — match skips, mismatch rebuilds.
+Cache logic: first build clones and builds. Subsequent builds compare .buildid to current Build: commands - match skips, mismatch rebuilds.
 
 Force rebuild: rm -rf `build/HelpMake/dep/<name>` or hm --clean.
 
@@ -138,7 +138,7 @@ Force rebuild: rm -rf `build/HelpMake/dep/<name>` or hm --clean.
 
 `hm --gen ninja` writes `build.ninja` to the **project root** (next to `HelpMake.txt`). Ninja's own state (`.ninja_log`, `.ninja_deps`) goes under `build/HelpMake/Ninja/`.
 
-Regenerate after any `HelpMake.txt` change — the file is a snapshot, not a live view.
+Regenerate after any `HelpMake.txt` change - the file is a snapshot, not a live view.
 
 
 ## Recommended .gitignore
@@ -162,8 +162,8 @@ The `build/` entry covers everything in this doc - no need to enumerate `build/H
 
 | Command | Deletes |
 |---|---|
-| `hm --clean` | `build/HelpMake/` — all compilers, configs, PCHs, fetched deps |
-| `hm --clean-gcm` | `gcm.cache/` — GCC module cache (lives outside `build/` by GCC's design) |
+| `hm --clean` | `build/HelpMake/` - all compilers, configs, PCHs, fetched deps |
+| `hm --clean-gcm` | `gcm.cache/` - GCC module cache (lives outside `build/` by GCC's design) |
 | `hm --clean-all` | Both of the above |
 
 Add `--verbose` to any clean command for per-path output:

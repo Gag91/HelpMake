@@ -35,6 +35,68 @@ inline std::string trim(const std::string &s) {
     return s.substr(start, end - start + 1);
 }
 
+inline std::string stripSource(std::string_view src) {
+    std::string out;
+    out.reserve(src.size());
+    bool inBlock = false;
+    bool inStr = false;
+    bool inChar = false;
+    bool escaped = false;
+    char quote = 0;
+
+    for (std::size_t i = 0; i < src.size(); ++i) {
+        char ch = src[i];
+        if (inBlock) {
+            if (ch == '*' && i + 1 < src.size() && src[i + 1] == '/') {
+                inBlock = false;
+                ++i;
+            } else if (ch == '\n') {
+                out += '\n';
+            }
+            continue;
+        }
+        if (inStr || inChar) {
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (ch == '\\') {
+                escaped = true;
+                continue;
+            }
+            if (ch == quote) {
+                inStr = inChar = false;
+            } else if (ch == '\n') {
+                inStr = inChar = false;
+                out += '\n';
+            }
+            continue;
+        }
+        if (ch == '/' && i + 1 < src.size()) {
+            if (src[i + 1] == '/') {
+                while (i < src.size() && src[i] != '\n')
+                    ++i;
+                if (i < src.size())
+                    out += '\n';
+                continue;
+            }
+            if (src[i + 1] == '*') {
+                inBlock = true;
+                ++i;
+                continue;
+            }
+        }
+        if (ch == '"' || ch == '\'') {
+            quote = ch;
+            inStr = (ch == '"');
+            inChar = (ch == '\'');
+            continue;
+        }
+        out += ch;
+    }
+    return out;
+}
+
 inline std::string escapeJson(const std::string &s) {
     std::string out;
     out.reserve(s.size() + 8);

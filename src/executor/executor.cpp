@@ -1200,6 +1200,29 @@ void Parser::Notify(const double &time, bool success) {
     hm::Process::run(notifyCmd);
 }
 
+static std::string envCompilerFor(const std::string &ext) {
+    bool isCpp = ext == ".cpp" || ext == ".cxx" || ext == ".cc";
+    bool isC = ext == ".c";
+
+    if (!isCpp && !isC)
+        return "";
+    std::string cross;
+    if (const char *cc = std::getenv("CROSS_COMPILE"); cc && *cc)
+        cross = cc;
+    if (isCpp) {
+        if (const char *env = std::getenv("CXX"); env && *env)
+            return env;
+        if (!cross.empty())
+            return cross + "g++";
+    } else {
+        if (const char *env = std::getenv("CC"); env && *env)
+            return env;
+        if (!cross.empty())
+            return cross + "gcc";
+    }
+    return "";
+}
+
 int Parser::autoCompiler(Config &c, const std::string &tag) {
     if (!c.compiler.empty())
         return 0;
@@ -1266,6 +1289,13 @@ int Parser::autoCompiler(Config &c, const std::string &tag) {
         if (!anyInput) {
             firstExt = ext;
             anyInput = true;
+        }
+
+        std::string envComp = envCompilerFor(ext);
+        if (!envComp.empty()) {
+            c.compiler = envComp;
+            c.v_Info[std::format("{} Warning: Compiler not specified. Using env override: {}", tag, c.compiler)] = hp::YELLOW;
+            return 0;
         }
 
         for (const auto &group : compilerGroups) {
@@ -1817,47 +1847,63 @@ int Parser::autoLinkFlags(Config &c, const std::string &tag) {
         std::string_view msvcFlag;
     };
 
-    static constexpr std::array<LinkEntry, 11> linkTable = {{
+    static constexpr std::array<LinkEntry, 20> linkTable = {{
         {"pthread.h", "-pthread", ""},
         {"thread", "-pthread", ""},
         {"mutex", "-pthread", ""},
         {"atomic", "-pthread", ""},
         {"condition_variable", "-pthread", ""},
+        {"future", "-pthread", ""},
         {"cmath", "-lm", ""},
         {"math.h", "-lm", ""},
         {"dlfcn.h", "-ldl", ""},
         {"zlib.h", "-lz", "zlib.lib"},
         {"curl/curl.h", "-lcurl", "libcurl.lib"},
         {"openssl/ssl.h", "-lssl -lcrypto", "libssl.lib libcrypto.lib"},
+        {"SDL2/SDL.h", "-lSDL2", "SDL2.lib"},
+        {"GLFW/glfw3.h", "-lglfw", "glfw3.lib"},
+        {"GL/gl.h", "-lGL", "opengl32.lib"},
+        {"GL/glew.h", "-lGLEW", "glew32.lib"},
+        {"gtest/gtest.h", "-lgtest -lgtest_main", "gtest.lib"},
+        {"fmt/core.h", "-lfmt", "fmt.lib"},
+        {"sqlite3.h", "-lsqlite3", "sqlite3.lib"},
+        {"expat.h", "-lexpat", "expat.lib"},
     }};
 
     if (c.v_inputFiles.empty())
         return 0;
 
     std::vector<std::string> newFlags;
-    for (const auto &f : c.v_inputFiles) {
-        std::ifstream in(f);
+    for (const auto &f : expandInputs(c)) {
+        std::ifstream in(f, std::ios::binary);
         if (!in)
             continue;
-        std::string line;
-        while (std::getline(in, line)) {
-            std::size_t pos = line.find("#include");
-            if (pos == std::string::npos)
-                continue;
+        std::string raw((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        std::string stripped = stripSource(raw);
 
-            std::size_t angleOpen = line.find('<', pos);
-            std::size_t quoteOpen = line.find('"', pos);
-
-            if (angleOpen == std::string::npos)
+        std::size_t pos = 0;
+        while ((pos = stripped.find("#include", pos)) != std::string::npos) {
+            std::size_t after = pos + 8;
+            if (after < stripped.size() && stripped[after] != ' ' && stripped[after] != '\t' && stripped[after] != '<') {
+                std::size_t nl = stripped.find('\n', pos);
+                pos = (nl == std::string::npos) ? stripped.size() : nl + 1;
                 continue;
-            if (quoteOpen != std::string::npos && quoteOpen < angleOpen)
-                continue;
+            }
 
-            std::size_t angleClose = line.find('>', angleOpen + 1);
-            if (angleClose == std::string::npos)
-                continue;
+            while (after < stripped.size() && std::isspace(static_cast<unsigned char>(stripped[after])))
+                ++after;
 
-            std::string value = line.substr(angleOpen + 1, angleClose - angleOpen - 1);
+            if (after >= stripped.size() || stripped[after] != '<') {
+                std::size_t nl = stripped.find('\n', pos);
+                pos = (nl == std::string::npos) ? stripped.size() : nl + 1;
+                continue;
+            }
+
+            std::size_t close = stripped.find('>', after + 1);
+            if (close == std::string::npos)
+                break;
+
+            std::string value = stripped.substr(after + 1, close - after - 1);
             for (const auto &e : linkTable) {
                 if (e.header != value)
                     continue;
@@ -1867,6 +1913,7 @@ int Parser::autoLinkFlags(Config &c, const std::string &tag) {
                 newFlags.push_back(std::string(flag));
                 break;
             }
+            pos = close + 1;
         }
     }
 
@@ -1892,13 +1939,42 @@ int Parser::autoLinkFlags(Config &c, const std::string &tag) {
     return 0;
 }
 
+static bool hasEntryPoint(std::string_view src) {
+    static constexpr std::array<std::string_view, 4> candidates = {
+        "main",
+        "WinMain",
+        "wmain",
+        "_tmain",
+    };
+
+    for (auto name : candidates) {
+        std::size_t pos = 0;
+
+        while ((pos = src.find(name, pos)) != std::string_view::npos) {
+            bool startOk = pos == 0 || (!std::isalnum(static_cast<unsigned char>(src[pos - 1])) && src[pos - 1] != '_');
+            std::size_t end = pos + name.size();
+            bool endOk = end >= src.size() || (!std::isalnum(static_cast<unsigned char>(src[end])) && src[end] != '_');
+
+            if (startOk && endOk) {
+                std::size_t p = end;
+                while (p < src.size() && std::isspace(static_cast<unsigned char>(src[p])))
+                    ++p;
+                if (p < src.size() && src[p] == '(')
+                    return true;
+            }
+            pos = end;
+        }
+    }
+    return false;
+}
+
 int Parser::autoKind(Config &c, const std::string &tag) {
     if (c.kind == "static")
         return 0;
     if (c.v_inputFiles.empty())
         collectFiles(c, tag);
 
-    static constexpr std::array<std::string_view, 10> extMain{
+    static constexpr std::array<std::string_view, 7> extEntry{
         ".c",
         ".cpp",
         ".cxx",
@@ -1908,46 +1984,24 @@ int Parser::autoKind(Config &c, const std::string &tag) {
         ".rs",
     };
 
-    auto hasMain = [](std::string_view line) -> bool {
-        std::size_t pos = 0;
-        while ((pos = line.find("main", pos)) != std::string_view::npos) {
-            bool wordStart = (pos == 0) || (!std::isalnum(static_cast<unsigned char>(line[pos - 1])) && line[pos - 1] != '_');
-            bool wordEnd = (pos + 4 >= line.size()) || (!std::isalnum(static_cast<unsigned char>(line[pos + 4])) && line[pos + 4] != '_');
-            if (wordStart && wordEnd) {
-                std::size_t p = pos + 4;
-                while (p < line.size() && std::isspace(static_cast<unsigned char>(line[p])))
-                    ++p;
-                if (p < line.size() && line[p] == '(')
-                    return true;
-            }
-            pos += 4;
-        }
-        return false;
-    };
-
     bool hasCFamily = false;
     bool foundMain = false;
 
     for (const auto &file : expandInputs(c)) {
         std::string ext = to_lower(std::filesystem::path(file).extension().string());
-        if (std::ranges::find(extMain, ext) == extMain.end())
+        if (std::ranges::find(extEntry, ext) == extEntry.end())
             continue;
         hasCFamily = true;
 
-        std::ifstream src(file);
+        std::ifstream src(file, std::ios::binary);
         if (!src)
             continue;
-        std::string line;
-        while (std::getline(src, line)) {
-            if (line.find("//") != std::string::npos)
-                continue;
-            if (hasMain(line)) {
-                foundMain = true;
-                break;
-            }
-        }
-        if (foundMain)
+        std::string raw((std::istreambuf_iterator<char>(src)), std::istreambuf_iterator<char>());
+        std::string stripped = stripSource(raw);
+        if (hasEntryPoint(stripped)) {
+            foundMain = true;
             break;
+        }
     }
 
     if (!hasCFamily) {
@@ -1957,7 +2011,7 @@ int Parser::autoKind(Config &c, const std::string &tag) {
 
     c.kind = foundMain ? "executable" : "static";
     if (!foundMain)
-        c.v_Info[std::format("{} Warning: No 'main' found. Using Kind: static", tag)] = hp::YELLOW;
+        c.v_Info[std::format("{} Warning: No entry point found. Using Kind: static", tag)] = hp::YELLOW;
     return 0;
 }
 
@@ -2197,8 +2251,29 @@ int Parser::autoOutput(Config &c, const std::string &tag) {
             goto done;
     }
 
-    if (set(std::filesystem::current_path().filename().string()))
-        goto done;
+    {
+        std::string cwdName = std::filesystem::current_path().filename().string();
+        std::string lower = to_lower(cwdName);
+        static constexpr std::array<std::string_view, 7> generic = {
+            "build",
+            "out",
+            "dist",
+            "bin",
+            "tmp",
+            "temp",
+            "src",
+        };
+
+        bool isGeneric = false;
+        for (auto g : generic) {
+            if (g == std::string_view(lower)) {
+                isGeneric = true;
+                break;
+            }
+        }
+        if (!cwdName.empty() && !isGeneric && set(cwdName))
+            goto done;
+    }
 
 #ifdef _WIN32
     c.output = "a.exe";

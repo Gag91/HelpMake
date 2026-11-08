@@ -2,6 +2,26 @@
 
 All notable changes to HelpMake.
 
+## [12.4.4] - 2026-11-08
+
+### Added
+
+- **`CC`, `CXX`, `CROSS_COMPILE` env vars** - auto-detection now honors these before falling back to probing. `CXX=clang++ hm -b` picks clang++; `CROSS_COMPILE=arm-none-eabi- hm -b` picks `arm-none-eabi-g++`. Explicit `Compiler:` and `-C=` still win over env vars.
+- **Windows entry points** - `autoKind` now recognizes `WinMain`, `wmain`, and `_tmain`, not just `main`. Windows GUI projects are no longer silently misclassified as `Kind: static`.
+- **Expanded link-flag table** - 20 system-library headers (was 11). Adds SDL2, GLFW, OpenGL, GLEW, gtest, fmt, sqlite3, and expat alongside the existing pthread, math, dl, zlib, curl, and OpenSSL entries.
+- **`stripSource()`** - new string utility in `hm/util/strings.hpp` that blanks out line comments, block comments, and string/char literals in a single pass while preserving line structure. Used by `autoKind` and `autoLinkFlags`.
+
+### Fixed
+
+- **`--nofile` respects explicit CLI inputs** - `hm -b --nofile pro.cpp` now compiles only `pro.cpp`, even when the working directory contains other C/C++ projects. Previously the CLI input was stored in `config.inputFile` but not `config.v_inputFiles`, so auto-detection ran anyway and picked the dominant extension from a recursive walk of `.` - often compiling unrelated projects nested in the same parent directory.
+- **`--nofile` skips the auto-detection chain** as documented. Only CLI-provided fields are used. `--nofile` now errors out with a clear message if `-C=<compiler>` or an input file is missing, instead of silently falling back to auto-detection.
+- **Positional CLI args populate `config.v_inputFiles`** in addition to `config.inputFile`, keeping the two lists in sync. `InputFiles { }` parsing, `expandInputs`, and companion-source detection all read the same list of files.
+- **`autoKind` ignores comments and string literals** - a `// int main()` line comment, a `/* int main() {} */` block comment, or a `std::string s = "main("` literal no longer misleads the executable/static decision.
+- **`autoKind` detects multi-line signatures** - `int main\n(int, char**)` (signature broken across lines) is now recognized.
+- **`autoLinkFlags` ignores quoted includes and comments** - `#include "pthread.h"` (local file), `/* #include <pthread.h> */`, `#includefoo`, and `#include_next <...>` no longer trigger link-flag injection. Only actual `#include <...>` lines in real code count.
+- **`autoOutput` skips generic directory names** - running `hm -b` from inside `build/`, `out/`, `dist/`, `bin/`, `tmp/`, `temp/`, or `src/` no longer names the binary after the folder. Falls through to `main.*` detection or `a.out` / `a.exe` as the docs already promised.
+
+
 ## [12.4.3] - 2026-11-08
 
 ### Added
@@ -66,7 +86,7 @@ All notable changes to HelpMake.
 
 - **`autoIncludes` never emitted `-I` flags** - the function detected include directories correctly but only stored them in `includeFiles`, never appended `-I<dir>` to `flags`. Auto-detected projects failed with `fatal error: hm/parser/parser.hpp: No such file or directory` even though the warning claimed the includes were found. Both `flags` and `includeFiles` are now populated.
 - **`autoIncludes` over-included header parents** - every directory containing a header was added as an include root, producing dozens of useless entries like `./include/hm/parser` and `./include/hm/cli`. Recursion now stops at the first `include/`, `inc/`, `headers/`, `api/`, or `public/` directory found. Header parents remain the fallback only when no named include dir exists.
-- **`collectFiles` had an uninitialized `bool haveMain;`** (UB) and only checked `line.find("main()")`, missing `main(int argc, char** argv)` and `main(void)` — the two most common real-world signatures. Replaced by `autoKind` with proper word-boundary scanning.
+- **`collectFiles` had an uninitialized `bool haveMain;`** (UB) and only checked `line.find("main()")`, missing `main(int argc, char** argv)` and `main(void)` - the two most common real-world signatures. Replaced by `autoKind` with proper word-boundary scanning.
 - **`autoIncludes` had a leftover debug print** (`std::cout << "reachedddddddddddd"`) on the failure path. Removed.
   
 ## [12.3.0] - 2026-10-30

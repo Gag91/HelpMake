@@ -495,45 +495,71 @@ namespace hm::cli {
                 if (!config.inputFile.empty())
                     config.inputFile += " ";
                 config.inputFile += std::string(arg);
+                config.v_inputFiles.push_back(std::string(arg));
             } else {
                 hp::printlnCl(std::format("[HelpMake] Error: Invalid Argument '{}'.\n Use --help for the available arguments", arg), hp::RED);
                 return 1;
             }
         }
 
-        if (!std::filesystem::exists(filename) && !config.n_file && !config.create) {
-            if (filename != "HelpMake.txt" && std::filesystem::exists("HelpMake.txt")) {
-                hp::printlnCl("Build file not found. Using default HelpMake.txt", hp::YELLOW);
-                const_cast<std::filesystem::path &>(filename) = "HelpMake.txt";
-            }
+        if (config.create) {
+            Parser parser(filename, config);
+            return parser.parse();
+        }
 
-            if (!config.n_file && !config.create)
+        if (config.n_file || !std::filesystem::exists(filename)) {
+            if (!config.n_file) {
+                if (filename != "HelpMake.txt" && std::filesystem::exists("HelpMake.txt")) {
+                    hp::printlnCl("Build file not found. Using default HelpMake.txt", hp::YELLOW);
+                    const_cast<std::filesystem::path &>(filename) = "HelpMake.txt";
+                }
+
                 hp::printlnCl("Build file not found: " + filename.string(), hp::YELLOW);
-            if (config.verbose)
-                hp::printlnCl("Building from command-line arguments only\n", hp::CYAN);
+                if (config.verbose)
+                    hp::printlnCl("Building from command-line arguments only\n", hp::CYAN);
 
-            Parser Rawparser(filename, config);
-            if (config.v_inputFiles.empty()) {
-                if (Rawparser.collectFiles(config, ".") != 0) {
-                    hp::printlnCl("[HelpMake] Error: No source files found in the current directory.", hp::RED);
+                Parser Rawparser(filename, config);
+                if (config.v_inputFiles.empty()) {
+                    if (Rawparser.collectFiles(config, ".") != 0) {
+                        hp::printlnCl("[HelpMake] Error: No source files found in the current directory.", hp::RED);
+                        return 1;
+                    }
+                }
+
+                if (Rawparser.autoInputFiles(config, "[HelpMake]") != 0)
+                    return 1;
+                if (config.compiler.empty() && Rawparser.autoCompiler(config, "[HelpMake]") != 0)
+                    return 1;
+                if (config.version.empty() && Rawparser.autoVersion(config, "[HelpMake]") != 0)
+                    return 1;
+                if (config.includeFiles.empty() && Rawparser.autoIncludes(config, "[HelpMake]") != 0)
+                    return 1;
+                if (config.kind.empty() && Rawparser.autoKind(config, "[HelpMake]") != 0)
+                    return 1;
+                if (config.output.empty() && Rawparser.autoOutput(config, "[HelpMake]") != 0)
+                    return 1;
+                if (config.v_Flags.empty() && Rawparser.autoLinkFlags(config, "[HelpMake]") != 0)
+                    return 1;
+            } else {
+                if (config.compiler.empty()) {
+                    hp::printlnCl("[HelpMake] Error: --nofile requires a compiler. Use -C=<name> or --compiler=<name>.", hp::RED);
                     return 1;
                 }
-            }
+                if (config.v_inputFiles.empty()) {
+                    hp::printlnCl("[HelpMake] Error: --nofile requires at least one input file on the command line.", hp::RED);
+                    return 1;
+                }
+                if (config.output.empty()) {
+#ifdef _WIN32
+                    config.output = "a.exe";
+#else
+                    config.output = "a.out";
+#endif
+                }
 
-            if (Rawparser.autoInputFiles(config, "[HelpMake]") != 0)
-                return 1;
-            if (config.compiler.empty() && Rawparser.autoCompiler(config, "[HelpMake]") != 0)
-                return 1;
-            if (config.version.empty() && Rawparser.autoVersion(config, "[HelpMake]") != 0)
-                return 1;
-            if (config.includeFiles.empty() && Rawparser.autoIncludes(config, "[HelpMake]") != 0)
-                return 1;
-            if (config.kind.empty() && Rawparser.autoKind(config, "[HelpMake]") != 0)
-                return 1;
-            if (config.output.empty() && Rawparser.autoOutput(config, "[HelpMake]") != 0)
-                return 1;
-            if (config.v_Flags.empty() && Rawparser.autoLinkFlags(config, "[HelpMake]") != 0)
-                return 1;
+                if (config.kind.empty())
+                    config.kind = "executable";
+            }
 
             if (!config.v_Errors.empty()) {
                 for (const auto &e : config.v_Errors)
@@ -545,11 +571,11 @@ namespace hm::cli {
             return full.execute();
         }
 
-        if (std::filesystem::exists(filename) && !config.n_file && !config.create) {
+        {
             Parser parser(filename, config);
             int rc = 0;
 
-            if ((rc = parser.parse()) == 0 && !config.create) {
+            if ((rc = parser.parse()) == 0) {
                 if (!selectedConfigs.empty())
                     rc = parser.executeConfigs(selectedConfigs);
                 else

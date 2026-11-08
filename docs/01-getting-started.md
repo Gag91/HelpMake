@@ -28,13 +28,13 @@ hm -b
 
 HelpMake detects:
 
-- **Compiler** - probes `gcc`, `clang`, `g++`, `clang++`, `cl`, etc. based on your source extensions
+- **Compiler** - honors `CXX` / `CC` / `CROSS_COMPILE` env vars first, then probes `gcc`, `clang`, `g++`, `clang++`, `cl`, etc. based on your source extensions
 - **Version** - runs `<compiler> -dumpversion` and picks the newest standard it supports
 - **Input files** - walks `src/` (or `.`), excluding `.git/`, `build/`, `node_modules/`, `test/`, etc.
 - **Includes** - finds `include/`, `inc/`, `headers/`, `api/`, `public/`
-- **Link flags** - reads `#include <thread>` → `-pthread`, `<cmath>` → `-lm`, etc.
-- **Kind** - scans for `main(` and picks `executable` or `static`
-- **Output** - reads `Cargo.toml`, `go.mod`, `package.json`, `CMakeLists.txt`, `main.*`, or the directory name
+- **Link flags** - reads `#include <thread>` → `-pthread`, `<cmath>` → `-lm`, `<SDL2/SDL.h>` → `-lSDL2`, etc. (20 system headers, comments and quoted includes ignored)
+- **Kind** - scans for `main(` / `WinMain` / `wmain` / `_tmain`, ignoring comments and string literals, and picks `executable` or `static`
+- **Output** - reads `Cargo.toml`, `go.mod`, `package.json`, `CMakeLists.txt`, `main.*`, or the directory name (skipping `build/`, `out/`, `dist/`, `bin/`, `tmp/`, `temp/`, `src/`)
 
 Every detected value appears under `Info:` so you know exactly what was inferred. If you don't like what it picked, add a `HelpMake.txt` and pin the field.
 
@@ -125,7 +125,7 @@ Edit → save → rebuild → run. No manual steps in between.
 
 ## 8. Auto-detection
 
-Every field is **optional**. When you omit one, HelpMake infers it at build time — a project with no `HelpMake.txt` at all still builds. See [Auto-detection](11-auto-detection.md) for the detection order per field.
+Every field is **optional**. When you omit one, HelpMake infers it at build time - a project with no `HelpMake.txt` at all still builds. See [Auto-detection](11-auto-detection.md) for the detection order per field.
 
 A user-specified value always wins over auto-detection. To pin a value, just write it.
 
@@ -133,7 +133,7 @@ The fields with auto-detection are:
 
 | Field | When omitted |
 |---|---|
-| `Compiler:` | detected from source extensions and `PATH` |
+| `Compiler:` | `CXX`/`CC`/`CROSS_COMPILE` env vars, then detected from source extensions and `PATH` |
 | `Version:` | detected from `<compiler> -dumpversion` |
 | `InputFiles { }` | walks `src/` (or `.`), follows includes for companion sources |
 | `Kind:` | detected from presence of `main(` |

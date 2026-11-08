@@ -236,7 +236,7 @@ Dependency: lua {
 `Url:` fetches with `curl` + extracts with `tar`/`unzip`. `Git:` fetches with `git clone`. They are not interchangeable.
 
 ## Why does my dependency fail with "file COPY cannot find"?
-The dep directory exists but its contents are incomplete — usually an interrupted clone or a corrupt shallow fetch. The cache check trusts whatever's on disk, so a broken clone gets silently used.
+The dep directory exists but its contents are incomplete - usually an interrupted clone or a corrupt shallow fetch. The cache check trusts whatever's on disk, so a broken clone gets silently used.
 Force a fresh fetch:
 
 ```bash
@@ -251,7 +251,7 @@ hm --gen ninja
 ninja
 ```
 
-See [Generators](03-cli-reference.md#generators). Not all features are supported by the Ninja generator — PCH, PreBuild/PostBuild, Copy and Fetch are warned and skipped. Use `hm -b` for the full feature set.
+See [Generators](03-cli-reference.md#generators). Not all features are supported by the Ninja generator - PCH, PreBuild/PostBuild, Copy and Fetch are warned and skipped. Use `hm -b` for the full feature set.
 ## How do I write a cross-platform HelpMake.txt?
 
 Use platform conditionals. Prefix any line with `win:`, `linux:`, `mac:`,
@@ -298,7 +298,7 @@ See [Testing](03-cli-reference.md#testing) for output format, `--verbose` / `--q
 
 ## Why does my build report "command line too long" or truncate arguments?
 
-Windows caps `CreateProcessA` at 32,767 characters. `hm` handles this by writing arguments to `build/HelpMake/<comp>/<baseName>.rsp` and passing `@file.rsp` to the compiler — this kicks in automatically for any link command over 30,000 chars.
+Windows caps `CreateProcessA` at 32,767 characters. `hm` handles this by writing arguments to `build/HelpMake/<comp>/<baseName>.rsp` and passing `@file.rsp` to the compiler - this kicks in automatically for any link command over 30,000 chars.
 
 If you see build failures on a project with 300+ files and the error message mentions an unrecognized flag or a missing source, check whether the response file is being used:
 
@@ -306,7 +306,7 @@ If you see build failures on a project with 300+ files and the error message men
 hm -b --verbose 2>&1 | grep "response file"
 ```
 
-If nothing prints and the project has 500+ files, the threshold is being missed — file a bug.
+If nothing prints and the project has 500+ files, the threshold is being missed - file a bug.
 
 See [Response files](09-build-directory.md#response-files).
 
@@ -322,7 +322,7 @@ Flags {
 }
 ```
 
-Or if your config manually sets it, remove it — Clang needs no extra flag for C++20 modules.
+Or if your config manually sets it, remove it - Clang needs no extra flag for C++20 modules.
 
 ## Why does --clean fail with "Access is denied"?
 
@@ -330,9 +330,9 @@ Or if your config manually sets it, remove it — Clang needs no extra flag for 
 
 Since 12.2.0, `hm --clean` clears the read-only bit before deletion, so this should work. If it still fails:
 
-- **An editor or git GUI has the project open** — close VS Code, Fork, SourceTree, GitKraken, etc.
-- **Antivirus scan in progress** — Windows Defender scans new `.git` contents for a few seconds after clone
-- **A background `git` process** — `tasklist | findstr git` on Windows, `ps aux | grep git` on Unix
+- **An editor or git GUI has the project open** - close VS Code, Fork, SourceTree, GitKraken, etc.
+- **Antivirus scan in progress** - Windows Defender scans new `.git` contents for a few seconds after clone
+- **A background `git` process** - `tasklist | findstr git` on Windows, `ps aux | grep git` on Unix
 
 Retry after closing them. `hm --clean --verbose` prints each path as it's removed, so you can see which file was stuck.
 
@@ -362,24 +362,36 @@ Every detection warns under `Info:` so you can see exactly what was inferred. Se
 
 ## Why did HelpMake add `-pthread` automatically?
 
-You have `#include <thread>`, `<mutex>`, `<atomic>`, `<condition_variable>`, or `<pthread.h>` somewhere in your sources. The link flag detection reads every `#include <...>` line and adds the corresponding flag:
+You have `#include <thread>`, `<mutex>`, `<atomic>`, `<condition_variable>`, `<future>`, or `<pthread.h>` somewhere in your sources. The link flag detection reads every `#include <...>` line and adds the corresponding flag:
 
-| Header | Flag |
+| Header | Flag (GCC/Clang) |
 |---|---|
-| `<thread>` / `<mutex>` / `<atomic>` / `<condition_variable>` | `-pthread` |
+| `<thread>` / `<mutex>` / `<atomic>` / `<condition_variable>` / `<future>` / `<pthread.h>` | `-pthread` |
 | `<cmath>` / `<math.h>` | `-lm` |
 | `<dlfcn.h>` | `-ldl` |
 | `<zlib.h>` | `-lz` |
 | `<curl/curl.h>` | `-lcurl` |
 | `<openssl/ssl.h>` | `-lssl -lcrypto` |
+| `<SDL2/SDL.h>` | `-lSDL2` |
+| `<GLFW/glfw3.h>` | `-lglfw` |
+| `<GL/gl.h>` | `-lGL` |
+| `<GL/glew.h>` | `-lGLEW` |
+| `<gtest/gtest.h>` | `-lgtest -lgtest_main` |
+| `<fmt/core.h>` | `-lfmt` |
+| `<sqlite3.h>` | `-lsqlite3` |
+| `<expat.h>` | `-lexpat` |
 
-On MSVC, POSIX-only flags are skipped; only `zlib.lib`, `libcurl.lib`, and OpenSSL's `.lib` files are added. Existing flags are never duplicated.
+Only **angle-bracket** includes trigger the flag — `#include "pthread.h"` (a local file) is ignored, and so is any include inside a comment (`/* #include <pthread.h> */`).
+
+On MSVC, POSIX-only flags are skipped; only the `.lib` equivalents (`zlib.lib`, `libcurl.lib`, `SDL2.lib`, etc.) are added. Existing flags are never duplicated.
 
 To disable it, pin the flags explicitly: `Flags { -Wall -O2 }`. Anything you write wins over auto-detection.
 
+For the full table including MSVC equivalents, see [Auto-detection](11-auto-detection.md#link-flags).
+
 ## Why did HelpMake mark my library as executable?
 
-`autoKind` scans every C-family source for `main(`. If no source has a valid `main` declaration, HelpMake picks `Kind: static` and warns.
+`autoKind` scans every C-family source for an entry-point function — `main`, `WinMain`, `wmain`, or `_tmain`. Comments and string literals are stripped before scanning, so `// int main()`, `/* int main() */`, and `std::string s = "main("` do not trigger the executable classification. If no source has a valid entry point, HelpMake picks `Kind: static` and warns.
 
 If your project has a `main` that the scanner missed (e.g. in a source excluded by `InputFiles { }`), pin the kind explicitly:
 
@@ -387,7 +399,7 @@ If your project has a `main` that the scanner missed (e.g. in a source excluded 
 Kind: static
 ```
 
-Non-C-family projects (Zig, Go, Rust, Python) always default to `executable` — those languages don't have the static/executable distinction in the C sense.
+Non-C-family projects (Zig, Go, Rust, Python) always default to `executable` - those languages don't have the static/executable distinction in the C sense.
 
 ## How do I disable auto-detection?
 
@@ -400,6 +412,8 @@ Three ways:
 ```bash
 hm -b --nofile -C=g++ -V=std=c++20 -o app src/main.cpp
 ```
+
+`--nofile` fully disables auto-detection - the current directory is not scanned for sources, includes, headers, or link flags. It requires `-C=<compiler>` and at least one input file on the command line, and errors out otherwise.
 
 **3. Use `--quiet`** to suppress the warnings if you trust the detection and don't want to see the `Info:` block.
 

@@ -88,7 +88,7 @@ and HelpMake passes `-xc++-module` so Clang parses it correctly.
 
 ## MSVC workflow
 
-MSVC compiles `.ixx` files as module interface units with `/interface /TP`. Any extension works — `/TP` forces C++ mode regardless of filename, so `.cppm` and `.mpp` are fine too.
+MSVC compiles `.ixx` files as module interface units with `/interface /TP`. Any extension works - `/TP` forces C++ mode regardless of filename, so `.cppm` and `.mpp` are fine too.
 
 ```bat
 cl.exe /std:c++20 /interface /TP /ifcOutputbuild/HelpMake/msvc/modules/math.ifc ^
