@@ -623,9 +623,17 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 for (const auto &obj : objects)
                     args.push_back(obj);
 
-                std::istringstream iss2(linkFlags);
-                while (iss2 >> tok)
-                    args.push_back(tok);
+                if (!comp->isMSVC() && !linkFlags.empty()) {
+                    args.push_back("-Wl,--start-group");
+                    std::istringstream iss2(linkFlags);
+                    while (iss2 >> tok)
+                        args.push_back(tok);
+                    args.push_back("-Wl,--end-group");
+                } else {
+                    std::istringstream iss2(linkFlags);
+                    while (iss2 >> tok)
+                        args.push_back(tok);
+                }
 
                 for (auto &a : comp->executableOutputArgs(c.output))
                     args.push_back(a);
