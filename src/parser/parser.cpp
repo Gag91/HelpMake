@@ -207,6 +207,11 @@ int Parser::parse() {
     r_logPath = r_logDir + "/" + baseName + ".txt";
     logPath = logDir + "/" + baseName + ".txt";
 
+    normalizeOutput(cfg);
+    for (auto &[name, config] : configs) {
+        normalizeOutput(config);
+    }
+
     addTime(cfg.v_Times, "Parse", t0);
     return 0;
 }
@@ -400,14 +405,39 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     if (!isRoot && cfg.debug)
         hp::printlnCl(std::format("\nFound Config {}:", section.configName), hp::CYAN);
 
-    static constexpr std::array<std::string_view, 27> knownKeys = {
-        "Compiler:", "Version:", "Output:", "InputFiles:", "Includes:",
-        "Flags:", "Modules:", "Run:", "Arguments:", "Kind:", "Jobs:", "PCH:",
-        "Gen:", "Test:", "Copy {", "InputFiles {", "Includes {", "Flags {", "Fetch {",
-        "Modules {", "PreBuild {", "PostBuild {", "Arguments {", "Set {",
-        "Dependency:", "Depends:", "Gen {"};
+    static constexpr std::array<std::string_view, 29> knownKeys = {
+        "Compiler:",
+        "Version:",
+        "Output:",
+        "InputFiles:",
+        "Includes:",
+        "Flags:",
+        "Modules:",
+        "Run:",
+        "Arguments:",
+        "Kind:",
+        "Jobs:",
+        "PCH:",
+        "Gen:",
+        "Test:",
+        "Subset:",
+        "Copy {",
+        "InputFiles {",
+        "Includes {",
+        "Flags {",
+        "Fetch {",
+        "Modules {",
+        "PreBuild {",
+        "PostBuild {",
+        "Arguments {",
+        "Set {",
+        "Dependency:",
+        "Depends:",
+        "Gen {",
+        "Subset {",
+    };
 
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 10> blockStarts = {{
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 11> blockStarts = {{
         {"InputFiles {", "InputFiles"},
         {"Includes {", "Includes"},
         {"Flags {", "Flags"},
@@ -418,6 +448,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         {"Arguments {", "Argument"},
         {"Copy {", "Copy"},
         {"Gen {", "Gen"},
+        {"Subset {", "Subset"},
     }};
 
     for (const auto &e_line : section.lines) {
@@ -466,6 +497,8 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 target.v_Gens.push_back(value);
             else if (currentBlock == "Argument")
                 parseArgument(target, value);
+            else if (currentBlock == "Subset")
+                target.v_Subsets.push_back(value);
 
             continue;
         }
@@ -605,6 +638,13 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         } else if (auto generatorValue = fieldValue(line, "Gen:"); generatorValue) {
             target.v_Gens.push_back(*generatorValue);
             debugField("Generator", *generatorValue);
+        } else if (auto SubsetsValue = fieldValue(line, "Subset:"); SubsetsValue) {
+            if (!std::filesystem::exists(*SubsetsValue)) {
+                cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Subset '{}' isnt a recognized path", filename.string(), lineNo, *SubsetsValue));
+                continue;
+            }
+            target.v_Subsets.push_back(*SubsetsValue);
+            debugField("Subset", *SubsetsValue);
         } else if (auto testValue = fieldValue(line, "Test:"); testValue) {
             if (isRoot) {
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: 'Test:' is only valid inside a Config block", filename.string(), lineNo));

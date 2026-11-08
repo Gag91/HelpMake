@@ -5,6 +5,7 @@
 #include "hp/colors/color.hpp"
 #include "hp/containers/containers.hpp"
 #include "hp/other/other.hpp"
+#include <filesystem>
 
 int Parser::execute() {
     builtConfigs.clear();
@@ -167,6 +168,45 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             Parser::generateCompileCommands(c);
     }
 
+    if (!c.v_Subsets.empty()) {
+        std::string originalDir = std::filesystem::current_path().string();
+
+        for (const auto &sub : c.v_Subsets) {
+            if (!c.quiet)
+                hp::printlnCl(std::format("\n{} Entering subset: {}", tag, sub), hp::CYAN);
+
+            std::string cmd = "hm -b";
+            if (c.verbose)
+                cmd += " --verbose";
+            if (c.debug)
+                cmd += " --debug";
+            if (c.quiet)
+                cmd += " --quiet";
+
+            if (std::filesystem::is_directory(sub)) {
+                std::filesystem::current_path(sub);
+            } else {
+                std::filesystem::path p(sub);
+                if (p.has_parent_path()) {
+                    std::filesystem::current_path(p.parent_path());
+                    cmd += " -f " + p.filename().string();
+                } else {
+                    cmd += " -f " + p.string();
+                }
+            }
+
+            auto result = hm::Process::run(cmd);
+
+            std::filesystem::current_path(originalDir);
+
+            if (result.exitCode != 0) {
+                hp::printlnCl(std::format("{} Error: Subset '{}' failed to build.", tag, sub), hp::RED);
+                hp::printlnCl(result.output, hp::RED);
+                return 1;
+            }
+        }
+    }
+
     if (!c.Precmd.empty()) {
         if (showOutput)
             hp::printlnCl(std::format("{} {} pre-build command: {}", tag, c.dryRun ? "Would run" : "Running", c.Precmd), hp::CYAN);
@@ -245,7 +285,9 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         std::istringstream iss(CommandFlags);
         std::string tok;
         while (iss >> tok) {
-            bool isLinker = tok.rfind("-l", 0) == 0 || tok.rfind("/l", 0) == 0 || tok.ends_with(".a") || tok.ends_with(".lib") || tok.ends_with(".so");
+            bool isLinker = tok.rfind("-l", 0) == 0 || tok.rfind("/l", 0) == 0 ||
+                            tok.rfind("-L", 0) == 0 || tok.rfind("-Wl,", 0) == 0 ||
+                            tok.ends_with(".a") || tok.ends_with(".lib") || tok.ends_with(".so");
             if (isLinker) {
                 if (!linkFlags.empty())
                     linkFlags += " ";
@@ -2164,4 +2206,39 @@ done:
     if (!c.quiet)
         c.v_Info[std::format("{} Warning: Output not specified. Auto-detected {}", tag, c.output)] = hp::YELLOW;
     return 0;
+}
+
+void Parser::normalizeOutput(Config &c) {
+    if (c.output.empty())
+        return;
+
+    std::filesystem::path p(c.output);
+
+    if (p.has_extension())
+        return;
+
+    auto comp = hm::makeCompiler(c.compiler);
+    bool isMsvc = comp && comp->isMSVC();
+
+    std::string name = p.filename().string();
+    std::string dir = p.parent_path().string();
+    if (!dir.empty() && dir.back() != '/' && dir.back() != '\\')
+        dir += std::filesystem::path::preferred_separator;
+
+    if (c.kind == "static") {
+        if (isMsvc) {
+            c.output = dir + name + ".lib";
+        } else {
+            if (!name.starts_with("lib"))
+                name = "lib" + name;
+            c.output = dir + name + ".a";
+        }
+    } else {
+#ifdef _WIN32
+        if (!isMsvc && !name.ends_with(".exe") && !name.ends_with(".scr") && !name.ends_with(".com"))
+            c.output = dir + name + ".exe";
+#else
+        c.output = dir + name;
+#endif
+    }
 }

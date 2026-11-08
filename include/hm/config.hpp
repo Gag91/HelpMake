@@ -41,6 +41,7 @@ struct Config {
     std::vector<std::string> v_Copy;
     std::vector<std::string> v_Depends;
     std::vector<std::string> v_Gens;
+    std::vector<std::string> v_Subsets;
 
     std::map<std::string, hm::Dependency> dep;
     std::map<std::string, hp::Color> v_Info;

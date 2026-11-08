@@ -24,7 +24,7 @@ Anything outside a block is parsed as a root-level field. Anything inside a `Con
 |---|---|---|---|
 | `Compiler:` | string | *(required)* | Any compiler name or path. See [Toolchains](04-toolchains.md). |
 | `Version:` | string | *(empty)* | Standard flag passed as `-<value>`. Example: `std=c++20` becomes `-std=c++20`. |
-| `Output:` | string | `a.exe` on Windows, `a.out` elsewhere | Path to the final binary or archive. |
+| `Output:` | string | `a.exe` on Windows, `a.out` elsewhere | Path to the final binary or archive. If you omit the extension, HelpMake automatically appends `.exe` (Windows), `.a` (Unix static), or `.lib` (MSVC static). |
 | `Kind:` | `executable` or `static` | `executable` | See [Static libraries](08-static-libs.md). |
 | `Run:` | bool | `false` | If true, run the binary after a successful build. |
 | `PCH:` | string | *(empty)* | Path to a precompiled header. See [PCH](06-pch.md). |
@@ -279,6 +279,20 @@ When linking against multiple external libraries, traditional C/C++ linkers (lik
 HelpMake handles this automatically. When you use `Depends: libpng, zlib`, HelpMake wraps the generated link flags in `-Wl,--start-group` and `-Wl,--end-group` (for GCC/Clang). This tells the linker to repeatedly scan the libraries until all symbols are resolved, making the order you write them in completely irrelevant.
 
 *(Note: MSVC on Windows does not require this, so HelpMake skips the grouping there).*
+
+
+#### `Subset { }`
+Build other projects inside a workspace (monorepo) from a root `HelpMake.txt`.
+
+```txt
+Subset {
+    libs/math
+    tools/cli
+    build/custom_config.txt
+}
+```
+You can also use the inline field: `Subset: libs/math`.
+A failing subset aborts the root build.
 
 ### Common gotchas
 - src/\*.cpp is not recursive. Use src/**/*.cpp for recursive.

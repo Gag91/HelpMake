@@ -9,7 +9,7 @@ Dependency: raylib {
     Build: cmake --build build --config Release
     Include: src
     Link: build/raylib/libraylib.a
-    LinkFlags: -lraylib -lm -lpthread -lwinmm -lgdi32 -lopengl32 -lshell32 -luser32 -lole32
+    LinkFlags: -lm -lpthread -lwinmm -lgdi32 -lopengl32 -lshell32 -lole32
 }
 
 Config: app {

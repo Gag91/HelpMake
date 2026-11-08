@@ -2,6 +2,20 @@
 
 All notable changes to HelpMake.
 
+## [12.4.2] - 2026-11-08
+
+### Added
+
+- **Workspaces (Subsets)** - You can now make multi-project builds from a single root `HelpMake.txt` using the `Subset { }` block or `Subset: <path>` field. HelpMake will automatically build the config file that's in the subset directory. It supports directories (looking for `HelpMake.txt` or using zero-config) and specific file paths (using `-f`).
+- **Output Normalization** - HelpMake now respects platform-specific naming conventions for `Output:` if you omit the file extension.
+  - Executables automatically get `.exe` on Windows and no extension on Linux/macOS.
+  - Static libraries automatically get `lib` prefix and `.a` on GCC/Clang/MinGW, and `.lib` on MSVC.
+  - Explicit extensions (like `app.bin` or `math.dll`) are left untouched.
+
+### Fixed
+
+- **Linker flags leaking into compile step** - Flags like `-Wl,--start-group` and `-L` are now correctly separated and only passed to the linker, not the compiler.
+
 ## [12.4.1] - 2026-11-07
 
 ### Added
