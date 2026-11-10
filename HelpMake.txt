@@ -76,6 +76,8 @@ Config: test {
     Depends: test-gcc-modules
     Depends: test-clang-modules
     Depends: test-math-app
+    Subset: test/sanitize_strip
+    Subset: test/HelpMake.txt
 }
 
 # ---------- C++20 modules, GCC ----------

@@ -5,3 +5,15 @@ InputFiles: main.cpp
 Sanitize { 
     address,undefined
 }
+
+Config: pkg {
+    Package {
+        Output: build/release.zip
+        app.exe
+        HelpMake.txt
+    }
+}
+
+Config: strip {
+    Strip: true
+}

@@ -690,8 +690,16 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                         std::filesystem::create_directories(outPath.parent_path());
 
                     std::string fileList;
+#ifdef _WIN32
+                    for (size_t i = 0; i < pkg.files.size(); ++i) {
+                        fileList += "\"" + pkg.files[i] + "\"";
+                        if (i < pkg.files.size() - 1)
+                            fileList += ",";
+                    }
+#else
                     for (const auto &f : pkg.files)
                         fileList += "\"" + f + "\" ";
+#endif
 
                     std::string cmd;
                     if (pkg.output.ends_with(".zip")) {
