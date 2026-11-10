@@ -62,6 +62,10 @@ namespace hm {
             return {};
         }
 
+        std::vector<std::string> sanitizeFlags(const std::string &sanitizers) const override {
+            return {"/fsanitize=" + sanitizers};
+        }
+
         bool pchNeedsSourceFile() const override {
             return true;
         }

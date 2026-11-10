@@ -30,6 +30,7 @@ Anything outside a block is parsed as a root-level field. Anything inside a `Con
 | `PCH:` | string | *(empty)* | Path to a precompiled header. See [PCH](06-pch.md). |
 | `Jobs:` | integer | `0` (auto) | Number of parallel compile jobs. `0` uses `std::thread::hardware_concurrency()`. |
 | `Depends:` | list | *(empty)* | Comma-separated dependency names. Pulls in `Dependency: <name> { }` blocks. See [Dependencies](#dependency-blocks). |
+| `Sanitize:` | string | *(empty)* | Comma-separated sanitizers for GCC/Clang/MSVC (e.g., `address`, `undefined`). |
 
 Boolean fields can be set with `true` / `false`.
 

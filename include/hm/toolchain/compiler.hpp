@@ -32,6 +32,9 @@ namespace hm {
         virtual std::vector<std::string> subcommand() const {
             return {};
         }
+        virtual std::vector<std::string> sanitizeFlags(const std::string &sanitizers) const {
+            return {sanitizers};
+        }
 
         virtual bool pchNeedsSourceFile() const {
             return false;

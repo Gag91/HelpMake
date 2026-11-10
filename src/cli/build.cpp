@@ -21,7 +21,7 @@ namespace hm::cli {
         std::string Config::*field;
     };
 
-    static constexpr std::array<ScalarFlag, 11> scalarFlags = {{
+    static constexpr std::array<ScalarFlag, 12> scalarFlags = {{
         {"compiler", &Config::compiler},
         {"version", &Config::version},
         {"output", &Config::output},
@@ -33,6 +33,7 @@ namespace hm::cli {
         {"pre", &Config::Precmd},
         {"post", &Config::Postcmd},
         {"pch", &Config::pch},
+        {"sanitize", &Config::sanitize},
     }};
 
     struct BoolFlag {
@@ -40,7 +41,7 @@ namespace hm::cli {
         bool Config::*field;
     };
 
-    static constexpr std::array<BoolFlag, 15> boolFlags = {{
+    static constexpr std::array<BoolFlag, 16> boolFlags = {{
         {"verbose", &Config::verbose},
         {"debug", &Config::debug},
         {"dry-run", &Config::dryRun},
@@ -56,6 +57,7 @@ namespace hm::cli {
         {"create", &Config::create},
         {"config-all", &Config::allCfgs},
         {"frozen", &Config::frozen},
+        {"strip", &Config::strip},
     }};
 
     struct ShortBoolFlag {

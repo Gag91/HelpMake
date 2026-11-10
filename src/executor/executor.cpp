@@ -238,6 +238,17 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
     if (!version.empty())
         CommandFlags = version;
+
+    if (!c.sanitize.empty()) {
+        for (const auto &f : comp->sanitizeFlags(c.sanitize)) {
+            if (!CommandFlags.empty())
+                CommandFlags += " ";
+            CommandFlags += f;
+        }
+        if (c.run && !c.quiet)
+            cfg.v_Info[std::format("{} Warning: Sanitizers enabled: '{}' ", tag, c.sanitize)] = hp::CYAN;
+    }
+
     if (!c.v_Modules.empty() && comp->name() == "gcc" &&
         std::find(c.v_Modules.begin(), c.v_Modules.end(), "-fmodules") == std::ranges::end(c.v_Modules)) {
         if (!CommandFlags.empty())
@@ -669,6 +680,60 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 }
             }
 
+            if (exitCode == 0 && !c.v_Packages.empty() && !c.dryRun) {
+                for (const auto &pkg : c.v_Packages) {
+                    if (pkg.files.empty() || pkg.output.empty())
+                        continue;
+
+                    std::filesystem::path outPath = pkg.output;
+                    if (!outPath.parent_path().empty())
+                        std::filesystem::create_directories(outPath.parent_path());
+
+                    std::string fileList;
+                    for (const auto &f : pkg.files)
+                        fileList += "\"" + f + "\" ";
+
+                    std::string cmd;
+                    if (pkg.output.ends_with(".zip")) {
+#ifdef _WIN32
+                        cmd = std::format("powershell -NoProfile -Command \"Compress-Archive -Path {} -DestinationPath '{}' -Force\"", fileList, pkg.output);
+#else
+                        cmd = std::format("zip -r '{}' {}", pkg.output, fileList);
+#endif
+                    } else if (pkg.output.ends_with(".tar.gz") || pkg.output.ends_with(".tgz")) {
+                        cmd = std::format("tar -czf '{}' {}", pkg.output, fileList);
+                    } else {
+                        cfg.v_Info[std::format("{} Error: Unknown package format '{}' (use .zip or .tar.gz).", tag, pkg.output)] = hp::RED;
+                        exitCode = 1;
+                        continue;
+                    }
+
+                    if (showOutput)
+                        hp::printlnCl(std::format("{} Packaging: {}", tag, pkg.output), hp::CYAN);
+
+                    auto res = hm::Process::run(cmd);
+                    if (res.exitCode != 0) {
+                        cfg.v_Info[std::format("{} Error: Packaging failed for '{}'.", tag, pkg.output)] = hp::RED;
+                        hp::printlnCl(res.output, hp::RED);
+                        exitCode = 1;
+                    } else {
+                        cfg.v_Info[std::format("{} Successfully packaged: {}", tag, pkg.output)] = hp::GREEN;
+                    }
+                }
+            }
+
+            if (exitCode == 0 && c.strip && !c.dryRun) {
+                if (comp->isMSVC()) {
+                    cfg.v_Info[std::format("{} Warning: 'strip' is not supported on MSVC.", tag)] = hp::YELLOW;
+                } else if (!hm::Process::exists("strip")) {
+                    cfg.v_Info[std::format("{} Warning: 'strip' has not been found. Install it and add it to PATH.", tag)] = hp::YELLOW;
+                } else {
+                    if (showOutput)
+                        hp::printlnCl(std::format("\n{} Stripping binary: {}", tag, c.output), hp::CYAN);
+                    hm::Process::run("strip \"" + c.output + "\"");
+                }
+            }
+
             if (c.dryRun && c.run)
                 hp::printlnCl(std::format("{} Would run: {}", tag, c.output), hp::CYAN);
             if (!c.dryRun && exitCode == 0 && c.run) {
@@ -688,7 +753,6 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                     hp::printlnCl(std::format("{} Exit code: {}", tag, exitCode), hp::YELLOW);
             }
         }
-
     } else {
         if (c.kind == "static") {
             hp::printlnCl("Error: 'Kind: static' requires separate compilation. Remove --no-sep.", hp::RED);

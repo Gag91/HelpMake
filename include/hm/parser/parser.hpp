@@ -76,6 +76,8 @@ class Parser {
     void appendModules(Config &c, const std::string &value);
     void appendPreBuild(Config &c, const std::string &value);
     void appendPostBuild(Config &c, const std::string &value);
+    void appendPackage(Config &c, const std::string &value);
+    void appendSanitize(Config &c, const std::string &value);
     void setKind(Config &c, const std::string &rawValue, std::size_t lineNo);
     void setJobs(Config &c, const std::string &rawValue, std::size_t lineNo);
 

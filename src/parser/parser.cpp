@@ -1,6 +1,7 @@
 #include "hm/parser/parser.hpp"
 #include "hm/generator/generator.hpp"
 #include "hm/process/process.hpp"
+#include "hm/util/bools.hpp"
 #include "hm/util/strings.hpp"
 #include "hm/util/system.hpp"
 #include "hp/colors/color.hpp"
@@ -405,7 +406,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     if (!isRoot && cfg.debug)
         hp::printlnCl(std::format("\nFound Config {}:", section.configName), hp::CYAN);
 
-    static constexpr std::array<std::string_view, 29> knownKeys = {
+    static constexpr std::array<std::string_view, 33> knownKeys = {
         "Compiler:",
         "Version:",
         "Output:",
@@ -421,6 +422,8 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         "Gen:",
         "Test:",
         "Subset:",
+        "Sanitize:",
+        "Strip:",
         "Copy {",
         "InputFiles {",
         "Includes {",
@@ -435,9 +438,11 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         "Depends:",
         "Gen {",
         "Subset {",
+        "Package {",
+        "Sanitize {",
     };
 
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 11> blockStarts = {{
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 13> blockStarts = {{
         {"InputFiles {", "InputFiles"},
         {"Includes {", "Includes"},
         {"Flags {", "Flags"},
@@ -449,6 +454,8 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         {"Copy {", "Copy"},
         {"Gen {", "Gen"},
         {"Subset {", "Subset"},
+        {"Package {", "Package"},
+        {"Sanitize {", "Sanitize"},
     }};
 
     for (const auto &e_line : section.lines) {
@@ -499,6 +506,10 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 parseArgument(target, value);
             else if (currentBlock == "Subset")
                 target.v_Subsets.push_back(value);
+            else if (currentBlock == "Package")
+                appendPackage(target, value);
+            else if (currentBlock == "Sanitize")
+                appendSanitize(target, value);
 
             continue;
         }
@@ -638,6 +649,21 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         } else if (auto generatorValue = fieldValue(line, "Gen:"); generatorValue) {
             target.v_Gens.push_back(*generatorValue);
             debugField("Generator", *generatorValue);
+        } else if (auto StripValue = fieldValue(line, "Strip:"); StripValue) {
+            if (to_lower(*StripValue) == "true")
+                target.strip = true;
+            else if (to_lower(*StripValue) == "false")
+                target.strip = false;
+            else if (is_typo(*StripValue, "true")) {
+                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Strip value '{}'. Did you mean true ?", filename.string(), lineNo, *StripValue));
+                continue;
+            } else if (is_typo(*StripValue, "false")) {
+                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Strip value '{}'. Did you mean false ?", filename.string(), lineNo, *StripValue));
+                continue;
+            } else if (is_typo(*StripValue, "true")) {
+                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Strip value '{}'", filename.string(), lineNo, *StripValue));
+                continue;
+            }
         } else if (auto SubsetsValue = fieldValue(line, "Subset:"); SubsetsValue) {
             if (!std::filesystem::exists(*SubsetsValue)) {
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Subset '{}' isnt a recognized path", filename.string(), lineNo, *SubsetsValue));

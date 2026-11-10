@@ -2,6 +2,22 @@
 
 All notable changes to HelpMake.
 
+## [12.4.5] - 2026-11-10
+
+### Added
+
+- **Sanitizer Support** - You can now use `--sanitize=address,undefined` (or set `Sanitize: address` in `HelpMake.txt`). HelpMake automatically appends the correct `-fsanitize=...`, `-fno-omit-frame-pointer`, and `-g` flags for GCC/Clang, and `/fsanitize=...` for MSVC.
+- **Native Binary Stripping** - Added `--strip` flag and `Strip: true` config field. Automatically runs `strip` on the final binary to dramatically reduce its size for release builds (ignored on MSVC).
+- **Package Block** - You can now create `.zip` or `.tar.gz` release archives natively without any external tools or PostBuild scripts. 
+  - On Windows, it uses native PowerShell (`Compress-Archive`).
+  - On Linux/macOS, it uses native `zip` or `tar`.
+- **Workspaces (Subsets)** - Added `Subset { }` block and `Subset: <path>` field. Allows building monorepos from a single root config by automatically entering subdirectories and running `hm -b`.
+
+### Fixed
+
+- **GNU `ld` Linker Ordering on Windows** - External dependencies (like Raylib) now correctly wrap their link flags in `-Wl,--start-group` and `-Wl,--end-group`. This prevents system libraries (like `-lgdi32` or `-lwinmm`) from being discarded by the linker before the dependency archive is processed.
+- **Linker flags leaking into compile step** - `-L` and `-Wl,` flags are now correctly separated out and only passed to the linker, keeping the compile commands clean.
+
 ## [12.4.4] - 2026-11-08
 
 ### Added

@@ -67,6 +67,14 @@ void Parser::appendPostBuild(Config &c, const std::string &value) {
     c.v_Postcmd.push_back(value);
 }
 
+void Parser::appendSanitize(Config &c, const std::string &value) {
+    if (c.sanitize.empty())
+        c.sanitize = value;
+    else
+        c.sanitize += " " + value;
+    c.v_Sanitize.push_back(value);
+}
+
 void Parser::setKind(Config &c, const std::string &rawValue, std::size_t lineNo) {
     c.kind = to_lower(rawValue);
     if (isValidKind(c.kind))
@@ -90,5 +98,14 @@ void Parser::setJobs(Config &c, const std::string &rawValue, std::size_t lineNo)
         cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: '{}' is not a valid number for 'jobs'", filename.string(), lineNo, rawValue));
     } catch (const std::out_of_range &) {
         cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: '{}' is out of range for 'jobs'", filename.string(), lineNo, rawValue));
+    }
+}
+
+void Parser::appendPackage(Config &c, const std::string &value) {
+    if (value.starts_with("Output:")) {
+        c.v_Packages.push_back({trim(value.substr(7)), {}});
+    } else if (!c.v_Packages.empty()) {
+        for (const auto &f : splitArgs(value))
+            c.v_Packages.back().files.push_back(f);
     }
 }
