@@ -1,0 +1,7 @@
+Compiler: clang++
+Version: std=c++20
+Output: app
+InputFiles: main.cpp
+Sanitize { 
+    address,undefined
+}

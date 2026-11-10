@@ -649,6 +649,12 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         } else if (auto generatorValue = fieldValue(line, "Gen:"); generatorValue) {
             target.v_Gens.push_back(*generatorValue);
             debugField("Generator", *generatorValue);
+        } else if (auto SanitizeValue = fieldValue(line, "Sanitize:"); SanitizeValue) {
+            if (!target.sanitize.empty())
+                target.sanitize += " ";
+            target.sanitize += *SanitizeValue;
+            target.v_Sanitize.push_back(*SanitizeValue);
+            debugField("Sanitize", *SanitizeValue);
         } else if (auto StripValue = fieldValue(line, "Strip:"); StripValue) {
             if (to_lower(*StripValue) == "true")
                 target.strip = true;
@@ -664,6 +670,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Strip value '{}'", filename.string(), lineNo, *StripValue));
                 continue;
             }
+            debugField("Strip", *StripValue);
         } else if (auto SubsetsValue = fieldValue(line, "Subset:"); SubsetsValue) {
             if (!std::filesystem::exists(*SubsetsValue)) {
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Subset '{}' isnt a recognized path", filename.string(), lineNo, *SubsetsValue));
