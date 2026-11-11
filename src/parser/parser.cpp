@@ -654,7 +654,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 target.sanitize += " ";
             target.sanitize += *SanitizeValue;
             target.v_Sanitize.push_back(*SanitizeValue);
-            debugField("Sanitize", *SanitizeValue);
+            debugField("Sanitize", *SanitizeValue, section.configName);
         } else if (auto StripValue = fieldValue(line, "Strip:"); StripValue) {
             if (to_lower(*StripValue) == "true")
                 target.strip = true;
@@ -670,14 +670,14 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Strip value '{}'", filename.string(), lineNo, *StripValue));
                 continue;
             }
-            debugField("Strip", *StripValue);
+            debugField("Strip", *StripValue, section.configName);
         } else if (auto SubsetsValue = fieldValue(line, "Subset:"); SubsetsValue) {
             if (!std::filesystem::exists(*SubsetsValue)) {
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Subset '{}' isnt a recognized path", filename.string(), lineNo, *SubsetsValue));
                 continue;
             }
             target.v_Subsets.push_back(*SubsetsValue);
-            debugField("Subset", *SubsetsValue);
+            debugField("Subset", *SubsetsValue, section.configName);
         } else if (auto testValue = fieldValue(line, "Test:"); testValue) {
             if (isRoot) {
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: 'Test:' is only valid inside a Config block", filename.string(), lineNo));

@@ -16,6 +16,11 @@ The fastest way to get started is to download the precompiled binary for your op
 
 If you want HelpMake to automatically download, build, and add itself to your `PATH`, use our install scripts:
 
+[Windows (Scoop)]
+```powershell
+scoop bucket add helpmake https://github.com/Gag91/scoop-helpmake
+scoop install helpmake
+```
 [Linux]
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Gag91/Help_Make/main/install.sh | bash
