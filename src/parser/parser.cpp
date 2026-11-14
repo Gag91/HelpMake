@@ -412,7 +412,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     if (!isRoot && cfg.debug)
         hp::printlnCl(std::format("\nFound Config {}:", section.configName), hp::CYAN);
 
-    static constexpr std::array<std::string_view, 33> knownKeys = {
+    static constexpr std::array<std::string_view, 34> knownKeys = {
         "Compiler:",
         "Version:",
         "Output:",
@@ -430,6 +430,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         "Subset:",
         "Sanitize:",
         "Strip:",
+        "Linker:",
         "Copy {",
         "InputFiles {",
         "Includes {",
@@ -655,6 +656,9 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         } else if (auto generatorValue = fieldValue(line, "Gen:"); generatorValue) {
             target.v_Gens.push_back(*generatorValue);
             debugField("Generator", *generatorValue);
+        } else if (auto LinkerValue = fieldValue(line, "Linker:"); LinkerValue) {
+            target.linker = *LinkerValue;
+            debugField("Linker", *LinkerValue);
         } else if (auto SanitizeValue = fieldValue(line, "Sanitize:"); SanitizeValue) {
             if (!target.sanitize.empty())
                 target.sanitize += " ";

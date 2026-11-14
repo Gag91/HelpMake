@@ -1,0 +1,7 @@
+{
+  "name": "webview-dummy",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node -e \"console.log('Webview built successfully!')\""
+  }
+}

@@ -1,0 +1,18 @@
+Compiler: g++
+Version: std=c++20
+Output: build/app
+
+PreBuild {
+    cd web
+    npm install
+    npm run build 
+    python generate_header.py
+}
+
+InputFiles {
+    src/*.cpp
+}
+
+Includes {
+    web/generated
+}

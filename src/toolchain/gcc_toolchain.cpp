@@ -87,6 +87,10 @@ namespace hm {
                     "-fdeps-file=" + jsonOutPath, "-fdeps-target=" + src + ".o", "-c", src};
         }
 
+        std::vector<std::string> linkerArgs(const std::string &linker) const override {
+            return {"-fuse-ld=" + linker};
+        }
+
         bool writesDepFile() const override {
             return true;
         }

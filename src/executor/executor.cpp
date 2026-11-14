@@ -290,6 +290,14 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             cfg.v_Info[std::format("{} Warning: Sanitizers enabled: '{}' ", tag, c.sanitize)] = hp::CYAN;
     }
 
+    if (!c.linker.empty()) {
+        for (const auto &f : comp->linkerArgs(c.linker)) {
+            if (!CommandFlags.empty())
+                CommandFlags += " ";
+            CommandFlags += f;
+        }
+    }
+
     if (!c.v_Modules.empty() && comp->name() == "gxx" &&
         std::find(c.v_Modules.begin(), c.v_Modules.end(), "-fmodules") == std::ranges::end(c.v_Modules)) {
         if (!CommandFlags.empty())

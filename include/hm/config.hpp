@@ -32,6 +32,7 @@ struct Config {
     std::string kind;
     std::string pch;
     std::string sanitize;
+    std::string linker;
 
     std::vector<std::string> preBuild;
     std::vector<std::string> postBuild;

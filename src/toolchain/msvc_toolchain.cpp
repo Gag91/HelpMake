@@ -71,6 +71,10 @@ namespace hm {
                     "/Fo" + src + ".obj", "/c", src};
         }
 
+        std::vector<std::string> linkerArgs(const std::string &linker) const override {
+            return {"/LINKER:" + linker};
+        }
+
         bool pchNeedsSourceFile() const override {
             return true;
         }

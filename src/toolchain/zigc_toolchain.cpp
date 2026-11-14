@@ -60,6 +60,10 @@ namespace hm {
             return args;
         }
 
+        std::vector<std::string> sanitizeFlags(const std::string &sanitizers) const override {
+            return {"-fsanitize=" + sanitizers, "-fno-omit-frame-pointer", "-g"};
+        }
+
         bool writesDepFile() const override {
             return true;
         }
