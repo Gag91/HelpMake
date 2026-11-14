@@ -1,0 +1,12 @@
+Compiler: clang++
+Version: std=c++20
+Output: mod.exe
+
+Modules {
+    a.cppm
+    b.cppm
+}
+
+InputFiles {
+    main.cpp
+}

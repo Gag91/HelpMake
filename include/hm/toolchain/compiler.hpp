@@ -35,6 +35,9 @@ namespace hm {
         virtual std::vector<std::string> sanitizeFlags(const std::string &sanitizers) const {
             return {sanitizers};
         }
+        virtual std::vector<std::string> scanDepsArgs(const std::string &std, const std::string &src, const std::string &jsonOutPath) const {
+            return {std, src, jsonOutPath};
+        }
 
         virtual bool pchNeedsSourceFile() const {
             return false;

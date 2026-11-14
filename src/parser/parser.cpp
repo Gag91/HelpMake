@@ -129,6 +129,12 @@ int Parser::parse() {
             return rc;
     }
 
+    if (cfg.v_Modules.empty()) {
+        int rc = autoModules(cfg, "[HelpMake]");
+        if (rc != 0)
+            return rc;
+    }
+
     if (cfg.includeFiles.empty()) {
         int rc = autoIncludes(cfg, "[HelpMake]");
         if (rc != 0)

@@ -76,7 +76,7 @@ Config: test {
     Depends: test-gcc-modules
     Depends: test-clang-modules
     Depends: test-math-app
-    Subset: test/sanitize_strip
+    Subset: test/modules/
     Subset: test/HelpMake.txt
 }
 

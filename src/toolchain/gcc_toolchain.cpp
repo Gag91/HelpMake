@@ -82,6 +82,11 @@ namespace hm {
             return {"-fsanitize=" + sanitizers, "-fno-omit-frame-pointer", "-g"};
         }
 
+        std::vector<std::string> scanDepsArgs(const std::string &std, const std::string &src, const std::string &jsonOutPath) const override {
+            return {std, "-fmodules-ts", "-fdeps-format=p1689r5",
+                    "-fdeps-file=" + jsonOutPath, "-fdeps-target=" + src + ".o", "-c", src};
+        }
+
         bool writesDepFile() const override {
             return true;
         }

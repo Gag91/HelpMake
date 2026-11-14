@@ -66,6 +66,11 @@ namespace hm {
             return {"/fsanitize=" + sanitizers};
         }
 
+        std::vector<std::string> scanDepsArgs(const std::string &std, const std::string &src, const std::string &jsonOutPath) const override {
+            return {"/nologo", "/EHsc", std, "/TP", "/scanDependencies", jsonOutPath,
+                    "/Fo" + src + ".obj", "/c", src};
+        }
+
         bool pchNeedsSourceFile() const override {
             return true;
         }
