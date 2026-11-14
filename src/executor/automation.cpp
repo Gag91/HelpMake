@@ -1142,8 +1142,11 @@ int Parser::autoModules(Config &c, const std::string &tag) {
 
     std::vector<std::string> foundModules;
     std::regex importRegex(R"(^\s*(?:export\s+)?import\s+([a-zA-Z0-9_.:]+)\s*;)");
+    std::vector<std::string> allFiles = expandInputs(c);
 
-    for (const auto &file : expandInputs(c)) {
+    std::vector<std::string> importedModules;
+
+    for (const auto &file : allFiles) {
         std::ifstream in(file);
         if (!in)
             continue;
@@ -1152,22 +1155,37 @@ int Parser::autoModules(Config &c, const std::string &tag) {
             std::smatch match;
             if (std::regex_search(line, match, importRegex)) {
                 std::string modName = match[1].str();
+
                 if (modName.starts_with("<") || modName == "std")
                     continue;
 
-                std::string m_baseName = modName.substr(modName.find_last_of(".:") + 1);
-                std::vector<std::string> exts = {".cppm", ".ixx", ".mpp", ".cxxm", ".c++m", ".ccm"};
-
-                for (const auto &ext : exts) {
-                    for (const auto &f : expandInputs(c)) {
-                        std::filesystem::path p(f);
-                        if (p.stem() == m_baseName && p.extension() == ext) {
-                            foundModules.push_back(f);
-                            break;
-                        }
-                    }
-                }
+                importedModules.push_back(modName);
             }
+        }
+    }
+
+    if (importedModules.empty())
+        return 0;
+
+    static constexpr std::array<std::string_view, 6> modExts = {".cppm", ".ixx", ".mpp", ".cxxm", ".c++m", ".ccm"};
+
+    for (const auto &file : allFiles) {
+        std::filesystem::path p(file);
+        bool isModExt = false;
+        for (auto ext : modExts) {
+            if (p.extension() == ext) {
+                isModExt = true;
+                break;
+            }
+        }
+
+        if (!isModExt)
+            continue;
+
+        std::string exportedMod = extractModule(file);
+
+        if (!exportedMod.empty() && std::find(importedModules.begin(), importedModules.end(), exportedMod) != importedModules.end()) {
+            foundModules.push_back(file);
         }
     }
 
