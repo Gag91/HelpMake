@@ -312,7 +312,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     }
 
     {
-        const std::filesystem::path marker = compilerDir + "/.buildid";
+        std::string cacheId = name.empty() ? "root" : name;
+        const std::filesystem::path marker = compilerDir + "/." + cacheId + ".buildid";
         std::string current = comp->binary();
         for (auto &s : comp->subcommand())
             current += " " + s;
@@ -333,7 +334,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 hp::printlnCl(separator + "\n", hp::YELLOW);
             }
             std::error_code ec;
-            std::filesystem::remove_all(compilerDir + "/obj/" + baseName, ec);
+            std::filesystem::remove_all(compilerDir + "/obj/" + cacheId, ec);
             std::filesystem::remove_all("build/HelpMake/headers/" + comp->name(), ec);
             std::filesystem::create_directories(compilerDir);
             std::ofstream(marker) << current;
@@ -574,7 +575,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         for (const auto &file : expandedFiles) {
             std::filesystem::path srcPath(file);
             std::filesystem::path relPath = srcPath.is_absolute() ? srcPath.filename() : srcPath;
-            std::string objPath = compilerDir + "/obj/" + baseName + "/" + relPath.generic_string() + comp->objectExt();
+            std::string objPath = compilerDir + "/obj/" + cacheId + "/" + relPath.generic_string() + comp->objectExt();
             if (!c.dryRun)
                 std::filesystem::create_directories(std::filesystem::path(objPath).parent_path());
 
