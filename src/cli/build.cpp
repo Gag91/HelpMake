@@ -493,6 +493,7 @@ namespace hm::cli {
                     std::cout << "Build file: " << filename << std::endl;
             } else if (std::filesystem::is_directory(arg)) {
                 const_cast<std::filesystem::path &>(filename) = std::string(arg) + "/HelpMake.txt";
+                std::filesystem::current_path(arg);
                 if (config.verbose)
                     std::cout << "Build file: " << filename << std::endl;
             } else if (arg.rfind("-", 0) != 0) {

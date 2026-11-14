@@ -17,6 +17,7 @@
 
 int main(int argc, char *argv[]) {
     hp::enableUTF8();
+    std::filesystem::path originalDir = std::filesystem::current_path();
 
     Config config;
     std::filesystem::path filename = "HelpMake.txt";
@@ -338,5 +339,6 @@ int main(int argc, char *argv[]) {
         hp::printlnCl("[HelpMake] Error: Invalid command. Use \"--help\" for available commands.", hp::RED);
     }
 
+    std::filesystem::current_path(originalDir);
     return 0;
 }
