@@ -190,6 +190,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     const std::string compilerDir = "build/HelpMake/" + comp->name();
 
     baseName = std::filesystem::path(c.output).stem().string();
+    std::string cacheId = name.empty() ? "root" : name;
 
     r_logDir = compilerDir + "/logs/raw";
     logDir = compilerDir + "/logs";
@@ -312,7 +313,6 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
     }
 
     {
-        std::string cacheId = name.empty() ? "root" : name;
         const std::filesystem::path marker = compilerDir + "/." + cacheId + ".buildid";
         std::string current = comp->binary();
         for (auto &s : comp->subcommand())
