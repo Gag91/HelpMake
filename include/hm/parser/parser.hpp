@@ -59,6 +59,7 @@ class Parser {
     bool isCopySet = false;
     bool isVarSet = false;
     bool isDependencySet = false;
+    bool isTaskSet = false;
 
     Config currentConfig;
     std::map<std::string, Config> configs;
@@ -158,6 +159,7 @@ class Parser {
 
     std::map<std::string, hm::Dependency> dependencies;
     std::map<std::string, LockEntry> lockEntries;
+    std::map<std::string, TaskConfig> tasks;
     std::map<std::string, Config> &getConfigs();
     std::map<std::string, std::string> &getVars();
 

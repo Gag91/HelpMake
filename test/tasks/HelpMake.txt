@@ -1,0 +1,25 @@
+Version: std=c++20
+Output: task.exe
+InputFiles {
+    main.cpp
+}
+
+Task: gen_config {
+    Check: config.json
+    Generate: generated_config.hpp
+    echo `#`pragma once > generated_config.hpp
+    echo `#`define APP_VERSION 42 >> generated_config.hpp
+}
+
+Task: setup_env {
+    Check: setup.txt
+    echo "Setting up environment..."
+}
+
+Config: run_app {
+    Depends: setup_env
+    Depends: gen_config
+    InputFiles: main.cpp
+    Output: app.exe
+    Includes: .
+}

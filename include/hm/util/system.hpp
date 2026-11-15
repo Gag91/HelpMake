@@ -1,3 +1,4 @@
+#include "hm/process/process.hpp"
 #include <array>
 #include <cctype>
 #include <cstdlib>
@@ -59,7 +60,7 @@ namespace hm {
         std::string_view body;
     };
 
-    inline PlatformLine stripPlatformPrefix(std::string_view line) {
+    inline PlatformLine stripPlatformPrefix(std::string_view line, std::string_view currentCompiler = "") {
         PlatformLine r;
         r.body = line;
 
@@ -77,6 +78,13 @@ namespace hm {
             negated = true;
             rawTag = rawTag.substr(1);
         }
+
+        bool isProgramCheck = false;
+        if (rawTag.starts_with('?')) {
+            isProgramCheck = true;
+            rawTag = rawTag.substr(1);
+        }
+
         if (rawTag.empty())
             return r;
 
@@ -89,16 +97,34 @@ namespace hm {
             "win", "windows", "linux", "mac", "darwin", "macos", "osx",
             "unix", "x64", "x86_64", "amd64", "arm64", "aarch64",
             "x86", "i386", "i686", "windows"};
-        bool isPlatformTag = false;
-        for (auto t : platformTags)
-            if (tagLower == t) {
-                isPlatformTag = true;
-                break;
-            }
-        if (!isPlatformTag)
-            return r;
 
-        bool matched = platformMatches(tagLower);
+        static constexpr std::array<std::string_view, 8> compilerTags = {
+            "gcc", "g++", "clang", "clang++", "msvc", "cl", "zig_cc", "zig_cpp"};
+
+        bool matched = false;
+
+        if (isProgramCheck) {
+            matched = hm::Process::exists(std::string(rawTag));
+        } else if (std::ranges::find(platformTags, tagLower) != platformTags.end()) {
+            matched = platformMatches(tagLower);
+        } else if (std::ranges::find(compilerTags, tagLower) != compilerTags.end()) {
+            std::string compLower = std::string(currentCompiler);
+            for (char &c : compLower)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+            if (tagLower == "gcc") {
+                matched = (compLower.ends_with("gcc") || compLower.ends_with("g++"));
+            } else if (tagLower == "clang") {
+                matched = (compLower.ends_with("clang") || compLower.ends_with("clang++"));
+            } else if (tagLower == "msvc") {
+                matched = (compLower.ends_with("msvc") || compLower.ends_with("cl") || compLower.ends_with("cl.exe"));
+            } else {
+                matched = (compLower.ends_with(tagLower));
+            }
+        } else {
+            return r;
+        }
+
         if (negated)
             matched = !matched;
 

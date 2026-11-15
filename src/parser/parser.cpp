@@ -1,4 +1,5 @@
 #include "hm/parser/parser.hpp"
+#include "hm/config.hpp"
 #include "hm/generator/generator.hpp"
 #include "hm/process/process.hpp"
 #include "hm/util/bools.hpp"
@@ -347,8 +348,31 @@ std::vector<FileSection> Parser::splitIntoFileSections(std::istream &in) {
     while (std::getline(in, line)) {
         ++lineNo;
 
-        if (std::size_t hash = line.find('#'); hash != std::string::npos)
-            line = line.substr(0, hash);
+        bool inQuotes = false;
+
+        std::string processed;
+        processed.reserve(line.size());
+
+        for (std::size_t i = 0; i < line.size(); ++i) {
+            const char c = line[i];
+
+            if (c == '"') {
+                inQuotes = !inQuotes;
+                processed += c;
+            } else if (c == '#' && !inQuotes) {
+                if (i + 1 < line.size() && line[i + 1] == '#') {
+                    processed += '#';
+                    ++i;
+                } else {
+                    break;
+                }
+            } else {
+                processed += c;
+            }
+        }
+
+        line = std::move(processed);
+
         if (!line.empty() && line.back() == '\r')
             line.pop_back();
 
@@ -408,11 +432,12 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     std::string currentBlock;
     std::size_t lineNo = section.startLine - 1;
     hm::Dependency currentDep;
+    TaskConfig currentTask;
 
     if (!isRoot && cfg.debug)
         hp::printlnCl(std::format("\nFound Config {}:", section.configName), hp::CYAN);
 
-    static constexpr std::array<std::string_view, 34> knownKeys = {
+    static constexpr std::array<std::string_view, 36> knownKeys = {
         "Compiler:",
         "Version:",
         "Output:",
@@ -431,6 +456,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         "Sanitize:",
         "Strip:",
         "Linker:",
+        "Ccache",
         "Copy {",
         "InputFiles {",
         "Includes {",
@@ -447,6 +473,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         "Subset {",
         "Package {",
         "Sanitize {",
+        "Task:",
     };
 
     static constexpr std::array<std::pair<std::string_view, std::string_view>, 13> blockStarts = {{
@@ -468,10 +495,25 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     for (const auto &e_line : section.lines) {
         ++lineNo;
 
-        auto pl = hm::stripPlatformPrefix(e_line);
-        if (pl.conditional && !pl.matches)
+        hm::PlatformLine pl;
+        std::string_view line = e_line;
+        bool skipLine = false;
+
+        while (true) {
+            pl = hm::stripPlatformPrefix(line, target.compiler.empty() ? cfg.compiler : target.compiler);
+            if (!pl.conditional) {
+                break;
+            }
+
+            if (!pl.matches) {
+                skipLine = true;
+                break;
+            }
+            line = pl.body;
+        }
+
+        if (skipLine)
             continue;
-        std::string_view line = pl.conditional ? pl.body : std::string_view(e_line);
 
         for (auto key : knownKeys)
             parseTypos(lineNo, filename, line, key);
@@ -529,8 +571,41 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 break;
             }
         }
-        if (blockMatched)
+        if (blockMatched) {
+            if (line.find("}") != std::string_view::npos)
+                currentBlock.clear();
             continue;
+        }
+
+        if (isTaskSet) {
+            if (line.find("}") != std::string_view::npos) {
+                target.v_Tasks.push_back(currentTask);
+                tasks[currentTask.name] = currentTask;
+                debugField("Task saved", currentTask.name);
+                currentTask = TaskConfig{};
+                isTaskSet = false;
+                continue;
+            }
+
+            if (auto checksValue = fieldValue(line, "Check:"); checksValue) {
+                for (const auto &f : splitArgs(*checksValue))
+                    currentTask.checks.push_back(f);
+                debugField("Task Check", *checksValue);
+            } else if (auto GenValue = fieldValue(line, "Generate:"); GenValue) {
+                currentTask.output = *GenValue;
+                debugField("Task Generate", *GenValue);
+            } else if (auto DependsValue = fieldValue(line, "Depends:"); DependsValue) {
+                for (const auto &f : splitArgs(*DependsValue))
+                    target.v_Depends.push_back(f);
+                debugField("Task Depends", *DependsValue);
+            } else {
+                std::string cmd = std::string(trim_view(line));
+                if (!cmd.empty())
+                    currentTask.commands.push_back(cmd);
+                debugField("Task Command", cmd);
+            }
+            continue;
+        }
 
         if (isDependencySet) {
             if (line.find("}") != std::string_view::npos) {
@@ -616,6 +691,27 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             continue;
         }
 
+        if (line.find("Task:") != std::string::npos) {
+            std::size_t colon = line.find(":");
+            std::size_t brace = line.find("{");
+            if (colon == std::string_view::npos || brace == std::string_view::npos || brace < colon) {
+                cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Malformed Task line: '{}'", filename.string(), lineNo, line));
+                continue;
+            }
+
+            std::string_view name = trim_view(line.substr(colon + 1, brace - colon - 1));
+            if (name.empty()) {
+                cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Task name is empty", filename.string(), lineNo));
+                continue;
+            }
+
+            currentTask = TaskConfig{};
+            currentTask.name = std::string(name);
+            isTaskSet = true;
+            debugField("Task", name);
+            continue;
+        }
+
         if (auto argumentsValue = fieldValue(line, "Arguments:"); argumentsValue) {
             parseArgument(target, *argumentsValue);
         } else if (auto compilerValue = fieldValue(line, "Compiler:"); compilerValue) {
@@ -665,6 +761,22 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             target.sanitize += *SanitizeValue;
             target.v_Sanitize.push_back(*SanitizeValue);
             debugField("Sanitize", *SanitizeValue, section.configName);
+        } else if (auto ccacheValue = fieldValue(line, "Ccache:"); ccacheValue) {
+            if (to_lower(*ccacheValue) == "true")
+                target.ccache = true;
+            else if (to_lower(*ccacheValue) == "false")
+                target.ccache = false;
+            else if (is_typo(*ccacheValue, "true")) {
+                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Ccache value '{}'. Did you mean true ?", filename.string(), lineNo, *ccacheValue));
+                continue;
+            } else if (is_typo(*ccacheValue, "false")) {
+                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Ccache value '{}'. Did you mean false ?", filename.string(), lineNo, *ccacheValue));
+                continue;
+            } else if (is_typo(*ccacheValue, "true")) {
+                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Ccache value '{}'", filename.string(), lineNo, *ccacheValue));
+                continue;
+            }
+            debugField("Ccache", target.ccache, section.configName);
         } else if (auto StripValue = fieldValue(line, "Strip:"); StripValue) {
             if (to_lower(*StripValue) == "true")
                 target.strip = true;

@@ -42,7 +42,7 @@ namespace hm::cli {
         bool Config::*field;
     };
 
-    static constexpr std::array<BoolFlag, 16> boolFlags = {{
+    static constexpr std::array<BoolFlag, 17> boolFlags = {{
         {"verbose", &Config::verbose},
         {"debug", &Config::debug},
         {"dry-run", &Config::dryRun},
@@ -59,6 +59,7 @@ namespace hm::cli {
         {"config-all", &Config::allCfgs},
         {"frozen", &Config::frozen},
         {"strip", &Config::strip},
+        {"ccache", &Config::ccache},
     }};
 
     struct ShortBoolFlag {

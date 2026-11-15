@@ -96,6 +96,10 @@ int Parser::resolveDependencies(Config &c, const std::string &tag) {
     for (const auto &depName : c.v_Depends) {
         auto it = dependencies.find(depName);
         auto c_it = configs.find(depName);
+        auto t_it = tasks.find(depName);
+
+        if (t_it != tasks.end())
+            continue;
         if (c_it != configs.end())
             continue;
         if (it == dependencies.end()) {
@@ -175,6 +179,66 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             if (executeConfig(depCfg, depName) != 0) {
                 hp::printlnCl(std::format("Error: Failed to build dependency config '{}'.", depName), hp::RED);
                 return 1;
+            }
+        } else if (tasks.contains(depName)) {
+            const auto &task = tasks[depName];
+
+            std::string timeFile = "build/HelpMake/tasks/" + task.name + ".time";
+            std::filesystem::create_directories("build/HelpMake/tasks");
+
+            std::string checkTarget = task.output.empty() ? timeFile : task.output;
+
+            std::string currentSignature = "Output: " + task.output + "\n";
+            for (const auto &cmd : task.commands)
+                currentSignature += cmd + "\n";
+
+            std::string previousSignature;
+            if (std::ifstream in(timeFile); in) {
+                previousSignature.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            }
+
+            bool needsRun = !std::filesystem::exists(checkTarget) || (currentSignature != previousSignature);
+
+            if (!needsRun && !task.checks.empty()) {
+                auto targetTime = std::filesystem::last_write_time(checkTarget);
+                for (const auto &check : task.checks) {
+                    if (std::filesystem::exists(check) && std::filesystem::last_write_time(check) > targetTime) {
+                        needsRun = true;
+                        break;
+                    }
+                }
+            }
+
+            if (needsRun) {
+                if (!cfg.quiet)
+                    hp::printlnCl(std::format("\n[HelpMake] Running task: {}", task.name), hp::CYAN);
+
+                if (!task.output.empty()) {
+                    if (!std::filesystem::path(task.output).parent_path().empty())
+                        std::filesystem::create_directories(std::filesystem::path(task.output).parent_path());
+                }
+
+                for (const auto &cmd : task.commands) {
+                    if (cfg.verbose || cfg.debug)
+                        hp::printlnCl(std::format("[Task {}] {}", task.name, cmd), hp::YELLOW);
+
+                    auto res = hm::Process::run(cmd);
+                    if (res.exitCode != 0) {
+                        hp::printlnCl(std::format("\n[HelpMake] Error: Task '{}' failed.", task.name), hp::RED);
+                        if (!res.output.empty())
+                            hp::printlnCl(res.output, hp::RED);
+                        return 1;
+                    }
+                    cfg.v_Info[std::format("✔ [HelpMake] Executed Task '{}'.", cmd)] = hp::GREEN;
+                }
+
+                if (!cfg.dryRun) {
+                    std::ofstream(timeFile) << currentSignature;
+                }
+
+            } else {
+                if (!cfg.quiet)
+                    cfg.v_Info[std::format("[HelpMake] Task '{}' is up to date.", task.name)] = hp::YELLOW;
             }
         }
     }
@@ -349,6 +413,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         while (iss >> tok) {
             bool isLinker = tok.rfind("-l", 0) == 0 || tok.rfind("/l", 0) == 0 ||
                             tok.rfind("-L", 0) == 0 || tok.rfind("-Wl,", 0) == 0 ||
+                            tok.rfind("-fuse-ld=", 0) == 0 ||
                             tok.ends_with(".a") || tok.ends_with(".lib") || tok.ends_with(".so");
             if (isLinker) {
                 if (!linkFlags.empty())
@@ -580,6 +645,13 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 std::filesystem::create_directories(std::filesystem::path(objPath).parent_path());
 
             std::vector<std::string> args;
+            if (c.ccache) {
+                if (hm::Process::exists("ccache")) {
+                    args.push_back("ccache");
+                } else {
+                    cfg.v_Info[std::format("{} Warning: 'ccache' not found. Compiling without cache.", tag)] = hp::YELLOW;
+                }
+            }
             args.push_back(comp->binary());
 
             for (auto &s : comp->subcommand())
@@ -766,11 +838,21 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                     args.push_back(obj);
 
                 if (!comp->isMSVC() && !linkFlags.empty()) {
-                    args.push_back("-Wl,--start-group");
+                    std::vector<std::string> groupFlags;
                     std::istringstream iss2(linkFlags);
-                    while (iss2 >> tok)
-                        args.push_back(tok);
-                    args.push_back("-Wl,--end-group");
+                    while (iss2 >> tok) {
+                        if (tok.rfind("-fuse-ld=", 0) == 0) {
+                            args.push_back(tok);
+                        } else {
+                            groupFlags.push_back(tok);
+                        }
+                    }
+                    if (!groupFlags.empty()) {
+                        args.push_back("-Wl,--start-group");
+                        for (const auto &g : groupFlags)
+                            args.push_back(g);
+                        args.push_back("-Wl,--end-group");
+                    }
                 } else {
                     std::istringstream iss2(linkFlags);
                     while (iss2 >> tok)
@@ -1332,6 +1414,8 @@ Config Parser::inheritConfig(const Config &child) {
         local.v_Copy = cfg.v_Copy;
     if (local.v_Depends.empty())
         local.v_Depends = cfg.v_Depends;
+    if (local.v_Tasks.empty())
+        local.v_Tasks = cfg.v_Tasks;
 
     local.verbose = local.verbose || cfg.verbose;
     local.debug = local.debug || cfg.debug;

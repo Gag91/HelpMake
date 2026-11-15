@@ -11,6 +11,13 @@ struct PackageConfig {
     std::vector<std::string> files;
 };
 
+struct TaskConfig {
+    std::string name;
+    std::string output;
+    std::vector<std::string> checks;
+    std::vector<std::string> commands;
+};
+
 struct Config {
     double parseTime = 0.0;
     double fetchTime = 0.0;
@@ -51,6 +58,7 @@ struct Config {
     std::vector<std::string> v_Subsets;
     std::vector<std::string> v_Sanitize;
     std::vector<PackageConfig> v_Packages;
+    std::vector<TaskConfig> v_Tasks;
 
     std::map<std::string, hm::Dependency> dep;
     std::map<std::string, hp::Color> v_Info;
@@ -77,6 +85,7 @@ struct Config {
     bool frozen = false;
     bool updateLock = false;
     bool strip = false;
+    bool ccache = false;
 
     int jobs = 0;
 };

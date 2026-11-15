@@ -13,6 +13,12 @@ Version: std=c++20
 Output: hmm.exe
 Jobs: 8
 
+# ---------- Additional features ---
+
+?ccache: Ccache: false
+?mold: !win: Linker: mold
+?strip: Strip: true
+
 # ---------- Dependencies ----------
 
 Fetch {
