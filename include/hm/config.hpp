@@ -57,6 +57,7 @@ struct Config {
     std::vector<std::string> v_Gens;
     std::vector<std::string> v_Subsets;
     std::vector<std::string> v_Sanitize;
+    std::vector<std::string> v_PkgConfig;
     std::vector<PackageConfig> v_Packages;
     std::vector<TaskConfig> v_Tasks;
 

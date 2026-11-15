@@ -437,7 +437,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     if (!isRoot && cfg.debug)
         hp::printlnCl(std::format("\nFound Config {}:", section.configName), hp::CYAN);
 
-    static constexpr std::array<std::string_view, 36> knownKeys = {
+    static constexpr std::array<std::string_view, 37> knownKeys = {
         "Compiler:",
         "Version:",
         "Output:",
@@ -473,10 +473,11 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         "Subset {",
         "Package {",
         "Sanitize {",
+        "PkgConfig {",
         "Task:",
     };
 
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 13> blockStarts = {{
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 14> blockStarts = {{
         {"InputFiles {", "InputFiles"},
         {"Includes {", "Includes"},
         {"Flags {", "Flags"},
@@ -490,6 +491,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         {"Subset {", "Subset"},
         {"Package {", "Package"},
         {"Sanitize {", "Sanitize"},
+        {"PkgConfig {", "PkgConfig"},
     }};
 
     for (const auto &e_line : section.lines) {
@@ -559,6 +561,10 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 appendPackage(target, value);
             else if (currentBlock == "Sanitize")
                 appendSanitize(target, value);
+            else if (currentBlock == "PkgConfig") {
+                target.v_PkgConfig.push_back(value);
+                debugField("PkgConfig", value);
+            }
 
             continue;
         }

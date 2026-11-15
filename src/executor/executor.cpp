@@ -320,6 +320,13 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         if (!c.dryRun) {
             auto pre = hm::Process::run(c.Precmd);
 
+            if (!pre.output.empty()) {
+                std::cout << '\n'
+                          << pre.output;
+                if (pre.output.back() != '\n')
+                    std::cout << '\n';
+            }
+
             if (pre.exitCode == -1) {
                 hp::printlnCl("Error: Could not launch pre-build command.", hp::RED);
                 return 1;
@@ -329,7 +336,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 return 1;
             }
             if (showOutput)
-                hp::printlnCl("Pre-build command executed successfully.", hp::GREEN);
+                hp::printlnCl("\nPre-build command executed successfully.", hp::GREEN);
         }
     }
 
@@ -344,6 +351,23 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
     if (!version.empty())
         CommandFlags = version;
+
+    if (!c.v_PkgConfig.empty()) {
+        if (hm::Process::exists("pkg-config")) {
+            for (const auto &pkg : c.v_PkgConfig) {
+                auto res = hm::Process::run("pkg-config --cflags --libs " + pkg);
+                if (res.exitCode == 0) {
+                    if (!CommandFlags.empty())
+                        CommandFlags += " ";
+                    CommandFlags += trim(res.output);
+                } else {
+                    cfg.v_Info[std::format("{} Warning: pkg-config failed for '{}'.", tag, pkg)] = hp::YELLOW;
+                }
+            }
+        } else {
+            cfg.v_Info[std::format("{} Warning: 'pkg-config' not found. Skipping PkgConfig block.", tag)] = hp::YELLOW;
+        }
+    }
 
     if (!c.sanitize.empty()) {
         for (const auto &f : comp->sanitizeFlags(c.sanitize)) {
@@ -1341,12 +1365,19 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             auto post = hm::Process::run(c.Postcmd);
 
+            if (!post.output.empty()) {
+                std::cout << '\n'
+                          << post.output;
+                if (post.output.back() != '\n')
+                    std::cout << '\n';
+            }
+
             if (post.exitCode == -1 && !c.quiet)
                 hp::printlnCl("Warning: Could not launch post-build command.", hp::YELLOW);
             else if (post.exitCode != 0 && !c.quiet)
                 hp::printlnCl(std::format("Warning: Post-build command failed (exit code {}).", post.exitCode), hp::YELLOW);
             else if (showOutput)
-                hp::printlnCl("Post-build command executed successfully.", hp::GREEN);
+                hp::printlnCl("\nPost-build command executed successfully.", hp::GREEN);
         }
     } else {
         if (c.notify)

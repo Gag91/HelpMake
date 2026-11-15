@@ -104,7 +104,13 @@ namespace hm {
         bool matched = false;
 
         if (isProgramCheck) {
-            matched = hm::Process::exists(std::string(rawTag));
+            if (rawTag.find('.') != std::string_view::npos ||
+                rawTag.find('/') != std::string_view::npos ||
+                rawTag.find('\\') != std::string_view::npos) {
+                matched = std::filesystem::exists(rawTag);
+            } else {
+                matched = hm::Process::exists(std::string(rawTag));
+            }
         } else if (std::ranges::find(platformTags, tagLower) != platformTags.end()) {
             matched = platformMatches(tagLower);
         } else if (std::ranges::find(compilerTags, tagLower) != compilerTags.end()) {

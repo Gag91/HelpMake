@@ -1,0 +1,17 @@
+Compiler: g++
+Output: app
+InputFiles {
+    main.cpp
+}
+
+PkgConfig {
+    zlib
+}
+
+PreBuild {
+    ?dummy_config.json: echo Config file found!
+    !?dummy_config.json: echo Config file missing!
+
+    ?git: echo Git is installed!
+    !?git: echo Git is missing!
+}
