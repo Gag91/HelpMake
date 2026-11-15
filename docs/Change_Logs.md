@@ -2,6 +2,30 @@
 
 All notable changes to HelpMake.
 
+## [12.5.0] - 2026-11-15
+
+### Added
+
+- **`Task { }` block** - Run arbitrary shell commands (NPM, Python, Java, etc.) with full incremental caching. Supports `Check:` (input files), `Generate:` (output files), and `Depends:`. Uses `.time` state files so zero-output tasks (like `npm install`) are only run when their inputs change.
+- **`PkgConfig { }` block** - Automatically fetch `--cflags` and `--libs` from Linux/macOS system packages.
+- **`--ccache` (and `Ccache: true`)** - Native support for `ccache`. Speeds up incremental builds by 10x. Gracefully falls back if `ccache` isn't installed.
+- **`--linker=mold|lld` (and `Linker: mold`)** - Custom linker support for Linux/macOS. Cuts link times by up to 10x.
+- **Advanced Conditional Tags** - You can now chain conditions and check for programs/files:
+  - `?git:` checks if a program is in `PATH`.
+  - `?config.json:` checks if a file exists.
+  - `gcc:` / `clang:` applies flags only for the active compiler.
+  - `!win: ?mold: Linker: mold` allows infinite nesting of conditions.
+- **`##` Escaping** - `##define` resolves to `#define` in the parser, allowing comments to be escaped in shell commands.
+
+### Fixed
+
+- **Pre/Post build output** - The output of `PreBuild` and `PostBuild` commands is now correctly printed to the console.
+- **`-b <dir>` path resolution** - Running `hm -b <dir>` now behaves exactly like `make -C`, changing the working directory before parsing.
+- **Build cache isolation** - Objects and `.buildid` are now isolated by config name, so changing `Output:` no longer forces a full rebuild.
+- **`-fuse-ld=` flag leaking** - Linker flags are now correctly separated and don't end up in the compile step.
+- **Inline blocks swallowing tasks** - Fixed a parser bug where `InputFiles { main.cpp }` on a single line would consume the next block.
+- **`CommandFlags` overriding `PkgConfig`** - Fixed an issue where the version flag was overwriting the flags added by `pkg-config`.
+
 ## [12.4.5] - 2026-11-10
 
 ### Added

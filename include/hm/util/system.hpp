@@ -94,12 +94,35 @@ namespace hm {
             tagLower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
         static constexpr std::array<std::string_view, 17> platformTags = {
-            "win", "windows", "linux", "mac", "darwin", "macos", "osx",
-            "unix", "x64", "x86_64", "amd64", "arm64", "aarch64",
-            "x86", "i386", "i686", "windows"};
+            "win",
+            "windows",
+            "linux",
+            "mac",
+            "darwin",
+            "macos",
+            "osx",
+            "unix",
+            "x64",
+            "x86_64",
+            "amd64",
+            "arm64",
+            "aarch64",
+            "x86",
+            "i386",
+            "i686",
+            "windows",
+        };
 
         static constexpr std::array<std::string_view, 8> compilerTags = {
-            "gcc", "g++", "clang", "clang++", "msvc", "cl", "zig_cc", "zig_cpp"};
+            "gcc",
+            "g++",
+            "clang",
+            "clang++",
+            "msvc",
+            "cl",
+            "zig_cc",
+            "zig_cpp",
+        };
 
         bool matched = false;
 

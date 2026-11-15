@@ -70,6 +70,49 @@ Flags {
 }
 ```
 
+### Advanced Conditionals
+
+You can prefix any line with a condition. If it doesn't match, the line is skipped. You can also nest them (`!win: ?mold: Linker: mold`).
+
+| Tag | Description |
+|---|---|
+| `win:`, `linux:`, `mac:` | OS platform conditionals |
+| `gcc:`, `clang:`, `msvc:` | Applies only if that compiler is active |
+| `?program:` | Applies if the program exists in `PATH` (e.g., `?git:`) |
+| `?file.ext:` | Applies if the file exists on disk (e.g., `?config.json:`) |
+| `!<tag>:` | Negates the condition |
+
+#### `Task { }`
+
+Runs shell commands incrementally. Great for running NPM, Python, or CMake.
+
+```txt
+Task: build_web {
+    Check: web/src/index.js
+    Generate: web/dist/bundle.js
+    npm run build
+}
+```
+
+**Check:** (Inputs): Timestamps of these files are compared.
+
+**Generate:** (Outputs): If this file is older than the inputs, the task runs.
+
+If `Generate:` is omitted, a `.time` file is created in `build/HelpMake/tasks/` to track the inputs.
+
+**Depends:** works exactly like it does in `Config { }`.
+
+#### `PkgConfig { }`
+
+Automatically fetch cflags and libs for Linux/macOS packages.
+
+```txt
+PkgConfig {
+    gtk+-3.0
+    openssl
+}
+```
+
 #### Recognized Tags
 
 | Tag | Matches |
