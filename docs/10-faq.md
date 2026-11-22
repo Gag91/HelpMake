@@ -289,10 +289,10 @@ Config: test-math {
 Then:
 
 ```bash
-hm test
+hm --test
 ```
 
-`hm test` builds every config with `Test: true` and runs the resulting binary. Exit code 0 if all tests return 0, 1 if any returns non-zero or fails to build. Configs run alphabetically.
+`hm -test` builds every config with `Test: true` and runs the resulting binary. Exit code 0 if all tests return 0, 1 if any returns non-zero or fails to build. Configs run alphabetically.
 
 See [Testing](03-cli-reference.md#testing) for output format, `--verbose` / `--quiet` behavior, and the failures block.
 

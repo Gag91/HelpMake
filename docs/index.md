@@ -79,10 +79,10 @@ Flags {
 ```
 
 ```bash
-hm -b           # build
-hm -b -w -r     # rebuild on save + run after every build
-hm -b --dry-run # preview build commands without executing them
-hm test         # run every config marked Test: true
+hm -b             # build
+hm -b -w -r       # rebuild on save + run after every build
+hm -b --dry-run   # preview build commands without executing them
+hm --test         # run every config marked Test: true
 ```
 
 ## Why not CMake?
@@ -162,7 +162,7 @@ Compiles C, C++, Zig, Go, Assembly, Rust, or anything with a CLI compiler. Built
 ### Dev loop
 
 - `hm -b -w` - watch mode. Polls every 300ms, rebuilds on change, watches headers and `HelpMake.txt` itself.
-- `hm test` - runs every config with `Test: true`, aggregates results, exits non-zero on failure.
+- `hm -t` - runs every config with `Test: true`, aggregates results, exits non-zero on failure.
 - `hm -b -r` - build and run in one command.
 - `--verbose` - per-file timings, full command lines.
 - `--debug` - parser trace, flag resolution, config inheritance.
@@ -182,6 +182,15 @@ Compiles C, C++, Zig, Go, Assembly, Rust, or anything with a CLI compiler. Built
 - ~50 KB binary - no runtime, no dependencies.
 
 ## Quick Start
+
+### From a template
+
+```bash
+hm --template list           # c, cpp, zig, go, raylib, sdl, sfml
+hm --template cpp my_app     # creates ./my_app with sources + HelpMake.txt
+cd my_app
+hm -b
+```
 
 ### Zero-config (no file)
 
@@ -278,7 +287,7 @@ Config: test-api {
 ```
 
 ```bash
-hm test       # builds + runs both, exits 1 on any failure
+hm -t       # builds + runs both, exits 1 on any failure
 ```
 
 ### Generating compile_commands.json for clangd
@@ -303,7 +312,7 @@ Kind: static            # auto-detected from presence of main(
 Run: true               # never auto-detected
 PCH: include/pch.hpp    # never auto-detected
 Jobs: 8                 # default: all cores
-Test: true              # mark as a test target (hm test)
+Test: true              # mark as a test target (hm -t)
 Depends: raylib, lua    # comma-separated dependency names
 ```
 

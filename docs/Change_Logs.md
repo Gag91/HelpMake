@@ -6,6 +6,7 @@ All notable changes to HelpMake.
 
 ### Added
 
+- **`--template <tmp> [name]`** - Create a new project from a template (`c`, `cpp`, `zig`, `go`, `raylib`, `sdl`, `sfml`). `hm --template list` shows the available templates.
 - **`Task { }` block** - Run arbitrary shell commands (NPM, Python, Java, etc.) with full incremental caching. Supports `Check:` (input files), `Generate:` (output files), and `Depends:`. Uses `.time` state files so zero-output tasks (like `npm install`) are only run when their inputs change.
 - **`PkgConfig { }` block** - Automatically fetch `--cflags` and `--libs` from Linux/macOS system packages.
 - **`--ccache` (and `Ccache: true`)** - Native support for `ccache`. Speeds up incremental builds by 10x. Gracefully falls back if `ccache` isn't installed.

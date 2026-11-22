@@ -14,7 +14,7 @@ You should see:
 
 ```text
 Help_Make (hm) - Build System
-Version: 12.4.0
+Version: 12.5.0
 ...
 ```
 

@@ -25,6 +25,8 @@ If you need to pass a value (like a compiler or output name) in a group, it **mu
 When building, you can chain these lowercase boolean flags together. 
 For example, `hm -bvd` means "build, verbose, debug". `hm -brq` means "build, rebuild, quiet".
 
+> **Grouping is a convenience, not the recommended style.** Short flags mean different things depending on where they appear (see the note below the table), so for scripts, CI and anything you share with others, prefer the long flags (`hm --build --rebuild --verbose`).
+
 | Short Flag | Long Flag | Description |
 | :--- | :--- | :--- |
 | `-v` | `--verbose` | Show detailed build output |
@@ -40,6 +42,15 @@ For example, `hm -bvd` means "build, verbose, debug". `hm -brq` means "build, re
 | `-x` | `--nofile` | Build from CLI only (no config file) |
 | `-a` | `--config-all` | Build every config in the file |
 | `-z` | `--frozen` | Require Git revisions from HelpMake.lock |
+
+> **Short flags inside a group vs on their own.** The table above applies to letters inside a group such as `-brvd`. A few letters mean something else when they are a standalone argument:
+>
+> | Letter | Inside a group (`-b...`) | Standalone |
+> | :--- | :--- | :--- |
+> | `r` | `--rebuild` | `hm -b -r` runs the output (same as `--run`) |
+> | `t` | `--time` | `hm -t` runs the test suite (same as `--test`) |
+>
+> Use `--rebuild`, `--run`, `--time` and `--test` when you want to avoid the ambiguity.
 
 ### Grouped Value Flags (Uppercase)
 
@@ -79,7 +90,7 @@ HelpMake supports both subcommands and flags to fit different workflows:
 | `-v`, `--version` | Show version, author, license link |
 | `-l`, `--license` | Show the MIT license text |
 | `-b`, `--build` | Build using `HelpMake.txt` |
-| `test` | Build and run every config marked with `Test: true`. Exit code 0 on all pass, 1 on any fail |
+| `-t`, `--test` | Build and run every config marked with `Test: true`. Exit code 0 on all pass, 1 on any fail |
 | `--watch` | Watch mode - rebuild on file change. Equivalent to `hm -b --watch` |
 | `-f <file>` / `-f=<file>` | Use a custom config file instead of `HelpMake.txt`. `-f<file>` (no space, no `=`) is not accepted. |
 | `--init` | Interactive project wizard that generates `HelpMake.txt` |
@@ -92,15 +103,39 @@ HelpMake supports both subcommands and flags to fit different workflows:
 | `--clean-all` | Delete both |
 | `--update-lock` | Resolve Git dependencies and write `HelpMake.lock` without building |
 | `--gen <name>` | Emit a build file for another tool. See [Generators](#generators). |
+| `--template <tmp> [name]` | Create a new project from a template. `hm --template list` shows the available templates. See [Project templates](#project-templates). |
+
+## Project templates
+
+`hm --template <tmp> [name]` scaffolds a ready-to-build project (source files, a `HelpMake.txt` and a `README.md`) in a new directory called `name`. If `name` is omitted, the directory is called `my_project`.
+
+```bash
+hm --template list            # show available templates
+hm --template cpp my_app      # create ./my_app from the C++ template
+cd my_app
+hm -b                         # build it
+```
+
+| Template | Creates |
+|---|---|
+| `c` | Basic C project |
+| `cpp` | Basic C++ project |
+| `zig` | Basic Zig project |
+| `go` | Basic Go project (`golang` is accepted as an alias) |
+| `raylib` | Raylib C++ project (`raylib-cpp` is accepted as an alias) |
+| `sdl` | SDL2 C++ project |
+| `sfml` | SFML C++ project |
+
+Template names are case-insensitive. HelpMake refuses to run if the target directory already exists and is not empty, and exits with code `1` on an unknown template name. The `raylib` and `sdl` templates declare the library as a `Dependency:` block, so the first build needs `git` and `cmake` on your `PATH` to fetch and build it (see [Dependencies](02-helpmake-reference.md#dependency-blocks)).
 
 ## Testing
 
-`hm test` builds and runs every config marked with `Test: true`:
+`hm -t` builds and runs every config marked with `Test: true`:
 
 ```bash
-hm test
-hm test --verbose
-hm test --frozen
+hm -t
+hm -t --verbose
+hm -t --frozen
 ```
 
 Configs are discovered via the `Test: true` field - a name match (`test-*`) is not how membership is decided. Add `Test: true` to any `Config: { }` block to include it:
@@ -196,6 +231,10 @@ hm -b -C="zig cc"
 | `-L<path>` | Add `-L<path>` to link flags. |
 | `-F<flags>` | Add raw flags to compile+link. |
 | `-o<file>` | Set the output filename. |
+| `--sanitize=<list>` | Comma-separated sanitizers, e.g. `--sanitize=address,undefined`. Adds the matching `-fsanitize=...`, `-fno-omit-frame-pointer` and `-g` flags on GCC/Clang and `/fsanitize=...` on MSVC. Same as the `Sanitize:` field. |
+| `--linker=<name>` | Use a faster linker such as `mold` or `lld` (Linux/macOS). Same as the `Linker:` field. |
+| `--strip` | Run `strip` on the final binary to shrink release builds. Ignored on MSVC. Same as `Strip: true`. |
+| `--ccache` | Wrap compiler invocations with `ccache` to speed up incremental builds. Falls back to a normal compile, with a warning, if `ccache` is not installed. Same as `Ccache: true`. |
 
 ### Build flags
 
@@ -205,7 +244,7 @@ hm -b -C="zig cc"
 | `--config <name>` | Build only that config. May be repeated. |
 | `--config-all` | Build every config in the file. |
 | `--nofile` | Strict CLI-only build. Skips the config file **and** the auto-detection chain. Requires `-C=<compiler>` and at least one input file on the command line. |
-| `-r`, `--run` | Run the output binary after a successful build. |
+| `--run` (or standalone `-r`) | Run the output binary after a successful build. Inside a short-flag group, `r` means `--rebuild` instead; see [the note above](#grouped-short-flags-used-with-b). |
 | `--verbose` | Show the actual command lines and per-file timings. |
 | `--debug` | Show parser trace plus every command (implies `--verbose` output). |
 | `--dry-run` | Show planned build commands without running them or changing build outputs. Dependency and generator actions are skipped.
@@ -223,7 +262,9 @@ hm -b -C="zig cc"
 ### Dev loop
 ```bash
 hm -b --watch         # rebuild on save
-hm -b --watch -r      # rebuild and rerun on save
+hm -b --watch --run   # rebuild and rerun on save
+```
+
 ### Build one config
 ```bash
 hm -b --config debug

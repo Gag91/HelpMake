@@ -30,7 +30,10 @@ Anything outside a block is parsed as a root-level field. Anything inside a `Con
 | `PCH:` | string | *(empty)* | Path to a precompiled header. See [PCH](06-pch.md). |
 | `Jobs:` | integer | `0` (auto) | Number of parallel compile jobs. `0` uses `std::thread::hardware_concurrency()`. |
 | `Depends:` | list | *(empty)* | Comma-separated dependency names. Pulls in `Dependency: <name> { }` blocks. See [Dependencies](#dependency-blocks). |
-| `Sanitize:` | string | *(empty)* | Comma-separated sanitizers for GCC/Clang/MSVC (e.g., `address`, `undefined`). |
+| `Sanitize:` | string | *(empty)* | Comma-separated sanitizers for GCC/Clang/MSVC (e.g., `address`, `undefined`). Adds `-fsanitize=...`, `-fno-omit-frame-pointer` and `-g` on GCC/Clang, and `/fsanitize=...` on MSVC. |
+| `Strip:` | bool | `false` | If true, runs `strip` on the final binary to reduce its size. Ignored on MSVC. CLI: `--strip`. |
+| `Ccache:` | bool | `false` | If true, wraps compiler invocations with `ccache`. If `ccache` is not on `PATH`, HelpMake warns and compiles normally. CLI: `--ccache`. |
+| `Linker:` | string | *(empty)* | Use an alternative linker such as `mold` or `lld` (Linux/macOS). Passed to GCC/Clang as `-fuse-ld=<name>`. CLI: `--linker=<name>`. Combine with a conditional to make it optional, e.g. `!win: ?mold: Linker: mold`. |
 
 Boolean fields can be set with `true` / `false`.
 
@@ -249,6 +252,25 @@ Single files: src -> dest - copied into dest/ if it's a directory
 Directories: src/ -> dest/ - recursive copy
 Globs: *.json -> dest/ - every matching file in the source directory
 Missing sources are a fatal error.
+
+`Package { }`
+Create a `.zip` or `.tar.gz` release archive after a successful build, without external tools or a `PostBuild` script.
+
+```txt
+Config: release {
+    Output: build/app
+    Strip: true
+    Package {
+        Output: build/release.zip
+        build/app
+        README.md
+        LICENSE
+    }
+}
+```
+`Output:` is the archive path; its extension picks the format (`.zip`, `.tar.gz` or `.tgz`). Every other line is a file or directory to include.
+On Windows `.zip` archives use PowerShell's `Compress-Archive`; on Linux/macOS HelpMake uses the system `zip` (for `.zip`) or `tar` (for `.tar.gz`), so those must be installed.
+Any other extension is an error. Packaging is skipped for `--dry-run` and only runs if the build itself succeeded.
 
 `Set { }`
 Variable definitions. See [Variables](05-variables.md).
