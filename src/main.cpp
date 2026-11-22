@@ -2,9 +2,11 @@
 #include "hm/generator/generator.hpp"
 #include "hm/parser/parser.hpp"
 #include "hm/process/process.hpp"
+#include "hm/template/template.hpp"
 #include "hm/toolchain/compiler.hpp"
 #include "hm/util/containers.hpp"
 
+#include "hm/util/strings.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/containers/containers.hpp"
 #include "hp/other/other.hpp"
@@ -332,6 +334,52 @@ int main(int argc, char *argv[]) {
         }
 
         return (failed == 0) ? 0 : 1;
+    } else if (argument == "--template") {
+        if (argc < 3) {
+            hp::printlnCl("Usage: hm --template <template_name> [project_name]", hp::YELLOW);
+            hp::printlnCl("       hm --template list", hp::YELLOW);
+            return 1;
+        }
+
+        std::string tplName = argv[2];
+        if (to_lower(tplName) == "list") {
+            hp::printlnCl("Available templates:", hp::GREEN);
+            hp::printlnCl(R"(  c          - Basic C project
+  cpp        - Basic C++ project
+  zig        - Basic Zig project
+  go         - Basic Go project
+  raylib     - Raylib C++ project
+  sdl        - SDL2 C++ project
+  sfml       - SFML C++ project
+)",
+                          hp::RESET);
+
+            return 0;
+        }
+
+        std::string projName = (argc >= 4) ? argv[3] : "my_project";
+
+        auto tpl = hm::makeTemplate(to_lower(tplName), projName);
+        if (!tpl) {
+            hp::printlnCl(std::format("Unknown template '{}'. Run 'hm --template list' for available templates.", tplName), hp::RED);
+            return 1;
+        }
+
+        if (std::filesystem::exists(projName) && !std::filesystem::is_empty(projName)) {
+            hp::printlnCl(std::format("Directory '{}' already exists and is not empty.", projName), hp::RED);
+            return 1;
+        }
+
+        std::filesystem::create_directories(projName);
+        std::filesystem::current_path(projName);
+
+        if (!tpl->create_tree() || !tpl->fill_files()) {
+            hp::printlnCl("Failed to create template files.", hp::RED);
+            return 1;
+        }
+
+        hp::printlnCl(std::format("Created {} project in ./{}", tplName, projName), hp::GREEN);
+        return 0;
     } else if (argument == "--build" || argument == "-b" ||
                (argument.size() > 1 && argument[0] == '-' && argument[1] != '-' && argument.find('b') != std::string_view::npos)) {
         return hm::cli::build(argc, argv, config, filename);

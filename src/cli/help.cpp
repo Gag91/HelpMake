@@ -21,6 +21,8 @@ Commands:
       --dump     Print raw HelpMake.txt contents
       --create   Generate HelpMake.txt from build arguments
   --update-lock  Resolve Git dependencies and write HelpMake.lock
+  --template <tmp> [name]        Create a project from a template 
+        use 'list' to show templates
   --gen <name> [--config <name>] Emit a build/config file for another tool.
         --config selects which config to emit for.
         Without --config, emits for the root config.

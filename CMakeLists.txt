@@ -55,6 +55,14 @@ add_executable(hm
     src/parser/typos.cpp
     src/parser/var.cpp
     src/process/process.cpp
+    src/templates/template.cpp
+    src/templates/template_c.cpp
+    src/templates/template_cpp.cpp
+    src/templates/template_go.cpp
+    src/templates/template_raylib.cpp
+    src/templates/template_sdl.cpp
+    src/templates/template_sfml.cpp
+    src/templates/template_zig.cpp
     src/toolchain/gcc_toolchain.cpp
     src/toolchain/go_toolchain.cpp
     src/toolchain/msvc_toolchain.cpp
