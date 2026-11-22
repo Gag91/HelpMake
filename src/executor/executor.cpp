@@ -251,7 +251,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         return 1;
     }
 
-    const std::string compilerDir = "build/HelpMake/" + comp->name();
+    const std::string compilerDir = "build/HelpMake/" + std::filesystem::path(comp->name()).filename().string();
 
     baseName = std::filesystem::path(c.output).stem().string();
     std::string cacheId = name.empty() ? "root" : name;
@@ -681,6 +681,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             for (auto &s : comp->subcommand())
                 args.push_back(s);
 
+            const std::size_t responseArgStart = args.size();
+
             std::istringstream iss(compileFlags);
             std::string tok;
             while (iss >> tok)
@@ -784,7 +786,9 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             std::replace(safeStem.begin(), safeStem.end(), '/', '_');
             std::replace(safeStem.begin(), safeStem.end(), '\\', '_');
             std::string perFileLog = std::format("{}/{}_{}.raw", r_logDir, baseName, safeStem);
-            jobs.push_back({file, objCmd, perFileLog});
+            std::filesystem::path responseFilePath(objPath);
+            responseFilePath.replace_extension(".rsp");
+            jobs.push_back({file, perFileLog, responseFilePath.string(), responseArgStart, args});
             objects.push_back(objPath);
         }
 
@@ -892,7 +896,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             std::string linkCmd = binary + " " + hm::Process::join(args);
 
-            if (linkCmd.size() > 30000) {
+            if (linkCmd.size() > 8000) {
                 std::string rspPath = std::format("{}/{}.rsp", compilerDir, baseName);
                 std::string rspArg;
                 if (!c.dryRun)
@@ -1030,7 +1034,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
         std::string command = hm::Process::join(args);
 
-        if (command.size() > 30000) {
+        if (command.size() > 8000) {
             std::string rspPath = std::format("{}/{}.rsp", compilerDir, baseName);
             std::string rspArg;
             if (!c.dryRun)

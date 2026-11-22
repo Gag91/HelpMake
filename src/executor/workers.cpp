@@ -1,5 +1,6 @@
 #include "hm/parser/parser.hpp"
 #include "hm/process/process.hpp"
+#include "hp/other/other.hpp"
 
 int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
     if (jobs.empty())
@@ -24,7 +25,27 @@ int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
         pool.emplace_back([&, t, begin, end]() {
             for (std::size_t i = begin; i < end; ++i) {
                 auto &j = jobs[i];
-                std::string redirect = std::format("{} > \"{}\"", j.cmd, j.logPath);
+                std::string command = hm::Process::join(j.args);
+                if (command.size() > 8000 && j.responseArgStart < j.args.size()) {
+                    std::filesystem::path rspPath(j.responseFilePath);
+
+                    std::vector<std::string> responseArgs(j.args.begin() + static_cast<long long>(j.responseArgStart), j.args.end());
+                    std::string rspArg = hm::Process::writeResponseFile(responseArgs, rspPath);
+                    if (rspArg.empty()) {
+                        hp::printlnCl(std::format("[HelpMake] Error: Could not write response file '{}'.\n", rspPath.string()), hp::RED);
+                        results[t] = -1;
+                        j.failed = true;
+                        continue;
+                    }
+
+                    std::vector<std::string> commandPrefix(j.args.begin(), j.args.begin() + static_cast<long long>(j.responseArgStart));
+                    command = hm::Process::join(commandPrefix) + " " + rspArg;
+
+                    if (cfg.verbose || cfg.debug)
+                        hp::printlnCl(std::format("[HelpMake] Command too long; using response file: {}", rspPath.string()), hp::YELLOW);
+                }
+
+                std::string redirect = std::format("{} > \"{}\"", command, j.logPath);
                 auto timer = hp::startTimer();
                 int rc = hm::Process::run(redirect).exitCode;
                 double elapsed = hp::stopTimer(timer);
