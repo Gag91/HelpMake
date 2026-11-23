@@ -1,4 +1,4 @@
-# HelpMake (hm)
+# HelpMake
 
 **Point `hm -b` at any C/C++ project. No CMakeLists. No Makefile. One command.**
 
