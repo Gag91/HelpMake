@@ -39,13 +39,13 @@ jobs:
       - name: Compile HelpMake (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp src/generator/*.cpp src/getters/*.cpp src/init/*.cpp src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp src/main.cpp -o ${{ matrix.binary_name }} -Iinclude
+          g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp src/generator/*.cpp src/getters/*.cpp src/init/*.cpp src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp src/templates/*.cpp src/main.cpp -o ${{ matrix.binary_name }} -Iinclude
 
       - name: Compile HelpMake (Windows)
         if: matrix.os == 'windows-latest'
         shell: msys2 {0}
         run: |
-          g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp src/generator/*.cpp src/getters/*.cpp src/init/*.cpp src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp src/main.cpp -o ${{ matrix.binary_name }} -Iinclude
+          g++ -std=c++20 src/cli/*.cpp src/executor/*.cpp src/fs/*.cpp src/generator/*.cpp src/getters/*.cpp src/init/*.cpp src/parser/*.cpp src/process/*.cpp src/toolchain/*.cpp src/templates/*.cpp src/main.cpp -o ${{ matrix.binary_name }} -Iinclude
 
       - name: Package Binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
