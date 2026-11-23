@@ -6,7 +6,7 @@
 namespace hm::cli {
 
     int version() {
-        constexpr std::string_view version = R"(Help_Make (hm) - Build System
+        constexpr std::string_view version = R"(Help_Make - Build System
 Version: 12.5.0
 Author : Xavi99
 Website: https://gag91.github.io/HelpMake/

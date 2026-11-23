@@ -6,7 +6,7 @@
 namespace hm::cli {
 
     int help() {
-        constexpr std::string_view help = R"HELP(Help_Make (hm) - Build System
+        constexpr std::string_view help = R"HELP(Help_Make - Build System
 Use : hm [options]
 
 Commands:

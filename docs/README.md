@@ -1,6 +1,6 @@
 # HelpMake Documentation
 
-HelpMake (hm) is a lightweight, language-agnostic build system. It compiles C, C++, Zig, Go, and anything with a CLI compiler — from a single plain-text config file, **or from no config file at all** (auto-detection).
+HelpMake is a lightweight, language-agnostic build system. It compiles C, C++, Zig, Go, and anything with a CLI compiler — from a single plain-text config file, **or from no config file at all** (auto-detection).
 
 ## Getting started
 

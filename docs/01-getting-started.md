@@ -13,7 +13,7 @@ hm --version
 You should see:
 
 ```text
-Help_Make (hm) - Build System
+Help_Make - Build System
 Version: 12.5.0
 ...
 ```

@@ -6,7 +6,7 @@
 namespace hm::cli {
 
     int license() {
-        std::cout << "Help_Make (hm) - License Information\n";
+        std::cout << "Help_Make - License Information\n";
         constexpr std::string_view text = R"(MIT License
 
 Copyright (c) 2026 Xavi99
