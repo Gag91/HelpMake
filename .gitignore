@@ -38,7 +38,7 @@
 *.exe
 *.out
 *.app
-hm
+hm.exe
 
 # Build directories
 build/
