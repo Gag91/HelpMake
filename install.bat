@@ -49,7 +49,7 @@ pushd "%INSTALL_DIR%"
 echo [HelpMake] Building...
 
 set "SRC="
-for %%f in (src\cli\*.cpp src\executor\*.cpp src\fs\*.cpp src\generator\*.cpp src\getters\*.cpp src\init\*.cpp src\parser\*.cpp src\process\*.cpp src\toolchain\*.cpp src\main.cpp) do (
+for %%f in (src/templates/*.cpp src\cli\*.cpp src\executor\*.cpp src\fs\*.cpp src\generator\*.cpp src\getters\*.cpp src\init\*.cpp src\parser\*.cpp src\process\*.cpp src\toolchain\*.cpp src\main.cpp) do (
     set "SRC=!SRC! %%f"
 )
 

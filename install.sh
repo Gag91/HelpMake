@@ -48,6 +48,7 @@ ORIG_DIR="$(pwd)"
 cd "${INSTALL_DIR}"
 
 if ! "${CXX}" -std=c++20 \
+    src/templates/*.cpp \
     src/cli/*.cpp \
     src/executor/*.cpp \
     src/fs/*.cpp \
