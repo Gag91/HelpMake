@@ -495,12 +495,27 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         {"PkgConfig {", "PkgConfig"},
     }};
 
+    static const std::map<std::string, std::pair<std::string Config::*, bool>> stringFields = {
+        {"Compiler:", {&Config::compiler, false}},
+        {"Version:", {&Config::version, false}},
+        {"Output:", {&Config::output, false}},
+        {"PCH:", {&Config::pch, false}},
+        {"Target:", {&Config::target, true}},
+        {"Linker:", {&Config::linker, true}},
+    };
+
+    static const std::map<std::string, bool Config::*> boolFields = {
+        {"Ccache:", &Config::ccache},
+        {"Strip:", &Config::strip},
+    };
+
     for (const auto &e_line : section.lines) {
         ++lineNo;
 
         hm::PlatformLine pl;
         std::string_view line = e_line;
         bool skipLine = false;
+        bool isConditional = false;
 
         while (true) {
             pl = hm::stripPlatformPrefix(line, target.compiler.empty() ? cfg.compiler : target.compiler);
@@ -512,6 +527,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
                 skipLine = true;
                 break;
             }
+            isConditional = true;
             line = pl.body;
         }
 
@@ -721,19 +737,49 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
 
         if (auto argumentsValue = fieldValue(line, "Arguments:"); argumentsValue) {
             parseArgument(target, *argumentsValue);
-        } else if (auto compilerValue = fieldValue(line, "Compiler:"); compilerValue) {
-            if (target.compiler.empty() || pl.conditional)
-                target.compiler = *compilerValue;
-            debugField("Compiler", target.compiler, section.configName);
-        } else if (auto versionValue = fieldValue(line, "Version:"); versionValue) {
-            if (target.version.empty() || pl.conditional)
-                target.version = *versionValue;
-            debugField("Version", target.version, section.configName);
-        } else if (auto outputValue = fieldValue(line, "Output:"); outputValue) {
-            if (target.output.empty() || pl.conditional)
-                target.output = *outputValue;
-            debugField("Output", target.output, section.configName);
-        } else if (auto flagsValue = fieldValue(line, "Flags:"); flagsValue) {
+            continue;
+        }
+
+        bool fieldMatched = false;
+
+        for (const auto &[key, field] : stringFields) {
+            if (auto value = fieldValue(line, key); value) {
+                const auto [member, alwaysOverwrite] = field;
+                if (alwaysOverwrite || (target.*member).empty() || isConditional)
+                    target.*member = *value;
+
+                debugField(key.substr(0, key.size() - 1), target.*member, section.configName);
+                fieldMatched = true;
+                break;
+            }
+        }
+        if (fieldMatched)
+            continue;
+
+        for (const auto &[key, member] : boolFields) {
+            if (auto value = fieldValue(line, key); value) {
+                const std::string label = key.substr(0, key.size() - 1);
+                const std::string lowered = to_lower(*value);
+
+                if (lowered == "true" || lowered == "false") {
+                    target.*member = lowered == "true";
+                    debugField(label, target.*member, section.configName);
+                } else {
+                    std::string hint;
+                    if (is_typo(*value, "true"))
+                        hint = " Did you mean true ?";
+                    else if (is_typo(*value, "false"))
+                        hint = " Did you mean false ?";
+                    cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown {} value '{}'.{}", filename.string(), lineNo, label, *value, hint));
+                }
+                fieldMatched = true;
+                break;
+            }
+        }
+        if (fieldMatched)
+            continue;
+
+        if (auto flagsValue = fieldValue(line, "Flags:"); flagsValue) {
             appendFlags(target, *flagsValue);
             debugField("Flags", *flagsValue, section.configName);
         } else if (auto inputFilesValue = fieldValue(line, "InputFiles:"); inputFilesValue) {
@@ -752,57 +798,15 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             debugField("Jobs", target.jobs, section.configName);
         } else if (auto modulesValue = fieldValue(line, "Modules:"); modulesValue) {
             appendModules(target, *modulesValue);
-        } else if (auto pchValue = fieldValue(line, "PCH:"); pchValue) {
-            if (target.pch.empty() || pl.conditional)
-                target.pch = *pchValue;
-            debugField("PCH", target.pch, section.configName);
         } else if (auto generatorValue = fieldValue(line, "Gen:"); generatorValue) {
             target.v_Gens.push_back(*generatorValue);
             debugField("Generator", *generatorValue);
-        } else if (auto TargetValue = fieldValue(line, "Target:"); TargetValue) {
-            target.target = *TargetValue;
-            debugField("Target", *TargetValue);
-        } else if (auto LinkerValue = fieldValue(line, "Linker:"); LinkerValue) {
-            target.linker = *LinkerValue;
-            debugField("Linker", *LinkerValue);
         } else if (auto SanitizeValue = fieldValue(line, "Sanitize:"); SanitizeValue) {
             if (!target.sanitize.empty())
                 target.sanitize += " ";
             target.sanitize += *SanitizeValue;
             target.v_Sanitize.push_back(*SanitizeValue);
             debugField("Sanitize", *SanitizeValue, section.configName);
-        } else if (auto ccacheValue = fieldValue(line, "Ccache:"); ccacheValue) {
-            if (to_lower(*ccacheValue) == "true")
-                target.ccache = true;
-            else if (to_lower(*ccacheValue) == "false")
-                target.ccache = false;
-            else if (is_typo(*ccacheValue, "true")) {
-                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Ccache value '{}'. Did you mean true ?", filename.string(), lineNo, *ccacheValue));
-                continue;
-            } else if (is_typo(*ccacheValue, "false")) {
-                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Ccache value '{}'. Did you mean false ?", filename.string(), lineNo, *ccacheValue));
-                continue;
-            } else if (is_typo(*ccacheValue, "true")) {
-                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Ccache value '{}'", filename.string(), lineNo, *ccacheValue));
-                continue;
-            }
-            debugField("Ccache", target.ccache, section.configName);
-        } else if (auto StripValue = fieldValue(line, "Strip:"); StripValue) {
-            if (to_lower(*StripValue) == "true")
-                target.strip = true;
-            else if (to_lower(*StripValue) == "false")
-                target.strip = false;
-            else if (is_typo(*StripValue, "true")) {
-                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Strip value '{}'. Did you mean true ?", filename.string(), lineNo, *StripValue));
-                continue;
-            } else if (is_typo(*StripValue, "false")) {
-                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Strip value '{}'. Did you mean false ?", filename.string(), lineNo, *StripValue));
-                continue;
-            } else if (is_typo(*StripValue, "true")) {
-                target.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Unknown Strip value '{}'", filename.string(), lineNo, *StripValue));
-                continue;
-            }
-            debugField("Strip", *StripValue, section.configName);
         } else if (auto SubsetsValue = fieldValue(line, "Subset:"); SubsetsValue) {
             if (!std::filesystem::exists(*SubsetsValue)) {
                 cfg.v_Errors.push_back(std::format("[HelpMake] Error: {}:{}: Subset '{}' isnt a recognized path", filename.string(), lineNo, *SubsetsValue));
