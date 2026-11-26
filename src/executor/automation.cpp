@@ -1126,6 +1126,18 @@ void Parser::normalizeOutput(Config &c) {
                 name = "lib" + name;
             c.output = dir + name + ".a";
         }
+    } else if (c.kind == "shared") {
+        if (isMsvc) {
+            c.output = dir + name + ".dll";
+        } else {
+            if (!name.starts_with("lib"))
+                name = "lib" + name;
+#ifdef __APPLE__
+            c.output = dir + name + ".dylib";
+#else
+            c.output = dir + name + ".so";
+#endif
+        }
     } else {
 #ifdef _WIN32
         if (!isMsvc && !name.ends_with(".exe") && !name.ends_with(".scr") && !name.ends_with(".com"))

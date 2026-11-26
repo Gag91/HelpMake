@@ -13,9 +13,11 @@
 #include "hp/colors/color.hpp"
 #include "hp/system/command.hpp"
 
-inline constexpr std::array<std::string_view, 2> validKinds = {
+inline constexpr std::array<std::string_view, 3> validKinds = {
     "executable",
-    "static"};
+    "static",
+    "shared",
+};
 
 inline bool similar(std::string_view first, std::string_view second) {
     if (first.size() != second.size())

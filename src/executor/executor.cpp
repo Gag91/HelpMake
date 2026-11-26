@@ -407,6 +407,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             current += " " + s;
         if (!CommandFlags.empty())
             current += " " + CommandFlags;
+        current += " kind:" + c.kind;
 
         std::string previous;
         if (std::ifstream in(marker); in)
@@ -723,6 +724,9 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             for (auto &a : comp->compileArgs(file))
                 args.push_back(a);
 
+            for (auto &a : comp->compileFlagsForKind(c.kind))
+                args.push_back(a);
+
             for (auto &a : comp->objectOutputArgs(objPath))
                 args.push_back(a);
 
@@ -864,6 +868,10 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
                 for (const auto &obj : objects)
                     args.push_back(obj);
+
+                for (auto &a : comp->linkFlagsForKind(c.kind)) {
+                    args.push_back(a);
+                }
 
                 if (!comp->isMSVC() && !linkFlags.empty()) {
                     std::vector<std::string> groupFlags;

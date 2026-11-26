@@ -91,6 +91,18 @@ namespace hm {
             return {"-fuse-ld=" + linker};
         }
 
+        std::vector<std::string> compileFlagsForKind(const std::string &kind) const override {
+            if (kind == "shared")
+                return {"-fPIC"};
+            return {};
+        }
+
+        std::vector<std::string> linkFlagsForKind(const std::string &kind) const override {
+            if (kind == "shared")
+                return {"-shared"};
+            return {};
+        }
+
         bool writesDepFile() const override {
             return true;
         }

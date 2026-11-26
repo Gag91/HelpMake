@@ -70,6 +70,18 @@ namespace hm {
             return {"-fsanitize=" + sanitizers, "-fno-omit-frame-pointer", "-g"};
         }
 
+        std::vector<std::string> compileFlagsForKind(const std::string &kind) const override {
+            if (kind == "shared")
+                return {"-fPIC"};
+            return {};
+        }
+
+        std::vector<std::string> linkFlagsForKind(const std::string &kind) const override {
+            if (kind == "shared")
+                return {"-shared"};
+            return {};
+        }
+
         bool writesDepFile() const override {
             return true;
         }

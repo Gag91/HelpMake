@@ -1,0 +1,3 @@
+Kind: shared
+Output: math
+InputFiles: math.cpp

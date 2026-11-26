@@ -32,13 +32,20 @@ namespace hm {
         virtual std::vector<std::string> subcommand() const {
             return {};
         }
-        virtual std::vector<std::string> sanitizeFlags(const std::string &/*sanitizers*/) const {
+        virtual std::vector<std::string> sanitizeFlags(const std::string & /*sanitizers*/) const {
             return {};
         }
-        virtual std::vector<std::string> scanDepsArgs(const std::string &/*std*/, const std::string &/*src*/, const std::string &/*jsonOutPath*/) const {
+        virtual std::vector<std::string> scanDepsArgs(const std::string & /*std*/, const std::string & /*src*/, const std::string & /*jsonOutPath*/) const {
             return {};
         }
-        virtual std::vector<std::string> linkerArgs(const std::string &/*linker*/) const {
+        virtual std::vector<std::string> linkerArgs(const std::string & /*linker*/) const {
+            return {};
+        }
+        virtual std::vector<std::string> compileFlagsForKind(const std::string & /*kind*/) const {
+            return {};
+        }
+
+        virtual std::vector<std::string> linkFlagsForKind(const std::string & /*kind*/) const {
             return {};
         }
 

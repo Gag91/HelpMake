@@ -75,6 +75,12 @@ namespace hm {
             return {"/LINKER:" + linker};
         }
 
+        std::vector<std::string> linkFlagsForKind(const std::string &kind) const override {
+            if (kind == "shared")
+                return {"/DLL"};
+            return {};
+        }
+
         bool pchNeedsSourceFile() const override {
             return true;
         }
