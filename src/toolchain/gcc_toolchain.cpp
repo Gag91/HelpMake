@@ -103,6 +103,13 @@ namespace hm {
             return {};
         }
 
+        std::vector<std::string> targetArgs(const std::string &target) const override {
+            if (is_clang) {
+                return {"--target=" + target};
+            }
+            return {};
+        }
+
         bool writesDepFile() const override {
             return true;
         }

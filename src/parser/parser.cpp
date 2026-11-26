@@ -153,7 +153,7 @@ int Parser::parse() {
         if (rc != 0)
             return rc;
     }
-    
+
     if (cfg.kind.empty()) {
         int rc = autoKind(cfg, "[HelpMake]");
         if (rc != 0)
@@ -437,7 +437,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
     if (!isRoot && cfg.debug)
         hp::printlnCl(std::format("\nFound Config {}:", section.configName), hp::CYAN);
 
-    static constexpr std::array<std::string_view, 37> knownKeys = {
+    static constexpr std::array<std::string_view, 38> knownKeys = {
         "Compiler:",
         "Version:",
         "Output:",
@@ -456,7 +456,8 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         "Sanitize:",
         "Strip:",
         "Linker:",
-        "Ccache",
+        "Ccache:",
+        "Target:",
         "Copy {",
         "InputFiles {",
         "Includes {",
@@ -758,6 +759,9 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
         } else if (auto generatorValue = fieldValue(line, "Gen:"); generatorValue) {
             target.v_Gens.push_back(*generatorValue);
             debugField("Generator", *generatorValue);
+        } else if (auto TargetValue = fieldValue(line, "Target:"); TargetValue) {
+            target.v_Gens.push_back(*TargetValue);
+            debugField("Target", *TargetValue);
         } else if (auto LinkerValue = fieldValue(line, "Linker:"); LinkerValue) {
             target.linker = *LinkerValue;
             debugField("Linker", *LinkerValue);

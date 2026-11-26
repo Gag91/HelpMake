@@ -21,7 +21,7 @@ namespace hm::cli {
         std::string Config::*field;
     };
 
-    static constexpr std::array<ScalarFlag, 13> scalarFlags = {{
+    static constexpr std::array<ScalarFlag, 14> scalarFlags = {{
         {"compiler", &Config::compiler},
         {"version", &Config::version},
         {"output", &Config::output},
@@ -35,6 +35,7 @@ namespace hm::cli {
         {"pch", &Config::pch},
         {"sanitize", &Config::sanitize},
         {"linker", &Config::linker},
+        {"target", &Config::target},
     }};
 
     struct BoolFlag {

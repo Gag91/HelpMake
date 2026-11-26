@@ -48,6 +48,9 @@ namespace hm {
         virtual std::vector<std::string> linkFlagsForKind(const std::string & /*kind*/) const {
             return {};
         }
+        virtual std::vector<std::string> targetArgs(const std::string & /*target*/) const {
+            return {};
+        }
 
         virtual bool pchNeedsSourceFile() const {
             return false;

@@ -379,6 +379,23 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             cfg.v_Info[std::format("{} Warning: Sanitizers enabled: '{}' ", tag, c.sanitize)] = hp::CYAN;
     }
 
+    if (!c.target.empty()) {
+        auto targetFlags = comp->targetArgs(c.target);
+        if (targetFlags.empty()) {
+            if (comp->isGcc()) {
+                cfg.v_Info[std::format("{} Warning: GCC does not support '--target'. Please use a cross-compiler binary (e.g., 'Compiler: aarch64-linux-gnu-g++') instead.", tag)] = hp::YELLOW;
+            } else if (comp->isMSVC()) {
+                cfg.v_Info[std::format("{} Warning: MSVC does not support '--target'. Please use the appropriate Developer Command Prompt (e.g., vcvarsall.bat amd64_arm64).", tag)] = hp::YELLOW;
+            }
+        } else {
+            for (const auto &f : targetFlags) {
+                if (!CommandFlags.empty())
+                    CommandFlags += " ";
+                CommandFlags += f;
+            }
+        }
+    }
+
     if (!c.linker.empty()) {
         for (const auto &f : comp->linkerArgs(c.linker)) {
             if (!CommandFlags.empty())

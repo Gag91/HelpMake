@@ -76,6 +76,10 @@ namespace hm {
             return {};
         }
 
+        std::vector<std::string> targetArgs(const std::string &target) const override {
+            return {"-target", target};
+        }
+
         bool writesDepFile() const override {
             return true;
         }
