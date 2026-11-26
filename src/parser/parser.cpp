@@ -760,7 +760,7 @@ int Parser::parseSection(const FileSection &section, Config &target, bool isRoot
             target.v_Gens.push_back(*generatorValue);
             debugField("Generator", *generatorValue);
         } else if (auto TargetValue = fieldValue(line, "Target:"); TargetValue) {
-            target.v_Gens.push_back(*TargetValue);
+            target.target = *TargetValue;
             debugField("Target", *TargetValue);
         } else if (auto LinkerValue = fieldValue(line, "Linker:"); LinkerValue) {
             target.linker = *LinkerValue;
