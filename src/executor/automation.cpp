@@ -781,6 +781,19 @@ static bool hasEntryPoint(std::string_view src) {
 int Parser::autoKind(Config &c, const std::string &tag) {
     if (c.kind == "static")
         return 0;
+
+    if (!c.output.empty()) {
+        std::string ext = std::filesystem::path(c.output).extension().string();
+        if (ext == ".so" || ext == ".dylib" || ext == ".dll") {
+            c.kind = "shared";
+            return 0;
+        }
+        if (ext == ".a" || ext == ".lib") {
+            c.kind = "static";
+            return 0;
+        }
+    }
+
     if (c.v_inputFiles.empty())
         collectFiles(c, tag);
 
