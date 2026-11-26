@@ -792,6 +792,10 @@ int Parser::autoKind(Config &c, const std::string &tag) {
             c.kind = "static";
             return 0;
         }
+        if (ext == ".exe") {
+            c.kind = "executable";
+            return 0;
+        }
     }
 
     if (c.v_inputFiles.empty())
