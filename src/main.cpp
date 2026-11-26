@@ -323,7 +323,10 @@ int main(int argc, char *argv[]) {
             hp::printlnCl("", hp::RESET);
 
         hp::Color summaryColor = (failed == 0) ? hp::GREEN : hp::RED;
-        hp::printlnCl(std::format("  {} passed, {} failed, {} skipped, {:.2f}s total", passed, failed, skipped, total), summaryColor);
+        hp::printCl(std::format("  {} passed", passed), hp::GREEN);
+        hp::printCl(std::format("  {} failed", failed), failed > 0 ? hp::RED : hp::GREEN);
+        hp::printCl(std::format("  {} skipped", skipped), skipped > 0 ? hp::YELLOW : hp::GREEN);
+        hp::printlnCl(std::format("  {:.2f}s total", total), summaryColor);
 
         if (!failures.empty()) {
             hp::printlnCl("\nFailures:", hp::RED);
