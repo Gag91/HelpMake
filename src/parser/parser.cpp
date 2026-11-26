@@ -148,14 +148,14 @@ int Parser::parse() {
             return rc;
     }
 
-    if (cfg.kind.empty()) {
-        int rc = autoKind(cfg, "[HelpMake]");
+    if (cfg.output.empty()) {
+        int rc = autoOutput(cfg, "[HelpMake]");
         if (rc != 0)
             return rc;
     }
-
-    if (cfg.output.empty()) {
-        int rc = autoOutput(cfg, "[HelpMake]");
+    
+    if (cfg.kind.empty()) {
+        int rc = autoKind(cfg, "[HelpMake]");
         if (rc != 0)
             return rc;
     }
