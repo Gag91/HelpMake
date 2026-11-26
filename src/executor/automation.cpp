@@ -779,21 +779,28 @@ static bool hasEntryPoint(std::string_view src) {
 }
 
 int Parser::autoKind(Config &c, const std::string &tag) {
-    if (c.kind == "static")
+    if (!c.kind.empty())
         return 0;
+
+    auto applyKind = [&](const std::string &kind) {
+        c.kind = kind;
+        if (kind == "static" || kind == "shared") {
+            c.v_Info[std::format("{} Warning: Kind not specified. Auto-detected kind: {}", tag, c.kind)] = hp::YELLOW;
+        }
+    };
 
     if (!c.output.empty()) {
         std::string ext = std::filesystem::path(c.output).extension().string();
         if (ext == ".so" || ext == ".dylib" || ext == ".dll") {
-            c.kind = "shared";
+            applyKind("shared");
             return 0;
         }
         if (ext == ".a" || ext == ".lib") {
-            c.kind = "static";
+            applyKind("static");
             return 0;
         }
         if (ext == ".exe") {
-            c.kind = "executable";
+            applyKind("executable");
             return 0;
         }
     }
@@ -832,13 +839,16 @@ int Parser::autoKind(Config &c, const std::string &tag) {
     }
 
     if (!hasCFamily) {
-        c.kind = "executable";
+        applyKind("executable");
         return 0;
     }
 
-    c.kind = foundMain ? "executable" : "static";
-    if (!foundMain)
-        c.v_Info[std::format("{} Warning: No entry point found. Using Kind: static", tag)] = hp::YELLOW;
+    if (foundMain) {
+        applyKind("executable");
+    } else {
+        applyKind("static");
+    }
+
     return 0;
 }
 

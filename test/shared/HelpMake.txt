@@ -1,3 +1,2 @@
-Kind: shared
-Output: math
+Output: math.dll
 InputFiles: math.cpp
