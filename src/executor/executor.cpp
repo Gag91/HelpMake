@@ -1,6 +1,7 @@
 #include "hm/parser/parser.hpp"
 #include "hm/process/process.hpp"
 #include "hm/toolchain/compiler.hpp"
+#include "hm/util/strings.hpp"
 
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
@@ -665,12 +666,12 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         }
 
         if (showOutput) {
-            hp::printlnCl(std::format("\n{} {} files to check:", tag, expandedFiles.size()), hp::YELLOW);
-            for (const auto &file : expandedFiles) {
-                std::string mtag = isModule(file) ? "[Module] " : "";
-                hp::printlnCl(std::format("- {}{}", mtag, file), hp::YELLOW);
-            }
-            std::cout << '\n';
+            print_tree(std::format("\n {} files to check:", expandedFiles.size()), expandedFiles, hp::YELLOW,
+                       [&](const std::string &file) -> std::string {
+                           std::string mtag = isModule(file) ? "[Module] " : "";
+                           return std::format("{}{}", mtag, file);
+                       });
+
             if (c.rebuild)
                 hp::printlnCl(std::format("{} Rebuilding forced, ignoring timestamps.", tag), hp::YELLOW);
         }
@@ -795,12 +796,12 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
 
             if (!needsBuild) {
                 if (!c.quiet && c.verbose)
-                    upToDate.push_back(std::format("{} Skip (up to date): {}", tag, file));
+                    upToDate.push_back(file);
                 objects.push_back(objPath);
                 continue;
             }
 
-            if (showOutput)
+            if (c.debug)
                 hp::printlnCl(std::format("\n{} Object Command: {}", tag, objCmd), hp::YELLOW);
 
             std::string safeStem = relPath.generic_string();
@@ -814,11 +815,8 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         }
 
         if (exitCode == 0) {
-            if (!c.quiet && c.verbose && !upToDate.empty()) {
-                std::cout << '\n';
-                for (const auto &up : upToDate)
-                    hp::printlnCl(up, hp::YELLOW);
-            }
+            if (!c.quiet && c.verbose && !upToDate.empty())
+                print_tree(std::format("\n{} files are already up to date:", upToDate.size()), upToDate, hp::YELLOW);
 
             std::vector<Job> moduleJobs, regularJobs;
             for (auto &j : jobs) {
@@ -933,7 +931,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
                 }
             }
 
-            if (showOutput)
+            if (c.debug)
                 hp::printlnCl(std::format("\n{} Link Command: {}", tag, linkCmd), hp::YELLOW);
 
             if (!c.dryRun) {
@@ -1120,93 +1118,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
         if (c.time)
             info[std::format("{} Build Plan Time: {}s\n", tag, elapsed)] = hp::CYAN;
 
-        if (!info.empty() && !c.quiet) {
-            hp::printlnCl("\nInfo:", hp::CYAN);
-
-            std::vector<const std::pair<const std::string, hp::Color> *> errors;
-            std::vector<const std::pair<const std::string, hp::Color> *> warnings;
-            std::vector<const std::pair<const std::string, hp::Color> *> successes;
-            std::vector<const std::pair<const std::string, hp::Color> *> infos;
-            std::vector<const std::pair<const std::string, hp::Color> *> debugs;
-
-            for (const auto &el : info) {
-                if (el.second == hp::RED)
-                    errors.push_back(&el);
-                else if (el.first.find("[Debug]") != std::string::npos && c.debug)
-                    debugs.push_back(&el);
-                else if (el.second == hp::YELLOW)
-                    warnings.push_back(&el);
-                else if (el.second == hp::GREEN && c.verbose)
-                    successes.push_back(&el);
-                else if (el.second == hp::CYAN)
-                    infos.push_back(&el);
-
-                else
-                    infos.push_back(&el);
-            }
-
-            auto dump = [](auto &v, const std::string &sym) {
-                if (v.empty())
-                    return;
-                std::cout << '\n';
-
-                std::string prefix = "  " + sym + "  ";
-                std::string indent = "     ";
-
-                for (const auto *el : v) {
-                    std::string text = el->first;
-                    while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
-                        text.pop_back();
-
-                    std::string out;
-                    std::size_t start = 0;
-                    bool first = true;
-                    while (true) {
-                        std::size_t nl = text.find('\n', start);
-                        std::string segment = text.substr(start, nl == std::string::npos ? nl : nl - start);
-                        if (!first)
-                            while (!segment.empty() && segment.front() == ' ')
-                                segment.erase(segment.begin());
-
-                        out += (first ? prefix : indent) + segment;
-                        if (nl == std::string::npos)
-                            break;
-
-                        out += '\n';
-                        start = nl + 1;
-                        first = false;
-                    }
-                    hp::printlnCl(out, el->second);
-                }
-            };
-
-            auto sortNL = [](auto &v) {
-                std::stable_sort(v.begin(), v.end(), [](const auto *a, const auto *b) {
-                    bool aNL = a->first.find('\n') != std::string::npos;
-                    bool bNL = b->first.find('\n') != std::string::npos;
-                    return aNL < bNL;
-                });
-            };
-
-            sortNL(errors);
-            sortNL(warnings);
-            sortNL(successes);
-            sortNL(infos);
-            sortNL(debugs);
-
-            if (!errors.empty())
-                dump(errors, "✘");
-            if (!warnings.empty())
-                dump(warnings, "⚠");
-            if (c.verbose) {
-                dump(successes, "✔");
-                dump(infos, "·");
-            }
-            if (c.debug)
-                dump(debugs, "·");
-
-            std::cout << '\n';
-        }
+        print_info(c, info);
 
         return 0;
     }
@@ -1226,94 +1138,7 @@ int Parser::executeConfig(const Config &c, const std::string &name) {
             cleanFile << cleanLog;
     }
 
-    if (!c.v_Info.empty() && !c.quiet) {
-        auto info = c.v_Info;
-        hp::printlnCl("\nInfo:", hp::CYAN);
-
-        std::vector<const std::pair<const std::string, hp::Color> *> errors;
-        std::vector<const std::pair<const std::string, hp::Color> *> warnings;
-        std::vector<const std::pair<const std::string, hp::Color> *> successes;
-        std::vector<const std::pair<const std::string, hp::Color> *> infos;
-        std::vector<const std::pair<const std::string, hp::Color> *> debugs;
-
-        for (const auto &el : info) {
-            if (el.second == hp::RED)
-                errors.push_back(&el);
-            else if (el.first.find("[Debug]") != std::string::npos && c.debug)
-                debugs.push_back(&el);
-            else if (el.second == hp::YELLOW)
-                warnings.push_back(&el);
-            else if (el.second == hp::GREEN && c.verbose)
-                successes.push_back(&el);
-            else if (el.second == hp::CYAN)
-                infos.push_back(&el);
-
-            else
-                infos.push_back(&el);
-        }
-
-        auto dump = [](auto &v, const std::string &sym) {
-            if (v.empty())
-                return;
-            std::cout << '\n';
-
-            std::string prefix = "  " + sym + "  ";
-            std::string indent = "     ";
-
-            for (const auto *el : v) {
-                std::string text = el->first;
-                while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
-                    text.pop_back();
-
-                std::string out;
-                std::size_t start = 0;
-                bool first = true;
-                while (true) {
-                    std::size_t nl = text.find('\n', start);
-                    std::string segment = text.substr(start, nl == std::string::npos ? nl : nl - start);
-                    if (!first)
-                        while (!segment.empty() && segment.front() == ' ')
-                            segment.erase(segment.begin());
-
-                    out += (first ? prefix : indent) + segment;
-                    if (nl == std::string::npos)
-                        break;
-
-                    out += '\n';
-                    start = nl + 1;
-                    first = false;
-                }
-                hp::printlnCl(out, el->second);
-            }
-        };
-
-        auto sortNL = [](auto &v) {
-            std::stable_sort(v.begin(), v.end(), [](const auto *a, const auto *b) {
-                bool aNL = a->first.find('\n') != std::string::npos;
-                bool bNL = b->first.find('\n') != std::string::npos;
-                return aNL < bNL;
-            });
-        };
-
-        sortNL(errors);
-        sortNL(warnings);
-        sortNL(successes);
-        sortNL(infos);
-        sortNL(debugs);
-
-        if (!errors.empty())
-            dump(errors, "✘");
-        if (!warnings.empty())
-            dump(warnings, "⚠");
-        if (c.verbose) {
-            dump(successes, "✔");
-            dump(infos, "·");
-        }
-        if (c.debug)
-            dump(debugs, "·");
-
-        std::cout << '\n';
-    }
+    print_info(c, cfg.v_Info);
 
     if (exitCode == 0) {
         if (c.notify)

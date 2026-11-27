@@ -76,13 +76,18 @@ int Parser::runJobs(std::vector<Job> &jobs, std::size_t n) {
         th.join();
 
     if (!cfg.quiet) {
-        hp::printlnCl(std::format("\n[HelpMake] Compile phase ({} job{}):", n, n == 0 ? "" : "s"), hp::YELLOW);
+        hp::printlnCl(std::format("\n[HelpMake] Compile phase ({} job{}):", n, n == 0 ? "" : "s"), hp::CYAN);
         for (std::size_t i = 0; i < jobs.size(); ++i) {
-            if (jobs[i].failed)
-                hp::printlnCl(std::format("- {} failed to compile", jobs[i].file), hp::RED);
-            else
-                hp::printlnCl(std::format("- {} compiled in {}s", jobs[i].file, times[i]), hp::YELLOW);
+            bool isLast = (i == jobs.size() - 1);
+            std::string prefix = std::string("  ") + (isLast ? "└─ " : "├─ ");
+
+            if (jobs[i].failed) {
+                hp::printlnCl(std::format("{}✘ {}", prefix, jobs[i].file), hp::RED);
+            } else {
+                hp::printlnCl(std::format("{}✔ {} compiled in {:.2f}s", prefix, jobs[i].file, times[i]), hp::GREEN);
+            }
         }
+        std::cout << '\n';
     }
 
     for (int rc : results)

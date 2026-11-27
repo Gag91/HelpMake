@@ -6,9 +6,11 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <map>
 #include <string>
 #include <string_view>
 
+#include "hm/config.hpp"
 #include "hp/colors/color.hpp"
 #include "hp/other/other.hpp"
 
@@ -190,4 +192,117 @@ inline std::string normalizeVersion(const std::string &version,
     if (version.empty() || version.front() == '-' || version.front() == '/')
         return version;
     return std::string(isMsvcLike(compiler) ? "/" : "-") + version;
+}
+
+inline void print_info(const Config &c, const std::map<std::string, hp::Color> &info) {
+    if (info.empty() || c.quiet)
+        return;
+
+    std::vector<std::string> errors, warnings, successes, infos, debugs;
+
+    for (const auto &el : info) {
+        if (el.second == hp::RED)
+            errors.push_back(el.first);
+        else if (el.first.find("[Debug]") != std::string::npos && c.debug)
+            debugs.push_back(el.first);
+        else if (el.second == hp::YELLOW)
+            warnings.push_back(el.first);
+        else if (el.second == hp::GREEN && c.verbose)
+            successes.push_back(el.first);
+        else
+            infos.push_back(el.first);
+    }
+
+    struct Group {
+        std::string name;
+        std::string sym;
+        hp::Color color;
+        std::vector<std::string> *items;
+    };
+
+    std::vector<Group> groups;
+    if (!errors.empty())
+        groups.push_back({"Errors", "✘", hp::RED, &errors});
+    if (!warnings.empty())
+        groups.push_back({"Warnings", "⚠", hp::YELLOW, &warnings});
+    if (!successes.empty())
+        groups.push_back({"Generated Files", "✔", hp::BRIGHT_GREEN, &successes});
+    if (!infos.empty())
+        groups.push_back({"Info", "·", hp::CYAN, &infos});
+    if (!debugs.empty())
+        groups.push_back({"Debug Logs", "·", hp::BRIGHT_BLACK, &debugs});
+
+    if (groups.empty())
+        return;
+
+    hp::printlnCl("\nInfo:", hp::CYAN);
+
+    for (std::size_t g = 0; g < groups.size(); ++g) {
+        std::cout << '\n';
+        hp::printlnCl(std::format("  {}  {}", groups[g].sym, groups[g].name), groups[g].color);
+
+        const auto &items = *groups[g].items;
+        for (std::size_t j = 0; j < items.size(); ++j) {
+            bool isLast = (j == items.size() - 1);
+            std::string text = items[j];
+            while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
+                text.pop_back();
+            if (text.starts_with("[HelpMake] "))
+                text.erase(0, 11);
+
+            std::cout << hp::getColorCode(hp::BRIGHT_BLACK)
+                      << "     " << (isLast ? "└─ " : "├─ ")
+                      << hp::getColorCode(groups[g].color)
+                      << text
+                      << hp::getColorCode(hp::RESET) << '\n';
+        }
+    }
+    std::cout << '\n';
+}
+
+template <typename Container, typename Formatter>
+    requires std::is_convertible_v<std::invoke_result_t<Formatter, typename Container::value_type>, std::string>
+void print_tree(std::string_view title, const Container &items, hp::Color color, Formatter formatter) {
+    if (items.empty())
+        return;
+    if (!title.empty())
+        hp::printlnCl(color, title);
+
+    std::size_t i = 0, total = items.size();
+    for (const auto &item : items) {
+        bool isLast = (i == total - 1);
+        std::cout << hp::getColorCode(hp::BRIGHT_BLACK)
+                  << "  " << (isLast ? "└─ " : "├─ ")
+                  << hp::getColorCode(color)
+                  << formatter(item)
+                  << hp::getColorCode(hp::RESET) << '\n';
+        ++i;
+    }
+    std::cout << '\n';
+}
+
+template <typename Container, typename Formatter>
+    requires std::is_void_v<std::invoke_result_t<Formatter, typename Container::value_type>>
+void print_tree(std::string_view title, const Container &items, Formatter formatter) {
+    if (items.empty())
+        return;
+    if (!title.empty())
+        std::cout << title << '\n';
+
+    std::size_t i = 0, total = items.size();
+    for (const auto &item : items) {
+        bool isLast = (i == total - 1);
+        std::cout << hp::getColorCode(hp::BRIGHT_BLACK)
+                  << "  " << (isLast ? "└─ " : "├─ ")
+                  << hp::getColorCode(hp::RESET);
+        formatter(item);
+        std::cout << hp::getColorCode(hp::RESET) << '\n';
+        ++i;
+    }
+    std::cout << '\n';
+}
+
+template <typename Container>
+void print_tree(std::string_view title, const Container &items, hp::Color color) {
+    print_tree(title, items, color, [](const auto &s) { return std::string(s); });
 }
